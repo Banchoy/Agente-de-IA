@@ -1,0 +1,19 @@
+
+> saas-enterprise@0.1.0 lint
+> eslint
+
+
+C:\Users\Lenovo\Downloads\Agentes de IA Chatbot\src\lib\db\schema.ts
+  3:10  warning  'sql' is defined but never used  @typescript-eslint/no-unused-vars
+
+C:\Users\Lenovo\Downloads\Agentes de IA Chatbot\src\lib\repositories\base.ts
+   3:17  warning  'organizations' is defined but never used   @typescript-eslint/no-unused-vars
+  19:20  error    Unexpected any. Specify a different type    @typescript-eslint/no-explicit-any
+  39:25  warning  'orgId' is assigned a value but never used  @typescript-eslint/no-unused-vars
+  51:20  warning  'data' is defined but never used            @typescript-eslint/no-unused-vars
+
+C:\Users\Lenovo\Downloads\Agentes de IA Chatbot\src\middleware.ts
+  3:10  warning  'NextResponse' is defined but never used  @typescript-eslint/no-unused-vars
+
+Ô£û 6 problems (1 error, 5 warnings)
+
