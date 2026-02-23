@@ -57,9 +57,9 @@ export default function WhatsAppConnectButton() {
                 console.error("❌ Nenhum QR Code encontrado na resposta:", result);
                 alert("A API respondeu, mas não enviou um QR Code válido. Verifique os logs.");
             }
-        } catch (error) {
+        } catch (error: any) {
             console.error("Failed to connect:", error);
-            alert("Erro ao conectar. Verifique as credenciais da API.");
+            alert(`Erro ao conectar: ${error.message || "Verifique as credenciais e a URL da API"}`);
         } finally {
             setIsLoading(false);
         }

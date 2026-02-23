@@ -45,7 +45,10 @@ export const EvolutionService = {
             headers: { "apikey": apiKey }
         });
 
-        if (!response.ok) return [];
+        if (!response.ok) {
+            const errorText = await response.text();
+            throw new Error(`Erro ao buscar instâncias (${response.status}): ${errorText}`);
+        }
         return await response.json();
     },
 
@@ -62,6 +65,11 @@ export const EvolutionService = {
                 qrcode: true
             })
         });
+
+        if (!response.ok) {
+            const errorText = await response.text();
+            throw new Error(`Erro ao criar instância (${response.status}): ${errorText}`);
+        }
 
         return await response.json();
     },
