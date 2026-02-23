@@ -18,7 +18,7 @@ import { auth } from "@clerk/nextjs/server";
 export async function withOrgContext<T>(
     callback: (tx: any) => Promise<T>
 ): Promise<T> {
-    const { orgId } = auth();
+    const { orgId } = await auth();
 
     if (!orgId) {
         throw new Error("No Organization Context Found");
@@ -36,7 +36,7 @@ export async function withOrgContext<T>(
 // Example usage in User Repository
 export const UserRepository = {
     getCurrentUser: async () => {
-        const { userId, orgId } = auth();
+        const { userId, orgId } = await auth();
         if (!userId) return null;
 
         // Use withOrgContext to ensure RLS policies (if any) are respected 
