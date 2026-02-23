@@ -33,7 +33,12 @@ export default async function NewAgentPage() {
             name: formData.get("name") as string,
             description: formData.get("description") as string,
             organizationId: dbOrg.id,
-            status: "active"
+            status: "active",
+            config: {
+                provider: formData.get("provider") as string,
+                model: formData.get("model") as string,
+                systemPrompt: formData.get("systemPrompt") as string
+            }
         });
 
         revalidatePath("/dashboard/agents");
@@ -49,40 +54,87 @@ export default async function NewAgentPage() {
 
             <div className="space-y-2">
                 <h1 className="text-3xl font-bold tracking-tight text-zinc-900">Novo Agente</h1>
-                <p className="text-zinc-600">Defina as características básicas do seu novo agente de IA.</p>
+                <p className="text-zinc-600">Defina a inteligência e o comportamento do seu novo agente.</p>
             </div>
 
-            <form action={handleSubmit} className="space-y-6 rounded-2xl border border-zinc-200 bg-white p-8">
-                <div className="space-y-4">
-                    <div className="space-y-2">
-                        <label htmlFor="name" className="text-sm font-medium text-zinc-900">Nome do Agente</label>
-                        <input
-                            type="text"
-                            name="name"
-                            id="name"
-                            placeholder="Ex: Assistente de Suporte V1"
-                            required
-                            className="w-full rounded-lg border border-zinc-200 px-4 py-3 text-sm focus:border-zinc-900 focus:outline-none focus:ring-1 focus:ring-zinc-900 transition-all"
-                        />
+            <form action={handleSubmit} className="space-y-8 rounded-2xl border border-zinc-200 bg-white p-8 shadow-sm">
+                <div className="space-y-6">
+                    {/* Basic Info */}
+                    <div className="grid gap-4">
+                        <div className="space-y-2">
+                            <label htmlFor="name" className="text-sm font-medium text-zinc-900">Nome do Agente</label>
+                            <input
+                                type="text"
+                                name="name"
+                                id="name"
+                                placeholder="Ex: Atendente de Vendas"
+                                required
+                                className="w-full rounded-lg border border-zinc-200 px-4 py-2.5 text-sm focus:border-zinc-900 focus:outline-none transition-all"
+                            />
+                        </div>
+                        <div className="space-y-2">
+                            <label htmlFor="description" className="text-sm font-medium text-zinc-900">Descrição</label>
+                            <input
+                                type="text"
+                                name="description"
+                                id="description"
+                                placeholder="Breve resumo da função do agente"
+                                className="w-full rounded-lg border border-zinc-200 px-4 py-2.5 text-sm focus:border-zinc-900 focus:outline-none transition-all"
+                            />
+                        </div>
                     </div>
+
+                    <hr className="border-zinc-100" />
+
+                    {/* AI Config */}
+                    <div className="grid gap-6 md:grid-cols-2">
+                        <div className="space-y-2">
+                            <label htmlFor="provider" className="text-sm font-medium text-zinc-900">Provedor de IA</label>
+                            <select
+                                name="provider"
+                                id="provider"
+                                required
+                                className="w-full rounded-lg border border-zinc-200 px-4 py-2.5 text-sm focus:border-zinc-900 focus:outline-none bg-white transition-all"
+                            >
+                                <option value="google">Google Gemini</option>
+                                <option value="openai">OpenAI (v2 em breve)</option>
+                                <option value="anthropic">Anthropic (v2 em breve)</option>
+                            </select>
+                        </div>
+                        <div className="space-y-2">
+                            <label htmlFor="model" className="text-sm font-medium text-zinc-900">Modelo</label>
+                            <select
+                                name="model"
+                                id="model"
+                                required
+                                className="w-full rounded-lg border border-zinc-200 px-4 py-2.5 text-sm focus:border-zinc-900 focus:outline-none bg-white transition-all"
+                            >
+                                <option value="gemini-1.5-flash">Gemini 1.5 Flash (Rápido)</option>
+                                <option value="gemini-1.5-pro">Gemini 1.5 Pro (Inteligente)</option>
+                            </select>
+                        </div>
+                    </div>
+
                     <div className="space-y-2">
-                        <label htmlFor="description" className="text-sm font-medium text-zinc-900">Descrição</label>
+                        <label htmlFor="systemPrompt" className="text-sm font-medium text-zinc-900">Prompt do Sistema (Personalidade)</label>
                         <textarea
-                            name="description"
-                            id="description"
-                            placeholder="Descreva o propósito deste agente..."
-                            rows={4}
-                            className="w-full rounded-lg border border-zinc-200 px-4 py-3 text-sm focus:border-zinc-900 focus:outline-none focus:ring-1 focus:ring-zinc-900 transition-all"
+                            name="systemPrompt"
+                            id="systemPrompt"
+                            placeholder="Ex: Você é um atendente simpático de uma barbearia..."
+                            rows={5}
+                            required
+                            className="w-full rounded-lg border border-zinc-200 px-4 py-3 text-sm focus:border-zinc-900 focus:outline-none transition-all resize-none"
                         ></textarea>
+                        <p className="text-[11px] text-zinc-500">Instrua o agente sobre como ele deve se comportar e quais informações deve fornecer.</p>
                     </div>
                 </div>
 
                 <button
                     type="submit"
-                    className="flex w-full items-center justify-center gap-2 rounded-lg bg-zinc-900 py-3 text-sm font-semibold text-white hover:bg-zinc-800 transition-all active:scale-[0.98]"
+                    className="flex w-full items-center justify-center gap-2 rounded-lg bg-zinc-900 py-3.5 text-sm font-semibold text-white hover:bg-zinc-800 transition-all active:scale-[0.98]"
                 >
                     <Sparkles size={18} />
-                    Criar Agente
+                    Criar Agente de IA
                 </button>
             </form>
         </div>

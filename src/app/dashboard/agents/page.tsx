@@ -57,10 +57,22 @@ export default async function AgentsPage() {
                             <h3 className="mb-1 text-lg font-bold">{agent.name}</h3>
                             <p className="mb-6 text-sm text-zinc-600 line-clamp-2">{agent.description || "Sem descrição."}</p>
 
-                            <div className="flex items-center justify-between">
-                                <div className="flex items-center gap-2 rounded-full bg-green-50 px-2 py-0.5 text-xs font-semibold text-green-700 border border-green-100 uppercase tracking-wider">
+                            <div className="flex items-center gap-2 mb-6">
+                                <div className="flex items-center gap-2 rounded-full bg-green-50 px-2 py-0.5 text-[10px] font-bold text-green-700 border border-green-100 uppercase tracking-tighter">
                                     {agent.status}
                                 </div>
+                                {agent.config?.provider && (
+                                    <div className="flex items-center gap-2 rounded-full bg-blue-50 px-2 py-0.5 text-[10px] font-bold text-blue-700 border border-blue-100 uppercase tracking-tighter">
+                                        {agent.config.provider}
+                                    </div>
+                                )}
+                                {agent.config?.model && (
+                                    <div className="flex items-center gap-2 rounded-full bg-purple-50 px-2 py-0.5 text-[10px] font-bold text-purple-700 border border-purple-100 uppercase tracking-tighter">
+                                        {agent.config.model.replace('gemini-', '')}
+                                    </div>
+                                )}
+                            </div>
+                            <div className="flex items-center justify-end">
                                 <Link href={`/dashboard/agents/${agent.id}`} className="text-zinc-400 hover:text-zinc-900 transition-colors">
                                     <ExternalLink size={18} />
                                 </Link>

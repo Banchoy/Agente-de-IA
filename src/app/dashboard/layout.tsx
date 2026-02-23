@@ -1,5 +1,5 @@
 import { UserButton, OrganizationSwitcher } from "@clerk/nextjs";
-import { LayoutDashboard, Users, Settings, History, Bot, Menu } from "lucide-react";
+import { LayoutDashboard, Users, Settings, History, Bot, Menu, MessageSquare } from "lucide-react";
 import Link from "next/link";
 
 export default function DashboardLayout({
@@ -16,9 +16,17 @@ export default function DashboardLayout({
                     Agente AI
                 </div>
                 <nav className="flex-1 space-y-1 p-4">
-                    <Link href="/dashboard" className="flex items-center gap-3 rounded-lg bg-zinc-100 px-3 py-2 text-zinc-900 font-medium">
+                    <Link href="/dashboard" className="flex items-center gap-3 rounded-lg px-3 py-2 text-zinc-600 hover:bg-zinc-50 hover:text-zinc-900 transition-colors">
                         <LayoutDashboard size={20} />
                         Dashboard
+                    </Link>
+                    <Link href="/dashboard/agents" className="flex items-center gap-3 rounded-lg px-3 py-2 text-zinc-600 hover:bg-zinc-50 hover:text-zinc-900 transition-colors">
+                        <Bot size={20} />
+                        Agentes
+                    </Link>
+                    <Link href="/dashboard/whatsapp" className="flex items-center gap-3 rounded-lg px-3 py-2 text-zinc-600 hover:bg-zinc-50 hover:text-zinc-900 transition-colors">
+                        <MessageSquare size={20} />
+                        WhatsApp
                     </Link>
                     <Link href="/dashboard/users" className="flex items-center gap-3 rounded-lg px-3 py-2 text-zinc-600 hover:bg-zinc-50 hover:text-zinc-900 transition-colors">
                         <Users size={20} />
