@@ -9,21 +9,35 @@ export const EvolutionService = {
      * Creates or fetches an instance and returns connection data (like QR Code)
      */
     connect: async (orgId: string, apiUrl: string, apiKey: string, instanceName: string) => {
-        // 1. Check if instance exists
-        const instances = await EvolutionService.getInstances(apiUrl, apiKey);
-        const existing = instances.find((i: any) => i.instanceName === instanceName);
+        try {
+            // 1. Check if instance exists
+            const instances = await EvolutionService.getInstances(apiUrl, apiKey);
+            const existing = instances.find((i: any) => i.instanceName === instanceName);
 
-        if (!existing) {
-            // 2. Create if not exists
-            await EvolutionService.createInstance(apiUrl, apiKey, instanceName);
+            if (!existing) {
+                // 2. Create if not exists
+                console.log(`🔨 Criando nova instância: ${instanceName}`);
+                await EvolutionService.createInstance(apiUrl, apiKey, instanceName);
+            }
+
+            // 3. Get QR Code / Connection state
+            console.log(`🔗 Tentando conectar à Evolution API: ${apiUrl}/instance/connect/${instanceName}`);
+
+            const response = await fetch(`${apiUrl}/instance/connect/${instanceName}`, {
+                headers: { "apikey": apiKey }
+            });
+
+            if (!response.ok) {
+                const errorText = await response.text();
+                console.error(`❌ Erro HTTP ${response.status} ao conectar:`, errorText);
+                throw new Error(`Erro na API (${response.status})`);
+            }
+
+            return await response.json();
+        } catch (error: any) {
+            console.error("❌ Falha crítica na conexão com Evolution API:", error.message);
+            throw error;
         }
-
-        // 3. Get QR Code / Connection state
-        const response = await fetch(`${apiUrl}/instance/connect/${instanceName}`, {
-            headers: { "apikey": apiKey }
-        });
-
-        return await response.json();
     },
 
     getInstances: async (apiUrl: string, apiKey: string) => {

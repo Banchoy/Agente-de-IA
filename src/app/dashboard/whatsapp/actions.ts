@@ -9,8 +9,15 @@ export async function saveEvolutionSettings(formData: FormData) {
     const { orgId: clerkOrgId } = await auth();
     if (!clerkOrgId) throw new Error("Unauthorized");
 
-    const apiUrl = formData.get("apiUrl") as string;
-    const apiKey = formData.get("apiKey") as string;
+    let apiUrl = (formData.get("apiUrl") as string).trim();
+    const apiKey = (formData.get("apiKey") as string).trim();
+
+    // Normalização básica da URL
+    if (!apiUrl.startsWith("http")) {
+        apiUrl = `https://${apiUrl}`;
+    }
+    // Remove barra no final se existir
+    apiUrl = apiUrl.replace(/\/$/, "");
 
     const org = await OrganizationRepository.getByClerkId(clerkOrgId);
     if (!org) throw new Error("Organization not found");
