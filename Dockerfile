@@ -12,10 +12,10 @@ WORKDIR /app
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
 
-# Variáveis de ambiente necessárias para o build (podem ser passadas via --build-arg se necessário)
-# NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY=...
-# CLERK_SECRET_KEY=...
-# DATABASE_URL=...
+# Variáveis de ambiente dummy apenas para satisfazer o build do Next.js/Clerk
+ENV NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY=pk_test_dummy
+ENV CLERK_SECRET_KEY=sk_test_dummy
+ENV DATABASE_URL=postgres://localhost:5432/dummy
 
 RUN npm run build
 
