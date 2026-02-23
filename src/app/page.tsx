@@ -3,6 +3,8 @@ import { redirect } from "next/navigation";
 import Link from "next/link";
 import { ArrowRight, Bot, Zap, Shield, Sparkles } from "lucide-react";
 
+export const dynamic = "force-dynamic";
+
 export default async function Home() {
   const { userId } = await auth();
 

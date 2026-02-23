@@ -3,6 +3,8 @@ import { LayoutDashboard, Users, Settings, History, Bot, Menu, MessageSquare } f
 import Link from "next/link";
 import { UserService } from "@/lib/services/user";
 
+export const dynamic = "force-dynamic";
+
 export default async function DashboardLayout({
     children,
 }: {
