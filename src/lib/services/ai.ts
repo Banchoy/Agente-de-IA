@@ -13,10 +13,11 @@ export const AIService = {
         provider: AIProvider,
         model: string,
         systemPrompt: string,
-        messages: ChatMessage[]
+        messages: ChatMessage[],
+        temperature?: number
     ) => {
         if (provider === "google") {
-            return await AIService.generateGeminiResponse(model, systemPrompt, messages);
+            return await AIService.generateGeminiResponse(model, systemPrompt, messages, temperature);
         }
 
         // Placeholder for other providers
@@ -26,7 +27,8 @@ export const AIService = {
     generateGeminiResponse: async (
         model: string,
         systemPrompt: string,
-        messages: ChatMessage[]
+        messages: ChatMessage[],
+        temperature: number = 0.7
     ) => {
         const apiKey = env.GOOGLE_GEMINI_API_KEY;
         if (!apiKey) {
@@ -36,7 +38,10 @@ export const AIService = {
         const genAI = new GoogleGenerativeAI(apiKey);
         const geminiModel = genAI.getGenerativeModel({
             model: model || "gemini-1.5-flash",
-            systemInstruction: systemPrompt
+            systemInstruction: systemPrompt,
+            generationConfig: {
+                temperature: temperature
+            }
         });
 
         // Convert messages to Gemini format

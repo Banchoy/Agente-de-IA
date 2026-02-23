@@ -9,6 +9,10 @@ export const organizations = pgTable("organizations", {
     id: uuid("id").defaultRandom().primaryKey(),
     clerkOrgId: text("clerk_org_id").notNull().unique(), // Maps to Clerk Organization ID
     name: text("name").notNull(),
+    evolutionApiUrl: text("evolution_api_url"),
+    evolutionApiKey: text("evolution_api_key"),
+    evolutionInstanceStatus: text("evolution_instance_status").default("disconnected"),
+    evolutionInstanceName: text("evolution_instance_name"),
     createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 

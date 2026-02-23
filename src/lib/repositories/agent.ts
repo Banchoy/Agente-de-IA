@@ -10,6 +10,12 @@ export const AgentRepository = {
         });
     },
 
+    listByOrgId: async (organizationId: string) => {
+        return await db.query.agents.findMany({
+            where: eq(agents.organizationId, organizationId)
+        });
+    },
+
     getById: async (id: string) => {
         return await withOrgContext(async (tx) => {
             return await tx.query.agents.findFirst({
