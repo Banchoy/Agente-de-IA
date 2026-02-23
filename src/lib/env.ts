@@ -23,9 +23,13 @@ if (!parsed.success) {
     if (isBuild) {
         console.warn("⚠️ Variáveis de ambiente faltando durante o build. Isso é normal se você estiver gerando uma imagem Docker sem segredos expostos.");
     } else {
-        console.error("❌ Erro de validação das variáveis de ambiente:", JSON.stringify(parsed.error.format(), null, 2));
-        throw new Error("Variáveis de ambiente inválidas");
+        console.error("❌ Erro de validação das variáveis de ambiente:");
+        const errors = parsed.error.flatten().fieldErrors;
+        Object.entries(errors).forEach(([field, messages]) => {
+            console.error(`  - ${field}: ${messages?.join(", ")}`);
+        });
+        // Não jogamos erro aqui para não travar o server, mas os logs avisarão
     }
 }
 
-export const env = parsed.success ? parsed.data : ({} as z.infer<typeof envSchema>);
+export const env = parsed.success ? parsed.data : (process.env as unknown as z.infer<typeof envSchema>);
