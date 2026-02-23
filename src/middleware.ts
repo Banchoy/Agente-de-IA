@@ -16,8 +16,7 @@ export default clerkMiddleware(async (auth, req) => {
         // For now, we just ensure they are authenticated.
 
         if (!orgId && req.nextUrl.pathname !== "/org-selection") {
-            // You might want to redirect here if organization logic is strict
-            // return NextResponse.redirect(new URL("/org-selection", req.url));
+            return NextResponse.redirect(new URL("/org-selection", req.url));
         }
     }
 });
