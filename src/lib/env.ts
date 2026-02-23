@@ -15,4 +15,17 @@ const envSchema = z.object({
     EVOLUTION_API_KEY: z.string().optional(),
 });
 
-export const env = envSchema.parse(process.env);
+const parsed = envSchema.safeParse(process.env);
+
+if (!parsed.success) {
+    const isBuild = process.env.NODE_ENV === "production" && !process.env.DATABASE_URL;
+
+    if (isBuild) {
+        console.warn("⚠️ Variáveis de ambiente faltando durante o build. Isso é normal se você estiver gerando uma imagem Docker sem segredos expostos.");
+    } else {
+        console.error("❌ Erro de validação das variáveis de ambiente:", JSON.stringify(parsed.error.format(), null, 2));
+        throw new Error("Variáveis de ambiente inválidas");
+    }
+}
+
+export const env = parsed.success ? parsed.data : ({} as z.infer<typeof envSchema>);

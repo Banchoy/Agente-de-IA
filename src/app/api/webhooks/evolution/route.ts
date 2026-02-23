@@ -4,6 +4,8 @@ import { AgentRepository } from "@/lib/repositories/agent";
 import { AIService } from "@/lib/services/ai";
 import { EvolutionService } from "@/lib/services/evolution";
 
+export const dynamic = "force-dynamic";
+
 export async function POST(req: NextRequest) {
     try {
         const body = await req.json();
