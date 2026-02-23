@@ -1,5 +1,5 @@
 
-import { pgTable, text, uuid, timestamp, jsonb, index } from "drizzle-orm/pg-core";
+import { pgTable, text, uuid, timestamp, jsonb, index, uniqueIndex } from "drizzle-orm/pg-core";
 import { sql } from "drizzle-orm";
 
 // -----------------------------------------------------------------------------
