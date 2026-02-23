@@ -1,0 +1,64 @@
+version: '3.8'
+
+services:
+  # Micro SaaS Application
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: saas_app
+    restart: always
+    ports:
+      - "3000:3000"
+    environment:
+      - NODE_ENV=production
+      - NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY=${NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY}
+      - CLERK_SECRET_KEY=${CLERK_SECRET_KEY}
+      - DATABASE_URL=${DATABASE_URL}
+      - GOOGLE_GEMINI_API_KEY=${GOOGLE_GEMINI_API_KEY}
+      - NEXT_PUBLIC_CLERK_SIGN_IN_URL=/sign-in
+      - NEXT_PUBLIC_CLERK_SIGN_UP_URL=/sign-up
+      - EVOLUTION_API_URL=http://evolution_api:8080
+    depends_on:
+      - evolution_api
+
+  # Evolution API (WhatsApp)
+  evolution_api:
+    image: atendai/evolution-api:latest
+    container_name: evolution_api
+    restart: always
+    ports:
+      - "8080:8080"
+    environment:
+      - SERVER_URL=http://evolution_api:8080
+      - DOCKER_ENV=true
+      - AUTH_TYPE=apikey
+      - AUTH_API_KEY=422473D86663-4471-A665-F3D6C14B8224
+      - DATABASE_ENABLED=true
+      - DATABASE_CONNECTION_URI=postgres://postgres:postgres@db:5432/evolution?sslmode=disable
+      - DATABASE_TYPE=postgres
+      - STORE_MESSAGES=true
+      - WEBHOOK_GLOBAL_ENABLED=true
+      - WEBHOOK_GLOBAL_URL=http://app:3000/api/webhooks/evolution
+    depends_on:
+      - db
+
+  # Database for Evolution API
+  db:
+    image: postgres:15-alpine
+    container_name: evolution_db
+    restart: always
+    environment:
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=postgres
+      - POSTGRES_DB=evolution
+    volumes:
+      - evolution_db_data:/var/lib/postgresql/data
+
+volumes:
+  evolution_db_data:
+
+
+networks:
+  default:
+    name: saas_network
