@@ -38,12 +38,24 @@ export default function WhatsAppConnectButton() {
         setIsLoading(true);
         try {
             const result = await connectWhatsApp();
-            if (result && result.code) {
-                setQrCode(result.code);
+            console.log("📦 Resposta do Connect:", result);
+
+            // A Evolution API v2 pode retornar o QR em campos diferentes: base64 ou code
+            let rawCode = result?.base64 || result?.code || result?.qrcode?.base64 || result?.qrcode?.code;
+
+            if (rawCode) {
+                // Se o código não tiver o prefixo de imagem, nós adicionamos
+                if (!rawCode.startsWith("data:")) {
+                    rawCode = `data:image/png;base64,${rawCode}`;
+                }
+                setQrCode(rawCode);
                 setShowModal(true);
             } else if (result && (result.status === "connected" || result.status === "open")) {
                 alert("WhatsApp já está conectado!");
                 window.location.reload();
+            } else {
+                console.error("❌ Nenhum QR Code encontrado na resposta:", result);
+                alert("A API respondeu, mas não enviou um QR Code válido. Verifique os logs.");
             }
         } catch (error) {
             console.error("Failed to connect:", error);
