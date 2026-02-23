@@ -31,32 +31,42 @@ export async function saveEvolutionSettings(formData: FormData) {
 }
 
 export async function connectWhatsApp() {
-    const { orgId: clerkOrgId } = await auth();
-    if (!clerkOrgId) throw new Error("Unauthorized");
+    try {
+        const { orgId: clerkOrgId } = await auth();
+        if (!clerkOrgId) throw new Error("Não autorizado. Faça login novamente.");
 
-    const org = await OrganizationRepository.getByClerkId(clerkOrgId);
-    if (!org || !org.evolutionApiUrl || !org.evolutionApiKey) {
-        throw new Error("Evolution API credentials not configured");
+        const org = await OrganizationRepository.getByClerkId(clerkOrgId);
+        if (!org || !org.evolutionApiUrl || !org.evolutionApiKey) {
+            throw new Error("Credenciais da Evolution API não configuradas corretamente.");
+        }
+
+        const instanceName = org.evolutionInstanceName || `inst_${org.id.split('-')[0]}`;
+
+        // Connect via service
+        console.log(`🚀 Iniciando conexão para instância: ${instanceName} na URL: ${org.evolutionApiUrl}`);
+
+        const result = await EvolutionService.connect(
+            org.id,
+            org.evolutionApiUrl,
+            org.evolutionApiKey,
+            instanceName
+        );
+
+        // Update local status
+        await OrganizationRepository.update(org.id, {
+            evolutionInstanceName: instanceName,
+            evolutionInstanceStatus: "connecting"
+        });
+
+        revalidatePath("/dashboard/whatsapp");
+        return { success: true, ...result };
+    } catch (error: any) {
+        console.error("❌ Erro na Server Action connectWhatsApp:", error.message);
+        return {
+            success: false,
+            error: error.message || "Erro interno no servidor de mensagens."
+        };
     }
-
-    const instanceName = org.evolutionInstanceName || `inst_${org.id.split('-')[0]}`;
-
-    // Connect via service
-    const result = await EvolutionService.connect(
-        org.id,
-        org.evolutionApiUrl,
-        org.evolutionApiKey,
-        instanceName
-    );
-
-    // Update local status if necessary (usually "connecting" or similar)
-    await OrganizationRepository.update(org.id, {
-        evolutionInstanceName: instanceName,
-        evolutionInstanceStatus: "connecting"
-    });
-
-    revalidatePath("/dashboard/whatsapp");
-    return result;
 }
 
 export async function disconnectWhatsApp() {

@@ -40,6 +40,11 @@ export default function WhatsAppConnectButton() {
             const result = await connectWhatsApp();
             console.log("📦 Resposta do Connect:", result);
 
+            if (result && !result.success) {
+                alert(`Erro: ${result.error}`);
+                return;
+            }
+
             // A Evolution API v2 pode retornar o QR em campos diferentes: base64 ou code
             let rawCode = result?.base64 || result?.code || result?.qrcode?.base64 || result?.qrcode?.code;
 
@@ -55,11 +60,11 @@ export default function WhatsAppConnectButton() {
                 window.location.reload();
             } else {
                 console.error("❌ Nenhum QR Code encontrado na resposta:", result);
-                alert("A API respondeu, mas não enviou um QR Code válido. Verifique os logs.");
+                alert("A API respondeu com sucesso, mas não enviou o código do WhatsApp. Tente novamente.");
             }
         } catch (error: any) {
             console.error("Failed to connect:", error);
-            alert(`Erro ao conectar: ${error.message || "Verifique as credenciais e a URL da API"}`);
+            alert(`Falha na comunicação com o servidor: ${error.message || "Tente novamente mais tarde."}`);
         } finally {
             setIsLoading(false);
         }
