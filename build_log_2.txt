@@ -1,0 +1,64 @@
+
+> saas-enterprise@0.1.0 build
+> next build
+
+Ôû▓ Next.js 16.1.6 (Turbopack)
+- Environments: .env
+
+ÔÜá The "middleware" file convention is deprecated. Please use "proxy" instead. Learn more: https://nextjs.org/docs/messages/middleware-to-proxy
+  Creating an optimized production build ...
+Ô£ô Compiled successfully in 3.8s
+  Running TypeScript ...
+  Collecting page data using 7 workers ...
+Error: Failed to collect configuration for /dashboard/agents/new
+    at ignore-listed frames {
+  [cause]: Error [ZodError]: [
+    {
+      "expected": "string",
+      "code": "invalid_type",
+      "path": [
+        "DATABASE_URL"
+      ],
+      "message": "Invalid input: expected string, received undefined"
+    }
+  ]
+      at module evaluation (C:\Users\Lenovo\Downloads\Agentes de IA Chatbot\.next\server\chunks\ssr\[root-of-the-server]__bb90892d._.js:64:171719)
+      at instantiateModule (C:\Users\Lenovo\Downloads\Agentes de IA Chatbot\.next\server\chunks\ssr\[turbopack]_runtime.js:740:9)
+      at getOrInstantiateModuleFromParent (C:\Users\Lenovo\Downloads\Agentes de IA Chatbot\.next\server\chunks\ssr\[turbopack]_runtime.js:763:12)
+      at Context.esmImport [as i] (C:\Users\Lenovo\Downloads\Agentes de IA Chatbot\.next\server\chunks\ssr\[turbopack]_runtime.js:228:20)
+      at module evaluation (C:\Users\Lenovo\Downloads\Agentes de IA Chatbot\.next\server\chunks\ssr\_80041225._.js:1:898)
+      at instantiateModule (C:\Users\Lenovo\Downloads\Agentes de IA Chatbot\.next\server\chunks\ssr\[turbopack]_runtime.js:740:9)
+      at getOrInstantiateModuleFromParent (C:\Users\Lenovo\Downloads\Agentes de IA Chatbot\.next\server\chunks\ssr\[turbopack]_runtime.js:763:12)
+      at Context.esmImport [as i] (C:\Users\Lenovo\Downloads\Agentes de IA Chatbot\.next\server\chunks\ssr\[turbopack]_runtime.js:228:20)
+      at module evaluation (C:\Users\Lenovo\Downloads\Agentes de IA Chatbot\.next\server\chunks\ssr\_640fc5da._.js:8:43290)
+      at instantiateModule (C:\Users\Lenovo\Downloads\Agentes de IA Chatbot\.next\server\chunks\ssr\[turbopack]_runtime.js:740:9)
+}
+Error: Failed to collect configuration for /dashboard
+    at ignore-listed frames {
+  [cause]: Error [ZodError]: [
+    {
+      "expected": "string",
+      "code": "invalid_type",
+      "path": [
+        "DATABASE_URL"
+      ],
+      "message": "Invalid input: expected string, received undefined"
+    }
+  ]
+      at module evaluation (C:\Users\Lenovo\Downloads\Agentes de IA Chatbot\.next\server\chunks\ssr\[root-of-the-server]__e2a373f8._.js:64:171719)
+      at instantiateModule (C:\Users\Lenovo\Downloads\Agentes de IA Chatbot\.next\server\chunks\ssr\[turbopack]_runtime.js:740:9)
+      at getOrInstantiateModuleFromParent (C:\Users\Lenovo\Downloads\Agentes de IA Chatbot\.next\server\chunks\ssr\[turbopack]_runtime.js:763:12)
+      at Context.esmImport [as i] (C:\Users\Lenovo\Downloads\Agentes de IA Chatbot\.next\server\chunks\ssr\[turbopack]_runtime.js:228:20)
+      at module evaluation (C:\Users\Lenovo\Downloads\Agentes de IA Chatbot\.next\server\chunks\ssr\[root-of-the-server]__f1cb0569._.js:1:920)
+      at instantiateModule (C:\Users\Lenovo\Downloads\Agentes de IA Chatbot\.next\server\chunks\ssr\[turbopack]_runtime.js:740:9)
+      at getOrInstantiateModuleFromParent (C:\Users\Lenovo\Downloads\Agentes de IA Chatbot\.next\server\chunks\ssr\[turbopack]_runtime.js:763:12)
+      at Context.esmImport [as i] (C:\Users\Lenovo\Downloads\Agentes de IA Chatbot\.next\server\chunks\ssr\[turbopack]_runtime.js:228:20)
+      at module evaluation (C:\Users\Lenovo\Downloads\Agentes de IA Chatbot\.next\server\chunks\ssr\_3c794dae._.js:1:33)
+      at instantiateModule (C:\Users\Lenovo\Downloads\Agentes de IA Chatbot\.next\server\chunks\ssr\[turbopack]_runtime.js:740:9)
+}
+
+> Build error occurred
+Error: Failed to collect page data for /dashboard/agents/new
+    at ignore-listed frames {
+  type: 'Error'
+}

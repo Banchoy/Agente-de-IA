@@ -1,0 +1,24 @@
+
+> saas-enterprise@0.1.0 build
+> next build
+
+Ôû▓ Next.js 16.1.6 (Turbopack)
+- Environments: .env
+
+ÔÜá The "middleware" file convention is deprecated. Please use "proxy" instead. Learn more: https://nextjs.org/docs/messages/middleware-to-proxy
+  Creating an optimized production build ...
+Ô£ô Compiled successfully in 4.3s
+  Running TypeScript ...
+Failed to compile.
+
+./src/app/dashboard/agents/page.tsx:47:33
+Type error: Parameter 'agent' implicitly has an 'any' type.
+
+  45 |                     </div>
+  46 |                 ) : (
+> 47 |                     agents.map((agent) => (
+     |                                 ^
+  48 |                         <div key={agent.id} className="group relative rounded-2xl border border-zinc-200 bg-white p-6 transition-all hover:shadow-md">
+  49 |                             <div className="mb-4 flex items-start justify-between">
+  50 |                                 <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-zinc-100 text-zinc-900">
+Next.js build worker exited with code: 1 and signal: null

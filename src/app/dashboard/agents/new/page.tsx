@@ -4,44 +4,30 @@ import { AgentRepository } from "@/lib/repositories/agent";
 import { revalidatePath } from "next/cache";
 import { Bot, ArrowLeft, Sparkles } from "lucide-react";
 import Link from "next/link";
+import { db } from "@/lib/db";
+import { organizations } from "@/lib/db/schema";
+import { eq } from "drizzle-orm";
 
 export default async function NewAgentPage() {
-    const { userId, orgId } = await auth();
+    const { userId, orgId: clerkOrgId } = await auth();
 
     if (!userId) redirect("/sign-in");
-    if (!orgId) redirect("/org-selection");
+    if (!clerkOrgId) redirect("/org-selection");
 
-    async function createAgent(formData: FormData) {
+    // Action to create the agent
+    async function handleSubmit(formData: FormData) {
         "use server";
+        const { orgId: currentClerkOrgId } = await auth();
+        if (!currentClerkOrgId) return;
 
-        const { orgId } = await auth();
-        if (!orgId) throw new Error("Unauthorized");
-
-        const name = formData.get("name") as string;
-        const description = formData.get("description") as string;
-
-        await AgentRepository.create({
-            name,
-            description,
-            organizationId: (await AgentRepository.listByOrg()).length >= 0 ? (await import("@/lib/db")).db.query.organizations.findFirst({ where: (await import("@/lib/db/schema")).organizations.clerkOrgId.equals(orgId) }).then(o => o?.id) : "" as any,
-            // Note: We need the UUID of the org, not the Clerk ID. UserService.syncUser handles this normally.
+        // Get the DB UUID for this organization
+        const dbOrg = await db.query.organizations.findFirst({
+            where: eq(organizations.clerkOrgId, currentClerkOrgId)
         });
 
-        revalidatePath("/dashboard/agents");
-        redirect("/dashboard/agents");
-    }
-
-    // Improved server action logic to get correct Org UUID
-    const handleSubmit = async (formData: FormData) => {
-        "use server";
-        const { orgId: clerkOrgId } = await auth();
-        if (!clerkOrgId) return;
-
-        const dbOrg = await (await import("@/lib/db")).db.query.organizations.findFirst({
-            where: (el, { eq }) => eq((await import("@/lib/db/schema")).organizations.clerkOrgId, clerkOrgId)
-        });
-
-        if (!dbOrg) return;
+        if (!dbOrg) {
+            throw new Error("Organization not found in database.");
+        }
 
         await AgentRepository.create({
             name: formData.get("name") as string,
@@ -52,7 +38,7 @@ export default async function NewAgentPage() {
 
         revalidatePath("/dashboard/agents");
         redirect("/dashboard/agents");
-    };
+    }
 
     return (
         <div className="mx-auto max-w-2xl space-y-8">

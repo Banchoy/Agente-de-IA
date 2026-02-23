@@ -44,7 +44,7 @@ export default async function AgentsPage() {
                         </Link>
                     </div>
                 ) : (
-                    agents.map((agent) => (
+                    agents.map((agent: any) => (
                         <div key={agent.id} className="group relative rounded-2xl border border-zinc-200 bg-white p-6 transition-all hover:shadow-md">
                             <div className="mb-4 flex items-start justify-between">
                                 <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-zinc-100 text-zinc-900">
