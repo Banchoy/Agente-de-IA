@@ -61,7 +61,7 @@ export default async function AuditLogsPage() {
                                             <User size={12} />
                                             Sistema
                                         </div>
-                                        {log.metadata && (
+                                        {!!log.metadata && (
                                             <div className="text-[10px] bg-zinc-100 px-2 py-0.5 rounded font-mono text-zinc-500 truncate max-w-sm">
                                                 {JSON.stringify(log.metadata)}
                                             </div>
