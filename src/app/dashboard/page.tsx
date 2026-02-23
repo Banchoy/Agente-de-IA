@@ -12,8 +12,22 @@ export default async function DashboardPage() {
     if (!userId) redirect("/sign-in");
     if (!orgId) redirect("/org-selection");
 
-    // Fetch some basic stats for the dashboard
-    const userCount = await db.select({ value: count() }).from(usersTable).where(eq(usersTable.organizationId, orgId));
+    // Sync user/org with DB and get the DB user record
+    const dbUser = await UserService.syncUser();
+
+    if (!dbUser || !dbUser.organizationId) {
+        return (
+            <div className="p-8 text-center">
+                <h1 className="text-xl font-bold text-red-600">Erro de Sincronização</h1>
+                <p className="text-zinc-600">Não conseguimos vincular sua conta à organização.</p>
+            </div>
+        );
+    }
+
+    // Fetch some basic stats for the dashboard using the DB UUID
+    const userCount = await db.select({ value: count() })
+        .from(usersTable)
+        .where(eq(usersTable.organizationId, dbUser.organizationId));
 
     return (
         <div className="space-y-6">

@@ -18,15 +18,27 @@ import { auth } from "@clerk/nextjs/server";
 export async function withOrgContext<T>(
     callback: (tx: any) => Promise<T>
 ): Promise<T> {
-    const { orgId } = await auth();
+    const { orgId: clerkOrgId } = await auth();
 
-    if (!orgId) {
+    if (!clerkOrgId) {
         throw new Error("No Organization Context Found");
     }
 
     return await db.transaction(async (tx) => {
-        // Set the configuration parameter for the current transaction
-        await tx.execute(sql`SELECT set_config('app.current_org_id', ${orgId}, true)`);
+        // Resolve the DB Org UUID from Clerk Org ID
+        const dbOrg = await tx.query.organizations.findFirst({
+            where: eq(organizations.clerkOrgId, clerkOrgId)
+        });
+
+        if (!dbOrg) {
+            // If the org doesn't exist in DB yet, we might need to sync it.
+            // For now, let's at least ensure we don't crash with invalid UUID cast.
+            // A more robust approach would be calling SyncUser here or ensuring it happened before.
+            throw new Error(`Organization ${clerkOrgId} not found in database. Please access the dashboard to sync.`);
+        }
+
+        // Set the configuration parameter for the current transaction using the DB UUID
+        await tx.execute(sql`SELECT set_config('app.current_org_id', ${dbOrg.id}, true)`);
 
         // Execute the callback with the transaction object
         return await callback(tx);
