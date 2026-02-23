@@ -40,3 +40,22 @@ export const auditLogs = pgTable("audit_logs", {
     metadata: jsonb("metadata"),
     createdAt: timestamp("created_at").defaultNow().notNull(),
 });
+// -----------------------------------------------------------------------------
+// Agents Table
+// -----------------------------------------------------------------------------
+export const agents = pgTable("agents", {
+    id: uuid("id").defaultRandom().primaryKey(),
+    organizationId: uuid("organization_id")
+        .notNull()
+        .references(() => organizations.id, { onDelete: "cascade" }),
+    name: text("name").notNull(),
+    description: text("description"),
+    status: text("status").default("active").notNull(), // e.g., active, training, inactive
+    config: jsonb("config").default({}), // For AI-specific configuration
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+    updatedAt: timestamp("updated_at").defaultNow().notNull(),
+}, (table) => {
+    return {
+        organizationIdIdx: index("agents_organization_id_idx").on(table.organizationId),
+    }
+});

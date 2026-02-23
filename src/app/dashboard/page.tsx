@@ -3,8 +3,8 @@ import { redirect } from "next/navigation";
 import { db } from "@/lib/db";
 import { users as usersTable } from "@/lib/db/schema";
 import { count, eq } from "drizzle-orm";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Bot, UserCheck, Activity, Globe } from "lucide-react";
+import { Bot, UserCheck, Activity, Globe, Sparkles, Settings } from "lucide-react";
+import { UserService } from "@/lib/services/user";
 
 export default async function DashboardPage() {
     const { userId, orgId } = await auth();
