@@ -12,11 +12,6 @@ WORKDIR /app
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
 
-# Variáveis de ambiente dummy apenas para satisfazer o build do Next.js/Clerk
-ENV NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY=pk_test_Y2xlcmsuaW5jbHVkZWQtbWFsa29zbS02OC5jbGVyay5hY2NvdW50cy5kZXYk
-ENV CLERK_SECRET_KEY=sk_test_4eC39H9ksH9ksH9ksH9ksH9ksH9ksH9ksH9ksH9ksH
-ENV DATABASE_URL=postgres://localhost:5432/dummy
-
 RUN npm run build
 
 # Estágio 3: Execução
