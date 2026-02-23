@@ -1,12 +1,15 @@
 import { UserButton, OrganizationSwitcher } from "@clerk/nextjs";
 import { LayoutDashboard, Users, Settings, History, Bot, Menu, MessageSquare } from "lucide-react";
 import Link from "next/link";
+import { UserService } from "@/lib/services/user";
 
-export default function DashboardLayout({
+export default async function DashboardLayout({
     children,
 }: {
     children: React.ReactNode;
 }) {
+    // Sync user and organization with our DB on every dashboard load
+    await UserService.syncUser();
     return (
         <div className="flex min-h-screen bg-zinc-50 font-sans">
             {/* Sidebar Desktop */}

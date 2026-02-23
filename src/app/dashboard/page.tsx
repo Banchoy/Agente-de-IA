@@ -1,7 +1,7 @@
 import { auth } from "@clerk/nextjs/server";
 import { redirect } from "next/navigation";
 import { db } from "@/lib/db";
-import { users as usersTable } from "@/lib/db/schema";
+import { users as usersTable, agents } from "@/lib/db/schema";
 import { count, eq } from "drizzle-orm";
 import { Bot, UserCheck, Activity, Globe, Sparkles, Settings } from "lucide-react";
 import { UserService } from "@/lib/services/user";
@@ -30,6 +30,10 @@ export default async function DashboardPage() {
             .from(usersTable)
             .where(eq(usersTable.organizationId, dbUser.organizationId));
 
+        const agentCount = await db.select({ value: count() })
+            .from(agents)
+            .where(eq(agents.organizationId, dbUser.organizationId));
+
         return (
             <div className="space-y-6">
                 <div>
@@ -43,8 +47,8 @@ export default async function DashboardPage() {
                             <Bot size={16} />
                             Agentes Ativos
                         </div>
-                        <div className="text-2xl font-bold">12</div>
-                        <div className="text-xs text-green-600 font-medium mt-1">+2 desde ontem</div>
+                        <div className="text-2xl font-bold">{agentCount[0]?.value || 0}</div>
+                        <div className="text-xs text-zinc-500 font-medium mt-1">Configurados no sistema</div>
                     </div>
 
                     <div className="rounded-xl border border-zinc-200 bg-white p-6 shadow-sm">
