@@ -17,7 +17,7 @@ export const organizations = pgTable("organizations", {
 // -----------------------------------------------------------------------------
 export const users = pgTable("users", {
     id: uuid("id").defaultRandom().primaryKey(),
-    clerkUserId: text("clerk_user_id").notNull().unique(), // Maps to Clerk User ID
+    clerkUserId: text("clerk_user_id").notNull(), // Maps to Clerk User ID
     organizationId: uuid("organization_id")
         .references(() => organizations.id, { onDelete: "cascade" }), // Can be null if user doesn't have an active org context yet, but for multi-tenant SaaS usually mandatory in context
     role: text("role"),
@@ -25,6 +25,7 @@ export const users = pgTable("users", {
 }, (table) => {
     return {
         organizationIdIdx: index("users_organization_id_idx").on(table.organizationId),
+        clerkUserIdOrgIdUnique: uniqueIndex("users_clerk_user_id_org_id_unique").on(table.clerkUserId, table.organizationId),
     }
 });
 
