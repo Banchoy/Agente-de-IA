@@ -17,11 +17,14 @@ export const EvolutionService = {
             if (!existing) {
                 // 2. Create if not exists
                 console.log(`🔨 Criando nova instância: ${instanceName}`);
-                await EvolutionService.createInstance(apiUrl, apiKey, instanceName);
+                const createResult = await EvolutionService.createInstance(apiUrl, apiKey, instanceName);
+
+                // Na v2, o create já retorna o QR Code e os dados iniciais
+                return createResult;
             }
 
-            // 3. Get QR Code / Connection state
-            console.log(`🔗 Tentando conectar à Evolution API: ${apiUrl}/instance/connect/${instanceName}`);
+            // 3. Get QR Code / Connection state para instância existente
+            console.log(`🔗 Buscando QR Code para instância existente: ${instanceName}`);
 
             const response = await fetch(`${apiUrl}/instance/connect/${instanceName}`, {
                 headers: { "apikey": apiKey }
