@@ -58,19 +58,23 @@ export const EvolutionService = {
             }
 
             // 3. Se chegamos aqui, a instância existe mas ainda não temos o QR.
-            // Tentamos o logout e connect para forçar um novo QR Code
-            console.log("🔄 Tentando Forçar (Logout -> Connect) para gerar novo QR...");
+            // Vamos deletar e recriar. É a forma mais segura de destravar na v2.
+            console.log(`🧹 Instância ${instanceName} travada. Forçando remoção e recriação...`);
             try {
-                await EvolutionService.logout(apiUrl, apiKey, instanceName);
-                // Pequeno delay
-                await new Promise(r => setTimeout(r, 1000));
-            } catch (e) { /* ignore logout fail */ }
+                const deleteUrl = `${apiUrl}/instance/delete/${instanceName}`;
+                await fetch(deleteUrl, {
+                    method: 'DELETE',
+                    headers: { "apikey": apiKey }
+                });
+                // Aguarda um pouco para o banco limpar
+                await new Promise(r => setTimeout(r, 1500));
+            } catch (e) {
+                console.warn("⚠️ Falha ao tentar deletar instância travada:", e);
+            }
 
-            // Última tentativa no connect padrão
-            const finalResp = await fetch(`${apiUrl}/instance/connect/${instanceName}`, {
-                headers: { "apikey": apiKey }
-            });
-            return await finalResp.json();
+            console.log(`🔨 Recriando instância: ${instanceName} após limpeza.`);
+            const finalCreate = await EvolutionService.createInstance(apiUrl, apiKey, instanceName);
+            return finalCreate;
 
         } catch (error: any) {
             console.error("❌ Falha crítica na conexão com Evolution API:", error.message);
