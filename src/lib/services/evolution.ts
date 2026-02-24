@@ -10,57 +10,68 @@ export const EvolutionService = {
      */
     connect: async (orgId: string, apiUrl: string, apiKey: string, instanceName: string) => {
         try {
-            // 1. Check if instance exists
-            const instances = await EvolutionService.getInstances(apiUrl, apiKey);
-            const existing = instances.find((i: any) => i.instanceName === instanceName);
+            console.log(`🚀 Iniciando conexão para: ${instanceName}`);
 
-            if (!existing) {
+            // 1. Tentar obter QR Code diretamente (Se já existe)
+            // Tentaremos 3 endpoints comuns da v2
+            const endpoints = [
+                `${apiUrl}/instance/connect/${instanceName}`,
+                `${apiUrl}/instance/qr-code/base64/${instanceName}`,
+                `${apiUrl}/instances/${instanceName}/qr-code/image`
+            ];
+
+            for (const url of endpoints) {
                 try {
-                    // 2. Create if not exists
-                    console.log(`🔨 Criando nova instância: ${instanceName}`);
-                    const createResult = await EvolutionService.createInstance(apiUrl, apiKey, instanceName);
-                    if (createResult.base64 || createResult.qrcode?.base64) return createResult;
-                } catch (e: any) {
-                    // Se a API disser que já existe, nós ignoramos o erro e tentamos conectar
-                    if (e.message.includes("already in use") || e.message.includes("403")) {
-                        console.log("ℹ️ Instância já existe no servidor, prosseguindo para conectar.");
-                    } else {
-                        throw e;
+                    console.log(`🔍 Tentando endpoint: ${url}`);
+                    const response = await fetch(url, { headers: { "apikey": apiKey } });
+
+                    if (response.ok) {
+                        const data = await response.json();
+                        // Verifica se tem algo que pareça um QR code
+                        const qr = data.base64 || data.qrcode?.base64 || data.code || (typeof data === 'string' && data.length > 100 ? data : null);
+
+                        if (qr) {
+                            console.log(`✅ QR Code encontrado no endpoint: ${url}`);
+                            return data;
+                        }
+                    } else if (response.status === 404) {
+                        console.log(`ℹ️ Endpoint retornou 404: ${url}`);
                     }
+                } catch (e) {
+                    console.warn(`⚠️ Falha ao tentar endpoint ${url}:`, e);
                 }
             }
 
-            // 3. Tentar obter QR Code da v2 (endpoint específico se o connect falhar)
-            console.log(`🔗 Buscando QR Code (v2 style): ${instanceName}`);
+            // 2. Se nenhum retornou QR, vamos tentar criar a instância
+            console.log(`🔨 Nenhum QR encontrado. Tentando (re)criar a instância: ${instanceName}`);
+            try {
+                const createResult = await EvolutionService.createInstance(apiUrl, apiKey, instanceName);
+                if (createResult.base64 || createResult.qrcode?.base64 || createResult.code) {
+                    return createResult;
+                }
+            } catch (createErr: any) {
+                if (createErr.message.includes("already in use") || createErr.message.includes("403")) {
+                    console.log("ℹ️ Instância já existe mas não gerou QR Code no ato da criação.");
+                } else {
+                    throw createErr;
+                }
+            }
 
-            // Tentamos primeiro o connect padrão
-            const response = await fetch(`${apiUrl}/instance/connect/${instanceName}`, {
+            // 3. Se chegamos aqui, a instância existe mas ainda não temos o QR.
+            // Tentamos o logout e connect para forçar um novo QR Code
+            console.log("🔄 Tentando Forçar (Logout -> Connect) para gerar novo QR...");
+            try {
+                await EvolutionService.logout(apiUrl, apiKey, instanceName);
+                // Pequeno delay
+                await new Promise(r => setTimeout(r, 1000));
+            } catch (e) { /* ignore logout fail */ }
+
+            // Última tentativa no connect padrão
+            const finalResp = await fetch(`${apiUrl}/instance/connect/${instanceName}`, {
                 headers: { "apikey": apiKey }
             });
+            return await finalResp.json();
 
-            if (!response.ok) {
-                const errorText = await response.text();
-                console.error(`❌ Erro HTTP ${response.status} ao conectar:`, errorText);
-                throw new Error(`Erro na API (${response.status})`);
-            }
-
-            const connectResult = await response.json();
-
-            // Se não veio QR code no connect, tentamos o endpoint de base64 direto (comum na v2)
-            if (!connectResult.base64 && !connectResult.qrcode?.base64 && !connectResult.code) {
-                console.log("ℹ️ QR Code não veio no connect, tentando endpoint /qr-code/base64...");
-                const qrResponse = await fetch(`${apiUrl}/instance/qr-code/base64/${instanceName}`, {
-                    headers: { "apikey": apiKey }
-                });
-                if (qrResponse.ok) {
-                    const qrData = await qrResponse.json();
-                    console.log("📦 Resposta do /qr-code/base64:", JSON.stringify(qrData, null, 2));
-                    return qrData;
-                }
-            }
-
-            console.log("📦 Resposta do Connect:", JSON.stringify(connectResult, null, 2));
-            return connectResult;
         } catch (error: any) {
             console.error("❌ Falha crítica na conexão com Evolution API:", error.message);
             throw error;
