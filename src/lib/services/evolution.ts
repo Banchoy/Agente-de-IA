@@ -19,6 +19,7 @@ export const EvolutionService = {
                     // 2. Create if not exists
                     console.log(`🔨 Criando nova instância: ${instanceName}`);
                     const createResult = await EvolutionService.createInstance(apiUrl, apiKey, instanceName);
+                    console.log("📦 Resposta da Criação:", JSON.stringify(createResult, null, 2));
                     return createResult;
                 } catch (e: any) {
                     // Se a API disser que já existe, nós ignoramos o erro e tentamos conectar
@@ -43,7 +44,9 @@ export const EvolutionService = {
                 throw new Error(`Erro na API (${response.status})`);
             }
 
-            return await response.json();
+            const connectResult = await response.json();
+            console.log("📦 Resposta do Connect:", JSON.stringify(connectResult, null, 2));
+            return connectResult;
         } catch (error: any) {
             console.error("❌ Falha crítica na conexão com Evolution API:", error.message);
             throw error;
