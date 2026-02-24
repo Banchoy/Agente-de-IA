@@ -15,12 +15,19 @@ export const EvolutionService = {
             const existing = instances.find((i: any) => i.instanceName === instanceName);
 
             if (!existing) {
-                // 2. Create if not exists
-                console.log(`🔨 Criando nova instância: ${instanceName}`);
-                const createResult = await EvolutionService.createInstance(apiUrl, apiKey, instanceName);
-
-                // Na v2, o create já retorna o QR Code e os dados iniciais
-                return createResult;
+                try {
+                    // 2. Create if not exists
+                    console.log(`🔨 Criando nova instância: ${instanceName}`);
+                    const createResult = await EvolutionService.createInstance(apiUrl, apiKey, instanceName);
+                    return createResult;
+                } catch (e: any) {
+                    // Se a API disser que já existe, nós ignoramos o erro e tentamos conectar
+                    if (e.message.includes("already in use") || e.message.includes("403")) {
+                        console.log("ℹ️ Instância já existe no servidor, prosseguindo para conectar.");
+                    } else {
+                        throw e;
+                    }
+                }
             }
 
             // 3. Get QR Code / Connection state para instância existente
@@ -52,7 +59,10 @@ export const EvolutionService = {
             const errorText = await response.text();
             throw new Error(`Erro ao buscar instâncias (${response.status}): ${errorText}`);
         }
-        return await response.json();
+
+        const data = await response.json();
+        // Na v2 pode vir dentro de um campo 'instances' ou ser um array direto
+        return Array.isArray(data) ? data : (data.instances || []);
     },
 
     createInstance: async (apiUrl: string, apiKey: string, instanceName: string) => {
