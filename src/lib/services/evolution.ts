@@ -19,8 +19,7 @@ export const EvolutionService = {
                     // 2. Create if not exists
                     console.log(`🔨 Criando nova instância: ${instanceName}`);
                     const createResult = await EvolutionService.createInstance(apiUrl, apiKey, instanceName);
-                    console.log("📦 Resposta da Criação:", JSON.stringify(createResult, null, 2));
-                    return createResult;
+                    if (createResult.base64 || createResult.qrcode?.base64) return createResult;
                 } catch (e: any) {
                     // Se a API disser que já existe, nós ignoramos o erro e tentamos conectar
                     if (e.message.includes("already in use") || e.message.includes("403")) {
@@ -31,9 +30,10 @@ export const EvolutionService = {
                 }
             }
 
-            // 3. Get QR Code / Connection state para instância existente
-            console.log(`🔗 Buscando QR Code para instância existente: ${instanceName}`);
+            // 3. Tentar obter QR Code da v2 (endpoint específico se o connect falhar)
+            console.log(`🔗 Buscando QR Code (v2 style): ${instanceName}`);
 
+            // Tentamos primeiro o connect padrão
             const response = await fetch(`${apiUrl}/instance/connect/${instanceName}`, {
                 headers: { "apikey": apiKey }
             });
@@ -45,6 +45,20 @@ export const EvolutionService = {
             }
 
             const connectResult = await response.json();
+
+            // Se não veio QR code no connect, tentamos o endpoint de base64 direto (comum na v2)
+            if (!connectResult.base64 && !connectResult.qrcode?.base64 && !connectResult.code) {
+                console.log("ℹ️ QR Code não veio no connect, tentando endpoint /qr-code/base64...");
+                const qrResponse = await fetch(`${apiUrl}/instance/qr-code/base64/${instanceName}`, {
+                    headers: { "apikey": apiKey }
+                });
+                if (qrResponse.ok) {
+                    const qrData = await qrResponse.json();
+                    console.log("📦 Resposta do /qr-code/base64:", JSON.stringify(qrData, null, 2));
+                    return qrData;
+                }
+            }
+
             console.log("📦 Resposta do Connect:", JSON.stringify(connectResult, null, 2));
             return connectResult;
         } catch (error: any) {
