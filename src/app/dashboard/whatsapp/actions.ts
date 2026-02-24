@@ -40,7 +40,8 @@ export async function connectWhatsApp() {
             throw new Error("Credenciais da Evolution API não configuradas corretamente.");
         }
 
-        const instanceName = org.evolutionInstanceName || `inst_${org.id.split('-')[0]}`;
+        // Geramos um nome único com timestamp para evitar o erro "already in use" de instâncias fantasmas
+        const instanceName = `inst_${org.id.split('-')[0]}_${Date.now().toString().slice(-4)}`;
 
         // Connect via service
         console.log(`🚀 Iniciando conexão para instância: ${instanceName} na URL: ${org.evolutionApiUrl}`);
