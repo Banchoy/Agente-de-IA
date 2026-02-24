@@ -45,15 +45,24 @@ export default function WhatsAppConnectButton() {
                 return;
             }
 
-            // Função para buscar o QR code recursivamente em qualquer campo comum da Evolution API
-            const findQr = (obj: any): string | null => {
-                if (!obj) return null;
-                // Campos comuns na v1 e v2
-                const code = obj.base64 || obj.code || obj.qrcode?.base64 || obj.qrcode?.code || obj.qrcode;
-                if (typeof code === 'string' && (code.startsWith('data:image') || code.length > 100)) return code;
+            // Função para buscar o QR code recursivamente em qualquer lugar do objeto
+            const findQr = (obj: any, depth = 0): string | null => {
+                if (!obj || depth > 5) return null;
 
-                // Se o qrcode for um objeto, tentamos dentro dele recursivamente
-                if (obj.qrcode && typeof obj.qrcode === 'object') return findQr(obj.qrcode);
+                // 1. Checagem direta de campos conhecidos
+                const direct = obj.base64 || obj.code || obj.qrcode?.base64 || obj.qrcode?.code || obj.qrcode;
+                if (typeof direct === 'string' && (direct.startsWith('data:image') || direct.length > 100)) return direct;
+
+                // 2. Busca recursiva em todos os campos do objeto
+                for (const key in obj) {
+                    if (obj[key] && typeof obj[key] === 'object') {
+                        const found = findQr(obj[key], depth + 1);
+                        if (found) return found;
+                    }
+                    if (typeof obj[key] === 'string' && (obj[key].startsWith('data:image') || obj[key].length > 500)) {
+                        return obj[key];
+                    }
+                }
 
                 return null;
             };

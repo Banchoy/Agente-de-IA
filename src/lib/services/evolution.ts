@@ -114,10 +114,13 @@ export const EvolutionService = {
 
         if (!response.ok) {
             const errorText = await response.text();
+            console.error(`❌ Falha ao criar instância (${response.status}):`, errorText);
             throw new Error(`Erro ao criar instância (${response.status}): ${errorText}`);
         }
 
-        return await response.json();
+        const data = await response.json();
+        console.log("✨ Instância criada com sucesso! Dados:", JSON.stringify(data, null, 2));
+        return data;
     },
 
     logout: async (apiUrl: string, apiKey: string, instanceName: string) => {
