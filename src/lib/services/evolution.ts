@@ -61,6 +61,8 @@ export const EvolutionService = {
             },
             body: JSON.stringify({
                 instanceName,
+                token: Math.random().toString(36).substring(7),
+                integration: "WHATSAPP-BAILEYS",
                 qrcode: true
             })
         });
