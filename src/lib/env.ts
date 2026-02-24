@@ -11,7 +11,7 @@ const envSchema = z.object({
     NEXT_PUBLIC_CLERK_AFTER_SIGN_UP_URL: z.string().default("/dashboard"),
     // AI & Integrations
     GOOGLE_GEMINI_API_KEY: z.string().optional(),
-    EVOLUTION_API_URL: z.string().url().optional(),
+    EVOLUTION_API_URL: z.preprocess((val) => (val === "" ? undefined : val), z.string().url().optional()),
     EVOLUTION_API_KEY: z.string().optional(),
 });
 

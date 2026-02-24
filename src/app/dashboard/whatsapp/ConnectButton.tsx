@@ -45,11 +45,22 @@ export default function WhatsAppConnectButton() {
                 return;
             }
 
-            // A Evolution API v2 pode retornar o QR em campos diferentes: base64 ou code
-            let rawCode = result?.base64 || result?.code || result?.qrcode?.base64 || result?.qrcode?.code;
+            // Função para buscar o QR code recursivamente em qualquer campo comum da Evolution API
+            const findQr = (obj: any): string | null => {
+                if (!obj) return null;
+                // Campos comuns na v1 e v2
+                const code = obj.base64 || obj.code || obj.qrcode?.base64 || obj.qrcode?.code || obj.qrcode;
+                if (typeof code === 'string' && (code.startsWith('data:image') || code.length > 100)) return code;
+
+                // Se o qrcode for um objeto, tentamos dentro dele recursivamente
+                if (obj.qrcode && typeof obj.qrcode === 'object') return findQr(obj.qrcode);
+
+                return null;
+            };
+
+            let rawCode = findQr(result);
 
             if (rawCode) {
-                // Se o código não tiver o prefixo de imagem, nós adicionamos
                 if (!rawCode.startsWith("data:")) {
                     rawCode = `data:image/png;base64,${rawCode}`;
                 }
@@ -59,8 +70,21 @@ export default function WhatsAppConnectButton() {
                 alert("WhatsApp já está conectado!");
                 window.location.reload();
             } else {
-                console.error("❌ Nenhum QR Code encontrado na resposta:", result);
-                alert("A API respondeu com sucesso, mas não enviou o código do WhatsApp. Tente novamente.");
+                console.warn("⚠️ QR Code não encontrado na primeira tentativa. Tentando novamente em 2 segundos...");
+                // Pequeno delay caso a instância esteja subindo
+                setTimeout(async () => {
+                    const retryResult = await connectWhatsApp();
+                    const retryCode = findQr(retryResult);
+                    if (retryCode) {
+                        let finalCode = retryCode;
+                        if (!finalCode.startsWith("data:")) finalCode = `data:image/png;base64,${finalCode}`;
+                        setQrCode(finalCode);
+                        setShowModal(true);
+                    } else {
+                        console.error("❌ Nenhum QR Code encontrado após re-tentativa:", retryResult);
+                        alert("O servidor respondeu, mas o WhatsApp ainda não gerou o QR Code. Tente clicar em Conectar novamente em alguns segundos.");
+                    }
+                }, 2000);
             }
         } catch (error: any) {
             console.error("Failed to connect:", error);
