@@ -42,69 +42,63 @@ export const EvolutionService = {
                 }
             }
 
-            // 2. Se nenhum retornou QR, vamos tentar criar a instância
-            console.log(`🔨 Nenhum QR encontrado. Tentando criar a instância: ${instanceName}`);
+            // 2. Criar ou validar existência
             try {
                 const createResult = await EvolutionService.createInstance(apiUrl, apiKey, instanceName);
-
-                // Verifica se o QR já veio na criação
                 const qr = createResult.base64 || createResult.qrcode?.base64 || createResult.code;
                 if (qr) return createResult;
-
-                console.log("⏳ Instância criada. Aguardando geração do QR Code (espera máx 60s)...");
-
-                // Loop de Retry: Espera até 60 segundos (20 tentativas x 3s)
-                // Aumentamos o intervalo para 3s para dar mais fôlego à API
-                for (let i = 0; i < 20; i++) {
-                    await new Promise(r => setTimeout(r, 3000));
-                    console.log(`🔍 Tentativa de busca ${i + 1}/20 para: ${instanceName}...`);
-
-                    const pollUrls = [
-                        `${apiUrl}/instance/connect/${instanceName}`,
-                        `${apiUrl}/instance/qr-code/base64/${instanceName}`
-                    ];
-
-                    for (const url of pollUrls) {
-                        try {
-                            const pollResp = await fetch(url, { headers: { "apikey": apiKey } });
-                            if (pollResp.ok) {
-                                const contentType = pollResp.headers.get("content-type");
-                                let pollData: any;
-
-                                if (contentType?.includes("application/json")) {
-                                    pollData = await pollResp.json();
-                                } else {
-                                    // Se for imagem ou string pura (v2 costuma fazer isso em alguns endpoints)
-                                    const text = await pollResp.text();
-                                    if (text.length > 100) pollData = { base64: text };
-                                }
-
-                                const pollQr = pollData?.base64 || pollData?.qrcode?.base64 || pollData?.code || pollData?.qrcode;
-                                if (pollQr && typeof pollQr === 'string' && pollQr.length > 50) {
-                                    console.log(`✅ QR Code CAPTURADO com sucesso no endpoint: ${url}`);
-                                    return pollData;
-                                }
-                            } else {
-                                console.log(`ℹ️ Polling status ${pollResp.status} em: ${url}`);
-                            }
-                        } catch (e) {
-                            console.warn(`⚠️ Erro silencioso no polling (${url}):`, e);
-                        }
-                    }
-                }
             } catch (createErr: any) {
                 if (createErr.message.includes("already in use") || createErr.message.includes("403")) {
-                    console.log("ℹ️ Instância já existe. Tentando apenas conectar...");
+                    console.log("ℹ️ Instância já existe. Prosseguindo para o polling de QR Code...");
                 } else {
                     throw createErr;
                 }
             }
 
-            // 3. Se chegamos aqui, mantemos a instância viva para que ela termine de processar
-            console.log(`⚠️ Tempo esgotado. A Evolution API ainda não liberou o QR para ${instanceName}.`);
-            console.log("💡 DICA: Aguarde uns 15 segundos e tente novamente. A instância já está lá, só falta o código.");
+            // 3. Loop de Polling (Executa para novas e existentes)
+            console.log(`⏳ Aguardando geração do QR Code para ${instanceName} (espera máx 60s)...`);
+            for (let i = 0; i < 20; i++) {
+                await new Promise(r => setTimeout(r, 3000));
+                console.log(`🔍 Tentativa de busca ${i + 1}/20 para: ${instanceName}...`);
 
-            throw new Error("O servidor WhatsApp está processando. Aguarde 15 segundos e clique em Conectar novamente para ver o código.");
+                const pollUrls = [
+                    `${apiUrl}/instance/connect/${instanceName}`,
+                    `${apiUrl}/instance/qr-code/base64/${instanceName}`
+                ];
+
+                for (const url of pollUrls) {
+                    try {
+                        const pollResp = await fetch(url, { headers: { "apikey": apiKey } });
+                        if (pollResp.ok) {
+                            const contentType = pollResp.headers.get("content-type");
+                            let pollData: any;
+
+                            if (contentType?.includes("application/json")) {
+                                pollData = await pollResp.json();
+                            } else {
+                                const text = await pollResp.text();
+                                if (text.length > 100) pollData = { base64: text };
+                            }
+
+                            // Se a instância já estiver aberta/conectada, retornamos o status
+                            if (pollData?.instance?.status === "open" || pollData?.status === "open") {
+                                console.log("✅ Instância já está conectada!");
+                                return pollData;
+                            }
+
+                            const pollQr = pollData?.base64 || pollData?.qrcode?.base64 || pollData?.code || pollData?.qrcode;
+                            if (pollQr && typeof pollQr === 'string' && pollQr.length > 50) {
+                                console.log(`✅ QR Code CAPTURADO com sucesso em: ${url}`);
+                                return pollData;
+                            }
+                        }
+                    } catch (e) { /* silent fail */ }
+                }
+            }
+
+            // 4. Se chegamos aqui, mantemos a instância viva
+            console.log(`⚠️ Tempo esgotado para ${instanceName}.`);
+            throw new Error("O servidor WhatsApp está processando. Aguarde 15 segundos e clique em Conectar novamente.");
 
         } catch (error: any) {
             console.error("❌ Falha crítica na conexão com Evolution API:", error.message);
