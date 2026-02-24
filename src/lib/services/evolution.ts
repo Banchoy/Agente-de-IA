@@ -43,38 +43,55 @@ export const EvolutionService = {
             }
 
             // 2. Se nenhum retornou QR, vamos tentar criar a instância
-            console.log(`🔨 Nenhum QR encontrado. Tentando (re)criar a instância: ${instanceName}`);
+            console.log(`🔨 Nenhum QR encontrado. Tentando criar a instância: ${instanceName}`);
             try {
                 const createResult = await EvolutionService.createInstance(apiUrl, apiKey, instanceName);
-                if (createResult.base64 || createResult.qrcode?.base64 || createResult.code) {
-                    return createResult;
+
+                // Verifica se o QR já veio na criação
+                const qr = createResult.base64 || createResult.qrcode?.base64 || createResult.code;
+                if (qr) return createResult;
+
+                console.log("⏳ Instância criada, mas sem QR Code ainda. Iniciando espera...");
+
+                // Loop de Retry: Espera até 10 segundos pelo QR Code
+                for (let i = 0; i < 5; i++) {
+                    await new Promise(r => setTimeout(r, 2000));
+                    console.log(`🔍 Polling por QR Code (${i + 1}/5)...`);
+
+                    const pollResp = await fetch(`${apiUrl}/instance/connect/${instanceName}`, {
+                        headers: { "apikey": apiKey }
+                    });
+
+                    if (pollResp.ok) {
+                        const pollData = await pollResp.json();
+                        const pollQr = pollData.base64 || pollData.qrcode?.base64 || pollData.code;
+                        if (pollQr) {
+                            console.log("✅ QR Code obtido após espera!");
+                            return pollData;
+                        }
+                    }
                 }
             } catch (createErr: any) {
                 if (createErr.message.includes("already in use") || createErr.message.includes("403")) {
-                    console.log("ℹ️ Instância já existe mas não gerou QR Code no ato da criação.");
+                    console.log("ℹ️ Instância já existe no servidor.");
                 } else {
                     throw createErr;
                 }
             }
 
-            // 3. Se chegamos aqui, a instância existe mas ainda não temos o QR.
-            // Vamos deletar e recriar. É a forma mais segura de destravar na v2.
-            console.log(`🧹 Instância ${instanceName} travada. Forçando remoção e recriação...`);
+            // 3. Se chegamos aqui e ainda não temos QR, deletamos para tentar do zero no próximo clique
+            console.log(`🧹 Instância ${instanceName} não gerou QR a tempo. Deletando para reset...`);
             try {
                 const deleteUrl = `${apiUrl}/instance/delete/${instanceName}`;
                 await fetch(deleteUrl, {
                     method: 'DELETE',
                     headers: { "apikey": apiKey }
                 });
-                // Aguarda um pouco para o banco limpar
-                await new Promise(r => setTimeout(r, 1500));
             } catch (e) {
-                console.warn("⚠️ Falha ao tentar deletar instância travada:", e);
+                console.warn("⚠️ Falha ao deletar:", e);
             }
 
-            console.log(`🔨 Recriando instância: ${instanceName} após limpeza.`);
-            const finalCreate = await EvolutionService.createInstance(apiUrl, apiKey, instanceName);
-            return finalCreate;
+            throw new Error("O WhatsApp está demorando para gerar o QR Code. Por favor, tente novamente em instantes.");
 
         } catch (error: any) {
             console.error("❌ Falha crítica na conexão com Evolution API:", error.message);
