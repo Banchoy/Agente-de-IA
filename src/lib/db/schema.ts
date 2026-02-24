@@ -64,3 +64,23 @@ export const agents = pgTable("agents", {
         organizationIdIdx: index("agents_organization_id_idx").on(table.organizationId),
     }
 });
+// -----------------------------------------------------------------------------
+// Workflows Table
+// -----------------------------------------------------------------------------
+export const workflows = pgTable("workflows", {
+    id: uuid("id").defaultRandom().primaryKey(),
+    organizationId: uuid("organization_id")
+        .notNull()
+        .references(() => organizations.id, { onDelete: "cascade" }),
+    name: text("name").notNull(),
+    description: text("description"),
+    nodes: jsonb("nodes").default([]),
+    edges: jsonb("edges").default([]),
+    status: text("status").default("draft").notNull(), // draft, active, inactive
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+    updatedAt: timestamp("updated_at").defaultNow().notNull(),
+}, (table) => {
+    return {
+        organizationIdIdx: index("workflows_organization_id_idx").on(table.organizationId),
+    }
+});
