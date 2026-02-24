@@ -51,14 +51,14 @@ export const EvolutionService = {
                 const qr = createResult.base64 || createResult.qrcode?.base64 || createResult.code;
                 if (qr) return createResult;
 
-                console.log("⏳ Instância criada, mas sem QR Code ainda. Iniciando espera estendida (30s)...");
+                console.log("⏳ Instância criada. Aguardando geração do QR Code (espera máx 60s)...");
 
-                // Loop de Retry: Espera até 30 segundos pelo QR Code (15 x 2s)
-                for (let i = 0; i < 15; i++) {
-                    await new Promise(r => setTimeout(r, 2000));
-                    console.log(`🔍 Polling por QR Code (${i + 1}/15)...`);
+                // Loop de Retry: Espera até 60 segundos (20 tentativas x 3s)
+                // Aumentamos o intervalo para 3s para dar mais fôlego à API
+                for (let i = 0; i < 20; i++) {
+                    await new Promise(r => setTimeout(r, 3000));
+                    console.log(`🔍 Tentativa de busca ${i + 1}/20 para: ${instanceName}...`);
 
-                    // Tentamos dois formatos de endpoint no polling para garantir
                     const pollUrls = [
                         `${apiUrl}/instance/connect/${instanceName}`,
                         `${apiUrl}/instance/qr-code/base64/${instanceName}`
@@ -68,30 +68,43 @@ export const EvolutionService = {
                         try {
                             const pollResp = await fetch(url, { headers: { "apikey": apiKey } });
                             if (pollResp.ok) {
-                                const pollData = await pollResp.json();
-                                const pollQr = pollData.base64 || pollData.qrcode?.base64 || pollData.code;
-                                if (pollQr) {
-                                    console.log(`✅ QR Code obtido no endpoint: ${url}`);
+                                const contentType = pollResp.headers.get("content-type");
+                                let pollData: any;
+
+                                if (contentType?.includes("application/json")) {
+                                    pollData = await pollResp.json();
+                                } else {
+                                    // Se for imagem ou string pura (v2 costuma fazer isso em alguns endpoints)
+                                    const text = await pollResp.text();
+                                    if (text.length > 100) pollData = { base64: text };
+                                }
+
+                                const pollQr = pollData?.base64 || pollData?.qrcode?.base64 || pollData?.code || pollData?.qrcode;
+                                if (pollQr && typeof pollQr === 'string' && pollQr.length > 50) {
+                                    console.log(`✅ QR Code CAPTURADO com sucesso no endpoint: ${url}`);
                                     return pollData;
                                 }
+                            } else {
+                                console.log(`ℹ️ Polling status ${pollResp.status} em: ${url}`);
                             }
-                        } catch (e) { /* silent fail on poll */ }
+                        } catch (e) {
+                            console.warn(`⚠️ Erro silencioso no polling (${url}):`, e);
+                        }
                     }
                 }
             } catch (createErr: any) {
                 if (createErr.message.includes("already in use") || createErr.message.includes("403")) {
-                    console.log("ℹ️ Instância já existe no servidor.");
+                    console.log("ℹ️ Instância já existe. Tentando apenas conectar...");
                 } else {
                     throw createErr;
                 }
             }
 
-            // 3. Se chegamos aqui e ainda não temos QR, NÃO DELETAMOS.
-            // Deletar impede o servidor de terminar a geração. Ao manter a instância,
-            // o próximo clique do usuário terá mais chances de encontrar o QR pronto.
-            console.log(`⚠️ Instância ${instanceName} demorando para gerar QR. Mantendo para o próximo retry.`);
+            // 3. Se chegamos aqui, mantemos a instância viva para que ela termine de processar
+            console.log(`⚠️ Tempo esgotado. A Evolution API ainda não liberou o QR para ${instanceName}.`);
+            console.log("💡 DICA: Aguarde uns 15 segundos e tente novamente. A instância já está lá, só falta o código.");
 
-            throw new Error("O WhatsApp ainda está gerando o QR Code. Por favor, aguarde 10 segundos e clique em Conectar novamente.");
+            throw new Error("O servidor WhatsApp está processando. Aguarde 15 segundos e clique em Conectar novamente para ver o código.");
 
         } catch (error: any) {
             console.error("❌ Falha crítica na conexão com Evolution API:", error.message);
