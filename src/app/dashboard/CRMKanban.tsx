@@ -1,4 +1,3 @@
-
 "use client";
 
 import React, { useState } from "react";
@@ -24,6 +23,8 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Plus, MoreHorizontal, User, Phone, MessageSquare, Calendar, CheckCircle, XCircle, Search } from "lucide-react";
+import LeadDetailsModal from "./LeadDetailsModal";
+import { updateLeadMetadata, updateLeadStage } from "./leads/actions";
 
 // Stages requested by user
 const INITIAL_STAGES = [
@@ -36,12 +37,12 @@ const INITIAL_STAGES = [
 ];
 
 const INITIAL_LEADS = [
-    { id: "1", name: "João Silva", phone: "+55 11 99999-9999", stageId: "new", source: "Meta Ads", value: "R$ 5.000" },
-    { id: "2", name: "Maria Oliveira", phone: "+55 11 88888-8888", stageId: "ai_service", source: "Facebook Leads", value: "R$ 2.500" },
-    { id: "3", name: "Roberto Santos", phone: "+55 21 77777-7777", stageId: "qualified", source: "Instagram Ads", value: "R$ 12.000" },
+    { id: "1", name: "João Silva", phone: "+55 11 99999-9999", stageId: "new", source: "Meta Ads", value: "R$ 5.000", metaData: { "Idade": "34", "Interesse": "Imóvel 3 Quartos" } },
+    { id: "2", name: "Maria Oliveira", phone: "+55 11 88888-8888", stageId: "ai_service", source: "Facebook Leads", value: "R$ 2.500", metaData: { "Procedimento": "Invisalign" } },
+    { id: "3", name: "Roberto Santos", phone: "+55 21 77777-7777", stageId: "qualified", source: "Instagram Ads", value: "R$ 12.000", metaData: { "Financiamento": "Pré-aprovado" } },
 ];
 
-function SortableItem({ lead }: { lead: any }) {
+function SortableItem({ lead, onClick }: { lead: any; onClick: () => void }) {
     const {
         attributes,
         listeners,
@@ -63,6 +64,7 @@ function SortableItem({ lead }: { lead: any }) {
             style={style}
             {...attributes}
             {...listeners}
+            onClick={onClick}
             className="bg-white border border-zinc-200 rounded-xl p-4 mb-3 shadow-sm cursor-grab active:cursor-grabbing hover:border-zinc-900 group transition-all"
         >
             <div className="flex justify-between items-start mb-2">
@@ -84,15 +86,15 @@ function SortableItem({ lead }: { lead: any }) {
 
             <div className="flex justify-between items-center border-t border-zinc-100 pt-3">
                 <div className="flex -space-x-2">
-                    <div className="h-6 w-6 rounded-full bg-zinc-100 border-2 border-white flex items-center justify-center">
-                        <User size={12} className="text-zinc-500" />
+                    <div className="h-6 w-6 rounded-full bg-zinc-100 border-2 border-white flex items-center justify-center text-[10px] font-bold">
+                        {Object.keys(lead.metaData || {}).length}
                     </div>
                 </div>
-                <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                    <Button variant="ghost" size="icon" className="h-7 w-7 rounded-lg">
+                <div className="flex gap-1 opacity-100 lg:opacity-0 lg:group-hover:opacity-100 transition-opacity">
+                    <Button variant="ghost" size="icon" className="h-7 w-7 rounded-lg hover:bg-zinc-100">
                         <MessageSquare className="w-3.5 h-3.5" />
                     </Button>
-                    <Button variant="ghost" size="icon" className="h-7 w-7 rounded-lg">
+                    <Button variant="ghost" size="icon" className="h-7 w-7 rounded-lg hover:bg-zinc-100">
                         <MoreHorizontal className="w-3.5 h-3.5" />
                     </Button>
                 </div>
@@ -101,7 +103,7 @@ function SortableItem({ lead }: { lead: any }) {
     );
 }
 
-function KanbanColumn({ stage, leads }: { stage: any; leads: any[] }) {
+function KanbanColumn({ stage, leads, onLeadClick }: { stage: any; leads: any[]; onLeadClick: (lead: any) => void }) {
     const { setNodeRef } = useSortable({ id: stage.id });
 
     return (
@@ -123,7 +125,7 @@ function KanbanColumn({ stage, leads }: { stage: any; leads: any[] }) {
                     strategy={verticalListSortingStrategy}
                 >
                     {leads.map((lead) => (
-                        <SortableItem key={lead.id} lead={lead} />
+                        <SortableItem key={lead.id} lead={lead} onClick={() => onLeadClick(lead)} />
                     ))}
                 </SortableContext>
             </div>
@@ -134,6 +136,8 @@ function KanbanColumn({ stage, leads }: { stage: any; leads: any[] }) {
 export default function CRMKanban() {
     const [leadsList, setLeadsList] = useState(INITIAL_LEADS);
     const [activeId, setActiveId] = useState<string | null>(null);
+    const [selectedLead, setSelectedLead] = useState<any | null>(null);
+    const [isModalOpen, setIsModalOpen] = useState(false);
 
     const sensors = useSensors(
         useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
@@ -166,7 +170,7 @@ export default function CRMKanban() {
         }
     };
 
-    const handleDragEnd = (event: any) => {
+    const handleDragEnd = async (event: any) => {
         const { active, over } = event;
         if (!over) {
             setActiveId(null);
@@ -180,9 +184,24 @@ export default function CRMKanban() {
             if (newIndex !== -1) {
                 setLeadsList((items) => arrayMove(items, oldIndex, newIndex));
             }
+        } else {
+            const lead = leadsList.find(l => l.id === active.id);
+            if (lead) {
+                await updateLeadStage(active.id as string, lead.stageId);
+            }
         }
 
         setActiveId(null);
+    };
+
+    const handleLeadClick = (lead: any) => {
+        setSelectedLead(lead);
+        setIsModalOpen(true);
+    };
+
+    const handleSaveLead = async (leadId: string, updatedData: any) => {
+        setLeadsList(prev => prev.map(l => l.id === leadId ? updatedData : l));
+        await updateLeadMetadata(leadId, updatedData.metaData);
     };
 
     const activeLead = activeId ? leadsList.find((l) => l.id === activeId) : null;
@@ -224,6 +243,7 @@ export default function CRMKanban() {
                                 key={stage.id}
                                 stage={stage}
                                 leads={leadsList.filter((l) => l.stageId === stage.id)}
+                                onLeadClick={handleLeadClick}
                             />
                         ))}
                     </div>
@@ -235,10 +255,17 @@ export default function CRMKanban() {
                             }),
                         }}
                     >
-                        {activeLead ? <SortableItem lead={activeLead} /> : null}
+                        {activeLead ? <SortableItem lead={activeLead} onClick={() => { }} /> : null}
                     </DragOverlay>
                 </DndContext>
             </div>
+
+            <LeadDetailsModal
+                lead={selectedLead}
+                isOpen={isModalOpen}
+                onClose={() => setIsModalOpen(false)}
+                onSave={handleSaveLead}
+            />
         </div>
     );
 }
