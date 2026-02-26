@@ -241,6 +241,3 @@ export default function WorkflowBuilder({ workflow }: { workflow: any }) {
         </div>
     );
 }
-
-    );
-}

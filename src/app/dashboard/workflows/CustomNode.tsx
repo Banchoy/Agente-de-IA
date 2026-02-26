@@ -17,9 +17,9 @@ const CustomNode = ({ data, selected }: NodeProps) => {
                 </div>
                 <div className="flex-1 overflow-hidden">
                     <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest truncate">
-                        {data.typeLabel || 'Ação'}
+                        {String(data.typeLabel || 'Ação')}
                     </p>
-                    <h4 className="text-sm font-bold text-foreground truncate">{data.label}</h4>
+                    <h4 className="text-sm font-bold text-foreground truncate">{String(data.label)}</h4>
                 </div>
             </div>
 
