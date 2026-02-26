@@ -19,7 +19,7 @@ const CustomNode = ({ data, selected }: NodeProps) => {
                     <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest truncate">
                         {String(data.typeLabel || 'Ação')}
                     </p>
-                    <h4 className="text-sm font-bold text-foreground truncate">{String(data.label)}</h4>
+                    <h4 className="text-sm font-bold text-foreground truncate">{String(data.label || 'Sem nome')}</h4>
                 </div>
             </div>
 

@@ -23,7 +23,7 @@ const nodeTypes = {
     custom: CustomNode,
 };
 
-export default function WorkflowBuilder({ workflow }: { workflow: any }) {
+export default function WorkflowBuilder({ workflow, agents = [] }: { workflow: any, agents?: any[] }) {
     const [nodes, setNodes, onNodesChange] = useNodesState(workflow.nodes || []);
     const [edges, setEdges, onEdgesChange] = useEdgesState(workflow.edges || []);
     const [isSaving, setIsSaving] = useState(false);
@@ -211,6 +211,31 @@ export default function WorkflowBuilder({ workflow }: { workflow: any }) {
                                     className="w-full rounded-xl border border-border bg-background px-4 py-3 text-sm focus:border-primary focus:ring-4 focus:ring-primary/10 transition-all font-medium"
                                 />
                             </div>
+
+                            {selectedNode.data.icon === 'agent' && (
+                                <div className="space-y-2">
+                                    <label className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest px-1">Selecionar Agente</label>
+                                    <select
+                                        value={selectedNode.data.config?.agentId || ''}
+                                        onChange={(e) => {
+                                            const agentId = e.target.value;
+                                            const selectedAgent = agents.find(a => a.id === agentId);
+                                            updateNodeData(selectedNode.id, {
+                                                label: selectedAgent ? `🤖 ${selectedAgent.name}` : selectedNode.data.label,
+                                                config: { ...selectedNode.data.config, agentId }
+                                            });
+                                        }}
+                                        className="w-full rounded-xl border border-border bg-background px-4 py-3 text-sm focus:border-primary focus:ring-4 focus:ring-primary/10 transition-all font-medium appearance-none"
+                                    >
+                                        <option value="">Selecione um agente...</option>
+                                        {agents.map((agent: any) => (
+                                            <option key={agent.id} value={agent.id}>
+                                                {agent.name}
+                                            </option>
+                                        ))}
+                                    </select>
+                                </div>
+                            )}
 
                             <div className="space-y-2">
                                 <label className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest px-1">ID do Nó</label>
