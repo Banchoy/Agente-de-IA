@@ -28,18 +28,16 @@ import { updateLeadMetadata, updateLeadStage } from "./leads/actions";
 
 // Stages requested by user
 const INITIAL_STAGES = [
-    { id: "new", name: "Novo Lead", color: "bg-blue-500" },
-    { id: "ai_service", name: "Em Atendimento (IA)", color: "bg-amber-500" },
-    { id: "qualified", name: "Qualificado", color: "bg-emerald-500" },
-    { id: "scheduled", name: "Agendado", color: "bg-purple-500" },
-    { id: "closed", name: "Fechado", color: "bg-green-600" },
-    { id: "lost", name: "Perdido", color: "bg-rose-500" },
+    { id: "prospecting", name: "Prospecção", color: "bg-slate-400" },
+    { id: "qualification", name: "Qualificação", color: "bg-amber-400" },
+    { id: "negotiation", name: "Negociação", color: "bg-blue-400" },
+    { id: "sold", name: "Vendido", color: "bg-emerald-500" },
 ];
 
 const INITIAL_LEADS = [
-    { id: "1", name: "João Silva", phone: "+55 11 99999-9999", stageId: "new", source: "Meta Ads", value: "R$ 5.000", metaData: { "Idade": "34", "Interesse": "Imóvel 3 Quartos" } },
-    { id: "2", name: "Maria Oliveira", phone: "+55 11 88888-8888", stageId: "ai_service", source: "Facebook Leads", value: "R$ 2.500", metaData: { "Procedimento": "Invisalign" } },
-    { id: "3", name: "Roberto Santos", phone: "+55 21 77777-7777", stageId: "qualified", source: "Instagram Ads", value: "R$ 12.000", metaData: { "Financiamento": "Pré-aprovado" } },
+    { id: "1", name: "João Silva", phone: "+55 11 99999-9999", stageId: "prospecting", source: "Meta Ads", value: "R$ 5.000", metaData: { "Idade": "34", "Interesse": "Imóvel 3 Quartos" } },
+    { id: "2", name: "Maria Oliveira", phone: "+55 11 88888-8888", stageId: "qualification", source: "Facebook Leads", value: "R$ 2.500", metaData: { "Procedimento": "Invisalign" } },
+    { id: "3", name: "Roberto Santos", phone: "+55 21 77777-7777", stageId: "negotiation", source: "Instagram Ads", value: "R$ 12.000", metaData: { "Financiamento": "Pré-aprovado" } },
 ];
 
 function SortableItem({ lead, onClick }: { lead: any; onClick: () => void }) {

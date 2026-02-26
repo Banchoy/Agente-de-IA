@@ -18,20 +18,20 @@ export default async function Home() {
       <nav className="fixed top-0 w-full border-b border-zinc-100 bg-white/80 backdrop-blur-md z-50">
         <div className="mx-auto flex h-16 max-w-7xl items-center justify-between px-6">
           <div className="flex items-center gap-2 font-bold text-xl tracking-tight">
-            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-zinc-900 text-white">
-              <Bot size={20} />
+            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-emerald-600 text-white">
+              <Sparkles size={20} />
             </div>
-            Agente AI
+            CRM DE CONSÓRCIO
           </div>
           <div className="flex items-center gap-4">
-            <Link href="/sign-in" className="text-sm font-medium hover:text-zinc-600 transition-colors">
+            <Link href="/sign-in" className="text-sm font-bold uppercase tracking-widest hover:text-emerald-600 transition-colors">
               Entrar
             </Link>
             <Link
               href="/sign-up"
-              className="rounded-full bg-zinc-900 px-5 py-2 text-sm font-medium text-white hover:bg-zinc-800 transition-all active:scale-95"
+              className="rounded-full bg-emerald-600 px-6 py-2.5 text-xs font-black uppercase tracking-widest text-white hover:bg-emerald-700 transition-all active:scale-95 shadow-lg shadow-emerald-200"
             >
-              Começar Grátis
+              Começar Agora
             </Link>
           </div>
         </div>
@@ -41,16 +41,16 @@ export default async function Home() {
       <main className="flex-1 pt-32 pb-20">
         <section className="px-6 text-center">
           <div className="mx-auto max-w-4xl">
-            <div className="mb-6 inline-flex items-center gap-2 rounded-full border border-zinc-200 bg-zinc-50 px-3 py-1 text-xs font-semibold text-zinc-600">
-              <Sparkles size={14} className="text-zinc-900" />
-              A nova era da automação inteligente
+            <div className="mb-6 inline-flex items-center gap-2 rounded-full border border-emerald-100 bg-emerald-50 px-3 py-1 text-[10px] font-black uppercase tracking-widest text-emerald-600">
+              <Sparkles size={14} />
+              O CRM número 1 para vendas de consórcio
             </div>
-            <h1 className="mb-6 text-5xl font-extrabold tracking-tight sm:text-7xl">
-              Construa o futuro com <span className="bg-gradient-to-r from-zinc-900 to-zinc-500 bg-clip-text text-transparent">Agentes de IA</span>
+            <h1 className="mb-6 text-6xl font-black tracking-tighter sm:text-8xl text-zinc-900">
+              Transforme Leads em <span className="text-emerald-600">Vendas</span>
             </h1>
-            <p className="mx-auto mb-10 max-w-2xl text-lg leading-relaxed text-zinc-600 sm:text-xl">
-              A plataforma SaaS definitiva para gerenciar múltiplos agentes inteligentes,
-              integrados ao seu fluxo de trabalho e focados em resultados reais.
+            <p className="mx-auto mb-10 max-w-2xl text-lg leading-relaxed text-zinc-500 font-medium">
+              Gestão de funil, qualificação automática com IA e integração direta com Meta Ads.
+              Tudo o que você precisa para dominar o mercado de consórcios.
             </p>
             <div className="flex flex-col items-center justify-center gap-4 sm:flex-row">
               <Link
@@ -103,12 +103,12 @@ export default async function Home() {
       {/* Footer */}
       <footer className="border-t border-zinc-100 py-12 px-6">
         <div className="mx-auto max-w-7xl flex flex-col md:flex-row justify-between items-center gap-6">
-          <div className="flex items-center gap-2 font-bold text-lg opacity-50">
-            <Bot size={18} />
-            Agente AI
+          <div className="flex items-center gap-2 font-black text-xs uppercase tracking-widest opacity-40">
+            <Sparkles size={18} className="text-emerald-600" />
+            CRM DE CONSÓRCIO
           </div>
-          <p className="text-sm text-zinc-500">
-            © 2024 Agente AI. Todos os direitos reservados.
+          <p className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest">
+            © 2024 CRM DE CONSÓRCIO. Potencializado por IA.
           </p>
         </div>
       </footer>
