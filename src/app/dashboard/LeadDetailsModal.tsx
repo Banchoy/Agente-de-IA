@@ -19,7 +19,7 @@ import { Separator } from "@/components/ui/separator";
 import {
     User, Phone, Mail, Calendar,
     Briefcase, CreditCard, CheckCircle2,
-    Plus, Trash2, Save
+    Plus, Trash2, Save, Sparkles
 } from "lucide-react";
 
 interface LeadDetailsModalProps {
@@ -59,8 +59,33 @@ export default function LeadDetailsModal({ lead, isOpen, onClose, onSave }: Lead
     const tabs = [
         { id: "dados", label: "Dados cadastrais" },
         { id: "qualificacao", label: "Qualificação / Negociação" },
+        { id: "mensagens", label: "Mensagens & IA" },
         { id: "cotas", label: "Cotas" },
     ];
+
+    const aiSuggestions = [
+        {
+            title: "Primeiro Contato",
+            message: `Olá ${lead.name}! Vi seu interesse em nosso sistema através do Meta Ads. Como posso te ajudar hoje?`,
+            type: "Saudação"
+        },
+        {
+            title: "Pedido de Qualificação",
+            message: `Olá ${lead.name}, para eu te passar os melhores valores, qual seria a sua renda mensal aproximada e o valor de crédito que você busca?`,
+            type: "Qualificação"
+        },
+        {
+            title: "Agendamento",
+            message: `Podemos marcar uma breve ligação de 5 minutos para eu te explicar como funciona o nosso plano de ${formData.product || 'consórcio'}?`,
+            type: "Conversão"
+        }
+    ];
+
+    const handleSendWhatsApp = (message: string) => {
+        const encodedMsg = encodeURIComponent(message);
+        const cleanPhone = formData.phone.replace(/\D/g, '');
+        window.open(`https://wa.me/${cleanPhone}?text=${encodedMsg}`, '_blank');
+    };
 
     return (
         <Dialog open={isOpen} onOpenChange={onClose}>
@@ -90,12 +115,12 @@ export default function LeadDetailsModal({ lead, isOpen, onClose, onSave }: Lead
                                 </div>
                             </div>
 
-                            <div className="flex gap-8">
+                            <div className="flex gap-8 overflow-x-auto no-scrollbar">
                                 {tabs.map(tab => (
                                     <button
                                         key={tab.id}
                                         onClick={() => setActiveTab(tab.id)}
-                                        className={`pb-4 text-xs font-black uppercase tracking-widest transition-all relative ${activeTab === tab.id ? 'text-zinc-900' : 'text-zinc-400 hover:text-zinc-600'
+                                        className={`pb-4 text-xs font-black uppercase tracking-widest transition-all relative whitespace-nowrap ${activeTab === tab.id ? 'text-zinc-900' : 'text-zinc-400 hover:text-zinc-600'
                                             }`}
                                     >
                                         {tab.label}
@@ -229,6 +254,41 @@ export default function LeadDetailsModal({ lead, isOpen, onClose, onSave }: Lead
                                                 </div>
                                             </div>
                                         </div>
+                                    </div>
+                                </div>
+                            )}
+
+                            {activeTab === "mensagens" && (
+                                <div className="space-y-6 animate-in fade-in duration-300">
+                                    <div className="p-4 bg-emerald-50 border border-emerald-100 rounded-2xl flex gap-3 items-start">
+                                        <Sparkles className="text-emerald-600 mt-1 flex-shrink-0" size={18} />
+                                        <div>
+                                            <h4 className="text-[10px] font-black text-emerald-700 uppercase tracking-widest">IA Co-Pilot</h4>
+                                            <p className="text-xs text-emerald-600/80 font-medium">Use as sugestões da IA para acelerar seu atendimento via WhatsApp.</p>
+                                        </div>
+                                    </div>
+
+                                    <div className="grid gap-4">
+                                        {aiSuggestions.map((suggestion, idx) => (
+                                            <div key={idx} className="group p-5 bg-white border border-zinc-100 rounded-2xl shadow-sm hover:border-emerald-200 transition-all">
+                                                <div className="flex justify-between items-start mb-3">
+                                                    <div className="space-y-1">
+                                                        <span className="text-[9px] font-black text-zinc-400 uppercase tracking-widest">{suggestion.type}</span>
+                                                        <h5 className="text-sm font-black text-zinc-900">{suggestion.title}</h5>
+                                                    </div>
+                                                    <Button
+                                                        onClick={() => handleSendWhatsApp(suggestion.message)}
+                                                        className="bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl h-9 px-4 text-[10px] font-black uppercase gap-2 transition-all active:scale-95 shadow-lg shadow-emerald-100"
+                                                    >
+                                                        <Phone size={14} />
+                                                        Mandar no WhatsApp
+                                                    </Button>
+                                                </div>
+                                                <p className="text-xs text-zinc-500 font-medium leading-relaxed italic border-l-2 border-zinc-100 pl-4">
+                                                    "{suggestion.message}"
+                                                </p>
+                                            </div>
+                                        ))}
                                     </div>
                                 </div>
                             )}
