@@ -2,6 +2,7 @@ import { UserButton, OrganizationSwitcher } from "@clerk/nextjs";
 import { LayoutDashboard, Users, Settings, History, Bot, Menu, MessageSquare, Activity } from "lucide-react";
 import Link from "next/link";
 import { UserService } from "@/lib/services/user";
+import { ThemeToggle } from "@/components/theme-toggle";
 
 export const dynamic = "force-dynamic";
 
@@ -13,54 +14,50 @@ export default async function DashboardLayout({
     // Sync user and organization with our DB on every dashboard load
     await UserService.syncUser();
     return (
-        <div className="flex min-h-screen bg-zinc-50 font-sans">
+        <div className="flex min-h-screen bg-background font-sans text-foreground">
             {/* Sidebar Desktop */}
-            <aside className="hidden w-64 border-r border-zinc-200 bg-white md:flex md:flex-col">
-                <div className="flex h-16 items-center border-b border-zinc-200 px-6 font-bold text-xl gap-2">
-                    <Bot size={24} className="text-zinc-900" />
+            <aside className="hidden w-64 border-r border-border bg-card md:flex md:flex-col">
+                <div className="flex h-16 items-center border-b border-border px-6 font-bold text-xl gap-2">
+                    <Bot size={24} className="text-foreground" />
                     Agente AI
                 </div>
                 <nav className="flex-1 space-y-1 p-4">
-                    <Link href="/dashboard" className="flex items-center gap-3 rounded-lg px-3 py-2 bg-zinc-900 text-white font-bold transition-all shadow-md">
+                    <Link href="/dashboard" className="flex items-center gap-3 rounded-lg px-3 py-2 bg-primary text-primary-foreground font-bold transition-all shadow-md">
                         <LayoutDashboard size={20} />
                         CRM de Vendas
                     </Link>
-                    <Link href="/dashboard/whatsapp" className="flex items-center gap-3 rounded-lg px-3 py-2 text-zinc-600 hover:bg-zinc-50 hover:text-zinc-900 transition-colors">
+                    <Link href="/dashboard/whatsapp" className="flex items-center gap-3 rounded-lg px-3 py-2 text-muted-foreground hover:bg-accent hover:text-accent-foreground transition-colors">
                         <MessageSquare size={20} />
                         WhatsApp
                     </Link>
-                    <Link href="/dashboard/agents" className="flex items-center gap-3 rounded-lg px-3 py-2 text-zinc-600 hover:bg-zinc-50 hover:text-zinc-900 transition-colors">
+                    <Link href="/dashboard/agents" className="flex items-center gap-3 rounded-lg px-3 py-2 text-muted-foreground hover:bg-accent hover:text-accent-foreground transition-colors">
                         <Bot size={20} />
                         Agentes
                     </Link>
-                    <Link href="/dashboard/workflows" className="flex items-center gap-3 rounded-lg px-3 py-2 text-zinc-600 hover:bg-zinc-50 hover:text-zinc-900 transition-colors">
+                    <Link href="/dashboard/workflows" className="flex items-center gap-3 rounded-lg px-3 py-2 text-muted-foreground hover:bg-accent hover:text-accent-foreground transition-colors">
                         <Activity size={20} />
                         Fluxos
                     </Link>
-                    <Link href="/dashboard/whatsapp" className="flex items-center gap-3 rounded-lg px-3 py-2 text-zinc-600 hover:bg-zinc-50 hover:text-zinc-900 transition-colors">
-                        <MessageSquare size={20} />
-                        WhatsApp
-                    </Link>
-                    <Link href="/dashboard/users" className="flex items-center gap-3 rounded-lg px-3 py-2 text-zinc-600 hover:bg-zinc-50 hover:text-zinc-900 transition-colors">
+                    <Link href="/dashboard/users" className="flex items-center gap-3 rounded-lg px-3 py-2 text-muted-foreground hover:bg-accent hover:text-accent-foreground transition-colors">
                         <Users size={20} />
                         Usuários
                     </Link>
-                    <Link href="/dashboard/logs" className="flex items-center gap-3 rounded-lg px-3 py-2 text-zinc-600 hover:bg-zinc-50 hover:text-zinc-900 transition-colors">
+                    <Link href="/dashboard/logs" className="flex items-center gap-3 rounded-lg px-3 py-2 text-muted-foreground hover:bg-accent hover:text-accent-foreground transition-colors">
                         <History size={20} />
                         Logs de Auditoria
                     </Link>
-                    <Link href="/dashboard/settings" className="flex items-center gap-3 rounded-lg px-3 py-2 text-zinc-600 hover:bg-zinc-50 hover:text-zinc-900 transition-colors">
+                    <Link href="/dashboard/settings" className="flex items-center gap-3 rounded-lg px-3 py-2 text-muted-foreground hover:bg-accent hover:text-accent-foreground transition-colors">
                         <Settings size={20} />
                         Configurações
                     </Link>
                 </nav>
-                <div className="p-4 border-t border-zinc-200">
+                <div className="p-4 border-t border-border">
                     <OrganizationSwitcher
                         hidePersonal
                         appearance={{
                             elements: {
                                 rootBox: "w-full",
-                                organizationSwitcherTrigger: "w-full flex justify-between px-3 py-2 border border-zinc-200 rounded-lg hover:bg-zinc-50 transition-colors"
+                                organizationSwitcherTrigger: "w-full flex justify-between px-3 py-2 border border-border rounded-lg hover:bg-accent/50 transition-colors"
                             }
                         }}
                     />
@@ -69,11 +66,12 @@ export default async function DashboardLayout({
 
             {/* Main Content */}
             <div className="flex-1 flex flex-col">
-                <header className="flex h-16 items-center justify-between border-b border-zinc-200 bg-white px-6">
-                    <button className="md:hidden text-zinc-600">
+                <header className="flex h-16 items-center justify-between border-b border-border bg-card px-6">
+                    <button className="md:hidden text-muted-foreground">
                         <Menu size={24} />
                     </button>
                     <div className="ml-auto flex items-center gap-4">
+                        <ThemeToggle />
                         <UserButton afterSignOutUrl="/" />
                     </div>
                 </header>

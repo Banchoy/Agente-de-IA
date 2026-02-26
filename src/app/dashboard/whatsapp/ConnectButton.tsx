@@ -108,7 +108,7 @@ export default function WhatsAppConnectButton() {
             <button
                 onClick={handleConnect}
                 disabled={isLoading}
-                className="flex items-center gap-2 rounded-xl bg-zinc-900 px-6 py-2.5 text-sm font-bold text-white hover:bg-zinc-800 transition-all active:scale-[0.98] disabled:opacity-50"
+                className="flex items-center gap-2 rounded-xl bg-primary px-6 py-2.5 text-sm font-bold text-primary-foreground hover:opacity-90 transition-all active:scale-[0.98] disabled:opacity-50"
             >
                 {isLoading ? (
                     <Loader2 size={18} className="animate-spin" />
@@ -120,21 +120,21 @@ export default function WhatsAppConnectButton() {
 
             {showModal && (
                 <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
-                    <div className="relative w-full max-w-sm rounded-3xl bg-white p-8 shadow-2xl animate-in zoom-in-95 duration-200">
+                    <div className="relative w-full max-w-sm rounded-3xl bg-card p-8 shadow-2xl animate-in zoom-in-95 duration-200 border border-border">
                         <button
                             onClick={() => setShowModal(false)}
-                            className="absolute right-4 top-4 text-zinc-400 hover:text-zinc-900 transition-colors"
+                            className="absolute right-4 top-4 text-muted-foreground hover:text-foreground transition-colors"
                         >
                             <X size={24} />
                         </button>
 
                         <div className="text-center space-y-6">
                             <div className="space-y-2">
-                                <h3 className="text-xl font-black text-zinc-900">Escanear QR Code</h3>
-                                <p className="text-sm text-zinc-500">Abra o WhatsApp no seu celular e escaneie o código abaixo.</p>
+                                <h3 className="text-xl font-black text-foreground">Escanear QR Code</h3>
+                                <p className="text-sm text-muted-foreground">Abra o WhatsApp no seu celular e escaneie o código abaixo.</p>
                             </div>
 
-                            <div className="mx-auto aspect-square w-full max-w-[240px] overflow-hidden rounded-2xl bg-zinc-50 border-8 border-zinc-50 flex items-center justify-center p-2">
+                            <div className="mx-auto aspect-square w-full max-w-[240px] overflow-hidden rounded-2xl bg-white border-8 border-white p-2">
                                 {qrCode ? (
                                     <img src={qrCode} alt="WhatsApp QR Code" className="h-full w-full object-contain" />
                                 ) : (
@@ -146,11 +146,11 @@ export default function WhatsAppConnectButton() {
                             </div>
 
                             <div className="flex flex-col gap-2">
-                                <div className="flex items-center gap-2 rounded-full bg-amber-50 px-4 py-2 text-[10px] font-bold text-amber-700 border border-amber-100 uppercase">
+                                <div className="flex items-center gap-2 rounded-full bg-amber-100 dark:bg-amber-900/30 px-4 py-2 text-[10px] font-bold text-amber-700 dark:text-amber-400 border border-amber-200 dark:border-amber-800 uppercase">
                                     <QrCode size={14} />
                                     Válido por 30 segundos
                                 </div>
-                                <p className="text-[10px] text-zinc-400">
+                                <p className="text-[10px] text-muted-foreground">
                                     Após escanear, esta janela fechará automaticamente assim que a conexão for confirmada.
                                 </p>
                             </div>

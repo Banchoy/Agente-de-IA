@@ -34,18 +34,18 @@ export default async function DashboardPage() {
             <div className="h-full flex flex-col space-y-6 overflow-hidden">
                 <div className="flex justify-between items-end">
                     <div>
-                        <h1 className="text-3xl font-black tracking-tight text-zinc-900">Pipeline de Vendas</h1>
-                        <p className="text-zinc-500 font-medium">Gerencie seus leads e conexões do Meta Ads com IA.</p>
+                        <h1 className="text-3xl font-black tracking-tight text-foreground">Pipeline de Vendas</h1>
+                        <p className="text-muted-foreground font-medium">Gerencie seus leads e conexões do Meta Ads com IA.</p>
                     </div>
 
                     <div className="hidden lg:flex gap-4">
-                        <div className="flex items-center gap-2 px-4 py-2 bg-white border border-zinc-200 rounded-xl shadow-sm">
+                        <div className="flex items-center gap-2 px-4 py-2 bg-card border border-border rounded-xl shadow-sm">
                             <TrendingUp size={16} className="text-green-500" />
-                            <span className="text-xs font-bold text-zinc-600 uppercase tracking-wider">Conversão: 12%</span>
+                            <span className="text-xs font-bold text-muted-foreground uppercase tracking-wider">Conversão: 12%</span>
                         </div>
-                        <div className="flex items-center gap-2 px-4 py-2 bg-white border border-zinc-200 rounded-xl shadow-sm">
+                        <div className="flex items-center gap-2 px-4 py-2 bg-card border border-border rounded-xl shadow-sm">
                             <Users size={16} className="text-blue-500" />
-                            <span className="text-xs font-bold text-zinc-600 uppercase tracking-wider">Leads Hoje: 24</span>
+                            <span className="text-xs font-bold text-muted-foreground uppercase tracking-wider">Leads Hoje: 24</span>
                         </div>
                     </div>
                 </div>
