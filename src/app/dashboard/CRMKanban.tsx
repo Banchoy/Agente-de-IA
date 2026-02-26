@@ -73,10 +73,17 @@ function SortableItem({ lead, onClick }: { lead: any; onClick: () => void }) {
             </div>
 
             <div className="space-y-2 mb-4">
-                <div className="flex items-center text-xs text-muted-foreground gap-2">
+                <a
+                    href={`https://wa.me/${lead.phone.replace(/\D/g, '')}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    onClick={(e) => e.stopPropagation()}
+                    onPointerDown={(e) => e.stopPropagation()}
+                    className="flex items-center text-xs text-muted-foreground gap-2 hover:text-emerald-600 transition-colors w-fit"
+                >
                     <Phone className="w-3 h-3" />
                     {lead.phone}
-                </div>
+                </a>
                 <div className="text-sm font-black text-foreground">
                     {lead.value}
                 </div>
@@ -89,10 +96,25 @@ function SortableItem({ lead, onClick }: { lead: any; onClick: () => void }) {
                     </div>
                 </div>
                 <div className="flex gap-1 opacity-100 lg:opacity-0 lg:group-hover:opacity-100 transition-opacity">
-                    <Button variant="ghost" size="icon" className="h-7 w-7 rounded-lg hover:bg-accent">
+                    <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-7 w-7 rounded-lg hover:bg-accent"
+                        onClick={(e) => {
+                            e.stopPropagation();
+                            // Future: open chat directly
+                        }}
+                        onPointerDown={(e) => e.stopPropagation()}
+                    >
                         <MessageSquare className="w-3.5 h-3.5" />
                     </Button>
-                    <Button variant="ghost" size="icon" className="h-7 w-7 rounded-lg hover:bg-accent">
+                    <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-7 w-7 rounded-lg hover:bg-accent"
+                        onClick={(e) => e.stopPropagation()}
+                        onPointerDown={(e) => e.stopPropagation()}
+                    >
                         <MoreHorizontal className="w-3.5 h-3.5" />
                     </Button>
                 </div>

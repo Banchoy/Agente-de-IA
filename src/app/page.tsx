@@ -21,7 +21,7 @@ export default async function Home() {
             <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-emerald-600 text-white">
               <Sparkles size={20} />
             </div>
-            CRM DE CONSÓRCIO
+            LeadDirector AI
           </div>
           <div className="flex items-center gap-4">
             <Link href="/sign-in" className="text-sm font-bold uppercase tracking-widest hover:text-emerald-600 transition-colors">
@@ -43,14 +43,14 @@ export default async function Home() {
           <div className="mx-auto max-w-4xl">
             <div className="mb-6 inline-flex items-center gap-2 rounded-full border border-emerald-100 bg-emerald-50 px-3 py-1 text-[10px] font-black uppercase tracking-widest text-emerald-600">
               <Sparkles size={14} />
-              O CRM número 1 para vendas de consórcio
+              Conversão de Leads com IA para qualquer negócio
             </div>
             <h1 className="mb-6 text-6xl font-black tracking-tighter sm:text-8xl text-zinc-900">
-              Transforme Leads em <span className="text-emerald-600">Vendas</span>
+              Transforme Leads em <span className="text-emerald-600">Lucro</span>
             </h1>
             <p className="mx-auto mb-10 max-w-2xl text-lg leading-relaxed text-zinc-500 font-medium">
               Gestão de funil, qualificação automática com IA e integração direta com Meta Ads.
-              Tudo o que você precisa para dominar o mercado de consórcios.
+              Venda mais no Consórcio, Imobiliário, Odontologia e muito mais.
             </p>
             <div className="flex flex-col items-center justify-center gap-4 sm:flex-row">
               <Link
@@ -105,10 +105,10 @@ export default async function Home() {
         <div className="mx-auto max-w-7xl flex flex-col md:flex-row justify-between items-center gap-6">
           <div className="flex items-center gap-2 font-black text-xs uppercase tracking-widest opacity-40">
             <Sparkles size={18} className="text-emerald-600" />
-            CRM DE CONSÓRCIO
+            LeadDirector AI
           </div>
           <p className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest">
-            © 2024 CRM DE CONSÓRCIO. Potencializado por IA.
+            © 2024 LeadDirector AI. Potencializado por IA.
           </p>
         </div>
       </footer>
