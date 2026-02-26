@@ -84,3 +84,74 @@ export const workflows = pgTable("workflows", {
         organizationIdIdx: index("workflows_organization_id_idx").on(table.organizationId),
     }
 });
+// -----------------------------------------------------------------------------
+// CRM: Pipelines Table
+// -----------------------------------------------------------------------------
+export const pipelines = pgTable("pipelines", {
+    id: uuid("id").defaultRandom().primaryKey(),
+    organizationId: uuid("organization_id")
+        .notNull()
+        .references(() => organizations.id, { onDelete: "cascade" }),
+    name: text("name").notNull(),
+    description: text("description"),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+    updatedAt: timestamp("updated_at").defaultNow().notNull(),
+}, (table) => {
+    return {
+        organizationIdIdx: index("pipelines_organization_id_idx").on(table.organizationId),
+    }
+});
+
+// -----------------------------------------------------------------------------
+// CRM: Stages Table
+// -----------------------------------------------------------------------------
+export const stages = pgTable("stages", {
+    id: uuid("id").defaultRandom().primaryKey(),
+    pipelineId: uuid("pipeline_id")
+        .notNull()
+        .references(() => pipelines.id, { onDelete: "cascade" }),
+    name: text("name").notNull(),
+    order: text("order").notNull().default("0"), // To maintain kanban column order
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+// -----------------------------------------------------------------------------
+// CRM: Leads Table
+// -----------------------------------------------------------------------------
+export const leads = pgTable("leads", {
+    id: uuid("id").defaultRandom().primaryKey(),
+    organizationId: uuid("organization_id")
+        .notNull()
+        .references(() => organizations.id, { onDelete: "cascade" }),
+    stageId: uuid("stage_id")
+        .references(() => stages.id, { onDelete: "set null" }),
+    name: text("name").notNull(),
+    email: text("email"),
+    phone: text("phone"), // International format for WhatsApp
+    status: text("status").default("active").notNull(), // active, closed, lost
+    source: text("source"), // e.g., 'meta_ads', 'manual'
+    metaData: jsonb("metadata").default({}), // Unified metadata storage (AI extracted info, campaign info)
+    aiActive: text("ai_active").default("true").notNull(), // 'true' or 'false' for handover
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+    updatedAt: timestamp("updated_at").defaultNow().notNull(),
+}, (table) => {
+    return {
+        organizationIdIdx: index("leads_organization_id_idx").on(table.organizationId),
+        stageIdIdx: index("leads_stage_id_idx").on(table.stageId),
+    }
+});
+
+// -----------------------------------------------------------------------------
+// CRM: Meta Integrations Table
+// -----------------------------------------------------------------------------
+export const metaIntegrations = pgTable("meta_integrations", {
+    id: uuid("id").defaultRandom().primaryKey(),
+    organizationId: uuid("organization_id")
+        .notNull()
+        .references(() => organizations.id, { onDelete: "cascade" }),
+    accessToken: text("access_token"),
+    pixelId: text("pixel_id"),
+    webhookVerifyToken: text("webhook_verify_token"),
+    fieldMapping: jsonb("field_mapping").default({}), // Mapping of Facebook form fields to CRM fields
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+});
