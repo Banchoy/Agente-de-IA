@@ -21,9 +21,13 @@ export default async function DashboardLayout({
                     Agente AI
                 </div>
                 <nav className="flex-1 space-y-1 p-4">
-                    <Link href="/dashboard" className="flex items-center gap-3 rounded-lg px-3 py-2 text-zinc-600 hover:bg-zinc-50 hover:text-zinc-900 transition-colors">
+                    <Link href="/dashboard" className="flex items-center gap-3 rounded-lg px-3 py-2 bg-zinc-900 text-white font-bold transition-all shadow-md">
                         <LayoutDashboard size={20} />
-                        Dashboard
+                        CRM de Vendas
+                    </Link>
+                    <Link href="/dashboard/whatsapp" className="flex items-center gap-3 rounded-lg px-3 py-2 text-zinc-600 hover:bg-zinc-50 hover:text-zinc-900 transition-colors">
+                        <MessageSquare size={20} />
+                        WhatsApp
                     </Link>
                     <Link href="/dashboard/agents" className="flex items-center gap-3 rounded-lg px-3 py-2 text-zinc-600 hover:bg-zinc-50 hover:text-zinc-900 transition-colors">
                         <Bot size={20} />
