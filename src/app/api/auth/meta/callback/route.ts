@@ -95,13 +95,35 @@ export async function GET(request: NextRequest) {
             }
         }
 
-        // 5. Redirecionar de volta com as páginas codificadas na URL
+        // 5. Retornar um HTML com Script para fechar o popup e avisar a janela pai
         const pagesEncoded = encodeURIComponent(JSON.stringify(pages));
-        const response = NextResponse.redirect(
-            `${APP_URL}/dashboard/integrations?meta_success=1&pages=${pagesEncoded}`
-        );
 
-        return response;
+        return new NextResponse(
+            `<!DOCTYPE html>
+            <html>
+                <body>
+                    <script>
+                        const data = {
+                            type: 'meta-auth-success',
+                            pages: ${JSON.stringify(pages)}
+                        };
+                        if (window.opener) {
+                            window.opener.postMessage(data, '*');
+                            window.close();
+                        } else {
+                            window.location.href = '/dashboard/integrations?meta_success=1&pages=${pagesEncoded}';
+                        }
+                    </script>
+                    <div style="font-family: sans-serif; text-align: center; padding-top: 50px;">
+                        <h2>Conectado com sucesso!</h2>
+                        <p>Você pode fechar esta janela.</p>
+                    </div>
+                </body>
+            </html>`,
+            {
+                headers: { "Content-Type": "text/html" },
+            }
+        );
     } catch (err: any) {
         console.error("Erro no callback Meta OAuth:", err);
         return NextResponse.redirect(`${APP_URL}/dashboard/integrations?meta_error=server`);

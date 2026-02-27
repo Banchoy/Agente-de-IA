@@ -23,7 +23,7 @@ import { toast } from "sonner";
 const META_APP_ID = process.env.NEXT_PUBLIC_META_APP_ID;
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL || (typeof window !== "undefined" ? window.location.origin : "");
 const CALLBACK_URI = `${APP_URL}/api/auth/meta/callback`;
-const OAUTH_SCOPES = "leads_retrieval,pages_show_list,pages_read_engagement,ads_read";
+const OAUTH_SCOPES = "leads_retrieval,pages_show_list,pages_read_engagement,ads_read,pages_manage_metadata";
 
 console.log("🔍 Diagnóstico Frontend:");
 console.log("- NEXT_PUBLIC_META_APP_ID:", process.env.NEXT_PUBLIC_META_APP_ID);
@@ -122,8 +122,20 @@ function IntegrationsInner() {
                 return;
             }
 
-            // O callback irá redirecionar para /dashboard/integrations?meta_success=1&pages=...
-            // O useEffect acima processará o resultado
+            // O callback irá enviar uma mensagem via postMessage
+            const handlePopupMsg = async (event: MessageEvent) => {
+                if (event.data && event.data.type === "meta-auth-success") {
+                    window.removeEventListener("message", handlePopupMsg);
+                    setIsConnected(true);
+                    setPages(event.data.pages || []);
+                    setStep("select-page");
+                    toast.success("✅ Conta Meta conectada com sucesso!");
+                    setIsLoading(false);
+                }
+            };
+
+            window.addEventListener("message", handlePopupMsg);
+
             // Monitoramos apenas se o popup foi fechado sem completar
             const closedCheck = setInterval(() => {
                 if (popup.closed) {
