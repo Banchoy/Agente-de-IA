@@ -15,6 +15,17 @@ console.log("- META_APP_SECRET presente:", !!process.env.META_APP_SECRET);
 console.log("- IS_REAL_META:", IS_REAL_META);
 
 /**
+ * Retorna as configurações do Meta em tempo de execução.
+ * Útil para evitar problemas de chaves NEXT_PUBLIC não injetadas no build.
+ */
+export async function getMetaConfig() {
+    return {
+        appId: process.env.NEXT_PUBLIC_META_APP_ID || process.env.META_APP_ID,
+        appUrl: process.env.NEXT_PUBLIC_APP_URL || process.env.APP_URL
+    };
+}
+
+/**
  * Chamado APÓS o callback OAuth.
  * Recebe o token já válido que foi salvo pela rota de callback,
  * e retorna as páginas passadas via query string (já resolvidas no callback).
