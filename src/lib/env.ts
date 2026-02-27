@@ -13,6 +13,11 @@ const envSchema = z.object({
     GOOGLE_GEMINI_API_KEY: z.string().optional(),
     EVOLUTION_API_URL: z.string().optional(),
     EVOLUTION_API_KEY: z.string().optional(),
+    // Meta Integration
+    META_APP_ID: z.string().optional(),
+    META_APP_SECRET: z.string().optional(),
+    NEXT_PUBLIC_META_APP_ID: z.string().optional(),
+    NEXT_PUBLIC_APP_URL: z.string().optional(),
 });
 
 const parsed = envSchema.safeParse(process.env);
