@@ -31,73 +31,176 @@ export default function IntegrationsPage() {
     const handleConnect = async () => {
         setIsLoading(true);
 
-        // Simular abertura de Janela de OAuth do Facebook
         const width = 600;
-        const height = 700;
+        const height = 650;
         const left = window.screenX + (window.outerWidth - width) / 2;
         const top = window.screenY + (window.outerHeight - height) / 2;
 
         const popup = window.open(
             "about:blank",
             "FacebookLogin",
-            `width=${width},height=${height},left=${left},top=${top}`
+            `width=${width},height=${height},left=${left},top=${top},scrollbars=no`
         );
 
         if (popup) {
             popup.document.write(`
-                <html>
-                    <head>
-                        <title>Fazer login no Facebook</title>
-                        <script src="https://cdn.tailwindcss.com"></script>
-                        <style>
-                            body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; }
-                        </style>
-                    </head>
-                    <body class="bg-[#f0f2f5] flex items-center justify-center h-screen overflow-hidden">
-                        <div class="bg-white p-8 rounded-xl shadow-2xl max-w-sm w-full text-center space-y-6 animate-in fade-in zoom-in duration-300">
-                            <div class="flex justify-center">
-                                <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="#1877F2"><path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z"/></svg>
+                <!DOCTYPE html>
+                <html lang="pt-BR">
+                <head>
+                    <meta charset="UTF-8" />
+                    <title>Fazer login no Facebook</title>
+                    <style>
+                        * { box-sizing: border-box; margin: 0; padding: 0; }
+                        body {
+                            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+                            background: #f0f2f5;
+                            display: flex;
+                            align-items: center;
+                            justify-content: center;
+                            min-height: 100vh;
+                        }
+                        .card {
+                            background: white;
+                            border-radius: 16px;
+                            box-shadow: 0 20px 60px rgba(0,0,0,0.12);
+                            padding: 40px 32px;
+                            max-width: 380px;
+                            width: 90%;
+                            text-align: center;
+                        }
+                        .brand { font-size: 22px; font-weight: 900; color: #111; margin-top: 16px; }
+                        .desc { font-size: 14px; color: #888; margin-top: 8px; line-height: 1.5; }
+                        .user-card {
+                            display: flex;
+                            align-items: center;
+                            gap: 12px;
+                            background: #f7f8fa;
+                            border-radius: 12px;
+                            padding: 16px;
+                            margin: 24px 0;
+                            text-align: left;
+                        }
+                        .avatar {
+                            width: 44px; height: 44px;
+                            border-radius: 50%;
+                            background: linear-gradient(135deg, #1877F2, #42a5f5);
+                            display: flex;
+                            align-items: center;
+                            justify-content: center;
+                            color: white;
+                            font-weight: 900;
+                            font-size: 16px;
+                        }
+                        .user-name { font-weight: 700; font-size: 14px; color: #111; }
+                        .user-email { font-size: 12px; color: #888; margin-top: 2px; }
+                        .btn {
+                            width: 100%;
+                            background: #1877F2;
+                            color: white;
+                            border: none;
+                            border-radius: 12px;
+                            padding: 14px;
+                            font-size: 15px;
+                            font-weight: 700;
+                            cursor: pointer;
+                            transition: background 0.2s;
+                        }
+                        .btn:hover { background: #166fe5; }
+                        .btn:active { transform: scale(0.98); }
+                        .btn.loading { background: #9ab8f0; cursor: not-allowed; }
+                        .disclaimer { font-size: 11px; color: #aaa; margin-top: 16px; line-height: 1.4; }
+                        .perms { margin: 20px 0; text-align: left; }
+                        .perm-item { display: flex; align-items: center; gap: 8px; font-size: 12px; color: #555; padding: 6px 0; border-bottom: 1px solid #f0f2f5; }
+                        .perm-item svg { color: #1877F2; flex-shrink: 0; }
+                        .divider { border: none; border-top: 1px solid #e0e0e0; margin: 16px 0; }
+                    </style>
+                </head>
+                <body>
+                    <div class="card">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="#1877F2">
+                            <path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z"/>
+                        </svg>
+                        <div class="brand">LeadDirector AI</div>
+                        <p class="desc">Solicitando permissão para gerenciar seus Lead Forms e Anúncios do Meta.</p>
+
+                        <div class="user-card">
+                            <div class="avatar">U</div>
+                            <div>
+                                <div class="user-name">Continuar como Usuário</div>
+                                <div class="user-email">conta@facebook.com</div>
                             </div>
-                            <div class="space-y-2">
-                                <h1 class="text-xl font-bold text-gray-900">LeadDirector AI</h1>
-                                <p class="text-sm text-gray-500">Solicitando acesso para gerenciar seus formulários e anúncios.</p>
-                            </div>
-                            <div class="p-4 bg-gray-50 rounded-lg flex items-center gap-3 text-left">
-                                <div class="w-10 h-10 bg-gray-200 rounded-full"></div>
-                                <div>
-                                    <p class="text-sm font-semibold">Continuar como Usuário</p>
-                                    <p class="text-xs text-gray-400">joao.silva@exemplo.com</p>
-                                </div>
-                            </div>
-                            <button onclick="window.close()" class="w-full bg-[#1877F2] hover:bg-[#166fe5] text-white py-2.5 rounded-lg font-bold transition-colors">
-                                Continuar como João
-                            </button>
-                            <p class="text-[10px] text-gray-400">O LeadDirector AI não poderá publicar fotos no seu perfil.</p>
                         </div>
-                    </body>
+
+                        <div class="perms">
+                            <div class="perm-item">
+                                <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg>
+                                Acessar seus formulários de lead
+                            </div>
+                            <div class="perm-item">
+                                <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg>
+                                Ver leads e respostas de formulários
+                            </div>
+                            <div class="perm-item">
+                                <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg>
+                                Receber notificações de novos leads
+                            </div>
+                        </div>
+
+                        <button class="btn" id="authorizeBtn" onclick="authorize()">
+                            Autorizar LeadDirector AI
+                        </button>
+                        <p class="disclaimer">O LeadDirector AI nunca poderá publicar em seu nome ou acessar conversas privadas.</p>
+                    </div>
+
+                    <script>
+                        function authorize() {
+                            var btn = document.getElementById('authorizeBtn');
+                            btn.textContent = 'Conectando...';
+                            btn.classList.add('loading');
+                            btn.disabled = true;
+                            setTimeout(function() {
+                                window.opener && window.opener.postMessage('meta-auth-success', '*');
+                                window.close();
+                            }, 1200);
+                        }
+                    </script>
+                </body>
                 </html>
             `);
+            popup.document.close();
 
-            const checkClosed = setInterval(async () => {
-                if (popup.closed) {
-                    clearInterval(checkClosed);
+            // Listen for the postMessage from the popup
+            const handleMessage = async (event: MessageEvent) => {
+                if (event.data === 'meta-auth-success') {
+                    window.removeEventListener('message', handleMessage);
                     try {
                         const res = await connectMetaAccount();
                         if (res.success) {
                             setIsConnected(true);
                             setPages(res.pages);
                             setStep("select-page");
-                            toast.success("Conta Meta conectada com sucesso!");
+                            toast.success("Conta Meta autorizada com sucesso!");
                         }
                     } catch (error: any) {
-                        toast.error(error.message || "Erro ao conectar conta");
+                        toast.error(error.message || "Erro ao conectar conta Meta");
                     } finally {
                         setIsLoading(false);
                     }
                 }
-            }, 500);
+            };
+
+            window.addEventListener('message', handleMessage);
+
+            // Fallback: if user closes popup without authorizing
+            const checkClosed = setInterval(() => {
+                if (popup.closed) {
+                    clearInterval(checkClosed);
+                    window.removeEventListener('message', handleMessage);
+                    setIsLoading(false);
+                }
+            }, 800);
         } else {
-            toast.error("O bloqueador de popups impediu a janela de login.");
+            toast.error("Seu navegador bloqueou o popup. Permita popups para este site.");
             setIsLoading(false);
         }
     };
