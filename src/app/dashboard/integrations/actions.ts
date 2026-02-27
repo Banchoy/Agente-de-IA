@@ -7,75 +7,103 @@ import { metaIntegrations, organizations } from "@/lib/db/schema";
 import { eq } from "drizzle-orm";
 import { auth } from "@clerk/nextjs/server";
 
+const IS_REAL_META = !!(process.env.META_APP_ID && process.env.META_APP_SECRET);
+
 /**
- * Simula a conexão com o Facebook e busca formulários
+ * Chamado APÓS o callback OAuth.
+ * Recebe o token já válido que foi salvo pela rota de callback,
+ * e retorna as páginas passadas via query string (já resolvidas no callback).
+ * No modo demo, gera dados fictícios.
  */
-export async function connectMetaAccount() {
-    const { userId, orgId } = await auth();
+export async function connectMetaAccount(longLivedToken?: string, pagesFromCallback?: any[]) {
+    const { orgId } = await auth();
     if (!orgId) throw new Error("Organização não selecionada");
 
     const org = await db.query.organizations.findFirst({
-        where: eq(organizations.clerkOrgId, orgId)
+        where: eq(organizations.clerkOrgId, orgId),
     });
-
     if (!org) throw new Error("Organização não encontrada.");
 
-    const internalOrgId = org.id;
-    const mockToken = "EAAb...";
+    // Modo DEMO (variáveis de env não configuradas)
+    if (!IS_REAL_META) {
+        const mockToken = "DEMO_TOKEN";
+        await db.insert(metaIntegrations).values({
+            organizationId: org.id,
+            accessToken: mockToken,
+            webhookVerifyToken: Math.random().toString(36).substring(7),
+        }).onConflictDoUpdate({
+            target: metaIntegrations.organizationId,
+            set: { accessToken: mockToken, updatedAt: new Date() },
+        });
 
-    // Salvar ou atualizar a integração
-    await db.insert(metaIntegrations).values({
-        organizationId: internalOrgId,
-        accessToken: mockToken,
-        webhookVerifyToken: Math.random().toString(36).substring(7)
-    }).onConflictDoUpdate({
-        target: metaIntegrations.organizationId,
-        set: { accessToken: mockToken, updatedAt: new Date() }
-    });
+        const pages = [
+            { id: "123456789", name: "Nacional Consórcios", category: "Serviços Financeiros", image: "https://api.dicebear.com/7.x/initials/svg?seed=NC" },
+            { id: "987654321", name: "Financeira Direct", category: "Investimentos", image: "https://api.dicebear.com/7.x/initials/svg?seed=FD" },
+        ];
+        return { success: true, pages, mode: "demo" };
+    }
 
-    // Mock de páginas que o usuário gerencia
-    const pages = [
-        { id: "123456789", name: "Nacional Consórcios", category: "Serviços Financeiros", image: "https://api.dicebear.com/7.x/initials/svg?seed=NC" },
-        { id: "987654321", name: "Financeira Direct", category: "Investimentos", image: "https://api.dicebear.com/7.x/initials/svg?seed=FD" }
-    ];
-
-    return { success: true, pages };
+    // Modo REAL — token já foi salvo pelo callback, apenas retornar as páginas
+    return { success: true, pages: pagesFromCallback || [], mode: "real" };
 }
 
 /**
- * Busca formulários de uma página selecionada
+ * Busca formulários de uma página.
+ * Modo real: chama a Graph API usando o token salvo no banco.
+ * Modo demo: retorna dados fictícios.
  */
 export async function getFormsForPage(pageId: string) {
-    const { userId, orgId } = await auth();
+    const { orgId } = await auth();
     if (!orgId) throw new Error("Não autorizado");
 
-    // Simulando delay de rede
-    await new Promise(r => setTimeout(r, 800));
+    if (!IS_REAL_META) {
+        await new Promise(r => setTimeout(r, 600));
+        const forms = await MetaService.getPageFormsFallback("", pageId);
+        return { success: true, forms };
+    }
 
-    const mockToken = "EAAb...";
-    const forms = await MetaService.getPageForms(mockToken, pageId);
+    // Buscar o token do banco
+    const org = await db.query.organizations.findFirst({
+        where: eq(organizations.clerkOrgId, orgId),
+    });
+    if (!org) throw new Error("Organização não encontrada.");
+
+    const integration = await db.query.metaIntegrations.findFirst({
+        where: eq(metaIntegrations.organizationId, org.id),
+    });
+    if (!integration) throw new Error("Integração Meta não encontrada. Reconecte sua conta.");
+
+    const forms = await MetaService.getPageForms(integration.accessToken, pageId);
     return { success: true, forms };
 }
 
 /**
- * Ativa um formulário e inicia o Backfill de leads
+ * Ativa/desativa um formulário e opcionalmente faz o backfill de leads históricos.
  */
 export async function toggleFormIntegration(formId: string, pageName: string, active: boolean) {
-    const { userId, orgId } = await auth();
+    const { orgId } = await auth();
     if (!orgId) throw new Error("Organização não selecionada");
 
-    // Resolve internal organization ID (UUID) from Clerk Org ID
     const org = await db.query.organizations.findFirst({
-        where: eq(organizations.clerkOrgId, orgId)
+        where: eq(organizations.clerkOrgId, orgId),
     });
-
     if (!org) throw new Error("Organização não encontrada.");
 
-    if (active) {
-        // Se ativou, disparamos o backfill usando o ID interno (UUID)
-        const count = await MetaService.backfillLeads(org.id, formId, pageName);
-        return { success: true, message: `${count} leads históricos importados!`, count };
+    if (!active) {
+        return { success: true, message: "Integração desativada para este formulário." };
     }
 
-    return { success: true, message: "Integração desativada para este formulário." };
+    if (!IS_REAL_META) {
+        const count = await MetaService.backfillLeadsFallback(org.id, formId, pageName);
+        return { success: true, message: `${count} leads de demonstração importados!`, count };
+    }
+
+    // Buscar token real
+    const integration = await db.query.metaIntegrations.findFirst({
+        where: eq(metaIntegrations.organizationId, org.id),
+    });
+    if (!integration) throw new Error("Integração Meta não encontrada. Reconecte sua conta.");
+
+    const count = await MetaService.backfillLeads(org.id, formId, pageName, integration.accessToken);
+    return { success: true, message: `${count} leads históricos importados do Facebook!`, count };
 }
