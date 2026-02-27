@@ -23,7 +23,7 @@ import { toast } from "sonner";
 const META_APP_ID = process.env.NEXT_PUBLIC_META_APP_ID;
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL || (typeof window !== "undefined" ? window.location.origin : "");
 const CALLBACK_URI = `${APP_URL}/api/auth/meta/callback`;
-const OAUTH_SCOPES = "leads_retrieval,pages_show_list,pages_read_engagement,ads_read,pages_manage_metadata";
+const OAUTH_SCOPES = "leads_retrieval,pages_show_list,pages_read_engagement,ads_read,pages_manage_metadata,pages_manage_ads";
 
 console.log("🔍 Diagnóstico Frontend:");
 console.log("- NEXT_PUBLIC_META_APP_ID:", process.env.NEXT_PUBLIC_META_APP_ID);
