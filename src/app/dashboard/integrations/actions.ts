@@ -3,7 +3,7 @@
 
 import { MetaService } from "@/lib/services/meta";
 import { db } from "@/lib/db";
-import { metaIntegrations } from "@/lib/db/schema";
+import { metaIntegrations, organizations } from "@/lib/db/schema";
 import { eq } from "drizzle-orm";
 import { auth } from "@clerk/nextjs/server";
 
@@ -14,28 +14,46 @@ export async function connectMetaAccount() {
     const { userId, orgId } = await auth();
     if (!orgId) throw new Error("Organização não selecionada");
 
-    // Em uma implementação real, o Token viria do OAuth
-    const mockToken = "EAAb...";
-    const mockPageId = "123456789";
-
-    // Salvar ou atualizar a integração no banco
-    const existing = await db.query.metaIntegrations.findFirst({
-        where: eq(metaIntegrations.organizationId, orgId)
+    const org = await db.query.organizations.findFirst({
+        where: eq(organizations.clerkOrgId, orgId)
     });
 
-    if (existing) {
-        await db.update(metaIntegrations)
-            .set({ accessToken: mockToken, updatedAt: new Date() } as any)
-            .where(eq(metaIntegrations.organizationId, orgId));
-    } else {
-        await db.insert(metaIntegrations).values({
-            organizationId: orgId,
-            accessToken: mockToken,
-            webhookVerifyToken: Math.random().toString(36).substring(7)
-        });
-    }
+    if (!org) throw new Error("Organização não encontrada.");
 
-    const forms = await MetaService.getPageForms(mockToken, mockPageId);
+    const internalOrgId = org.id;
+    const mockToken = "EAAb...";
+
+    // Salvar ou atualizar a integração
+    await db.insert(metaIntegrations).values({
+        organizationId: internalOrgId,
+        accessToken: mockToken,
+        webhookVerifyToken: Math.random().toString(36).substring(7)
+    }).onConflictDoUpdate({
+        target: metaIntegrations.organizationId,
+        set: { accessToken: mockToken, updatedAt: new Date() }
+    });
+
+    // Mock de páginas que o usuário gerencia
+    const pages = [
+        { id: "123456789", name: "Nacional Consórcios", category: "Serviços Financeiros", image: "https://api.dicebear.com/7.x/initials/svg?seed=NC" },
+        { id: "987654321", name: "Financeira Direct", category: "Investimentos", image: "https://api.dicebear.com/7.x/initials/svg?seed=FD" }
+    ];
+
+    return { success: true, pages };
+}
+
+/**
+ * Busca formulários de uma página selecionada
+ */
+export async function getFormsForPage(pageId: string) {
+    const { userId, orgId } = await auth();
+    if (!orgId) throw new Error("Não autorizado");
+
+    // Simulando delay de rede
+    await new Promise(r => setTimeout(r, 800));
+
+    const mockToken = "EAAb...";
+    const forms = await MetaService.getPageForms(mockToken, pageId);
     return { success: true, forms };
 }
 
@@ -46,9 +64,16 @@ export async function toggleFormIntegration(formId: string, pageName: string, ac
     const { userId, orgId } = await auth();
     if (!orgId) throw new Error("Organização não selecionada");
 
+    // Resolve internal organization ID (UUID) from Clerk Org ID
+    const org = await db.query.organizations.findFirst({
+        where: eq(organizations.clerkOrgId, orgId)
+    });
+
+    if (!org) throw new Error("Organização não encontrada.");
+
     if (active) {
-        // Se ativou, disparamos o backfill
-        const count = await MetaService.backfillLeads(orgId, formId, pageName);
+        // Se ativou, disparamos o backfill usando o ID interno (UUID)
+        const count = await MetaService.backfillLeads(org.id, formId, pageName);
         return { success: true, message: `${count} leads históricos importados!`, count };
     }
 
