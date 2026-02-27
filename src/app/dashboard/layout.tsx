@@ -38,6 +38,10 @@ export default async function DashboardLayout({
                         <Bot size={20} />
                         Agentes
                     </Link>
+                    <Link href="/dashboard/integrations" className="flex items-center gap-3 rounded-lg px-3 py-2 text-muted-foreground hover:bg-accent hover:text-accent-foreground transition-colors">
+                        <Activity size={20} />
+                        Integrações
+                    </Link>
                     <Link href="/dashboard/users" className="flex items-center gap-3 rounded-lg px-3 py-2 text-muted-foreground hover:bg-accent hover:text-accent-foreground transition-colors">
                         <Users size={20} />
                         Usuários
