@@ -24,7 +24,10 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Plus, MoreHorizontal, User, Phone, MessageSquare, Calendar, CheckCircle, XCircle, Search } from "lucide-react";
 import LeadDetailsModal from "./LeadDetailsModal";
+import AddLeadModal from "./AddLeadModal";
 import { updateLeadMetadata, updateLeadStage } from "./leads/actions";
+import Papa from "papaparse";
+import * as XLSX from "xlsx";
 
 // Stages requested by user
 const INITIAL_STAGES = [
@@ -158,6 +161,7 @@ export default function CRMKanban() {
     const [activeId, setActiveId] = useState<string | null>(null);
     const [selectedLead, setSelectedLead] = useState<any | null>(null);
     const [isModalOpen, setIsModalOpen] = useState(false);
+    const [isAddModalOpen, setIsAddModalOpen] = useState(false);
 
     const sensors = useSensors(
         useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
@@ -224,6 +228,60 @@ export default function CRMKanban() {
         await updateLeadMetadata(leadId, updatedData.metaData);
     };
 
+    const handleAddLead = (newLead: any) => {
+        setLeadsList(prev => [newLead, ...prev]);
+    };
+
+    const handleImport = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        if (!file) return;
+
+        const reader = new FileReader();
+        const extension = file.name.split(".").pop()?.toLowerCase();
+
+        if (extension === "csv") {
+            Papa.parse(file, {
+                header: true,
+                complete: (results) => {
+                    const importedLeads = results.data.map((row: any) => ({
+                        id: Math.random().toString(36).substr(2, 9),
+                        name: row.nome || row.name || "Lead Importado",
+                        phone: row.telefone || row.phone || "",
+                        email: row.email || "",
+                        stageId: "prospecting",
+                        source: "Importação CSV",
+                        value: row.valor || "R$ 0",
+                        createdAt: new Date().toISOString(),
+                        metaData: { ...row }
+                    }));
+                    setLeadsList(prev => [...importedLeads, ...prev]);
+                }
+            });
+        } else if (extension === "xlsx" || extension === "xls") {
+            reader.onload = (evt) => {
+                const bstr = evt.target?.result;
+                const wb = XLSX.read(bstr, { type: "binary" });
+                const wsname = wb.SheetNames[0];
+                const ws = wb.Sheets[wsname];
+                const data = XLSX.utils.sheet_to_json(ws);
+
+                const importedLeads = data.map((row: any) => ({
+                    id: Math.random().toString(36).substr(2, 9),
+                    name: row.nome || row.name || "Lead Importado",
+                    phone: row.telefone || row.phone || "",
+                    email: row.email || "",
+                    stageId: "prospecting",
+                    source: "Importação Excel",
+                    value: row.valor || "R$ 0",
+                    createdAt: new Date().toISOString(),
+                    metaData: { ...row }
+                }));
+                setLeadsList(prev => [...importedLeads, ...prev]);
+            };
+            reader.readAsBinaryString(file);
+        }
+    };
+
     const activeLead = activeId ? leadsList.find((l) => l.id === activeId) : null;
 
     return (
@@ -242,8 +300,19 @@ export default function CRMKanban() {
                     </Button>
                 </div>
                 <div className="flex gap-2">
-                    <Button variant="outline" className="rounded-xl border-border">Exportar</Button>
-                    <Button className="bg-primary text-primary-foreground rounded-xl hover:opacity-90">
+                    <div className="relative">
+                        <input
+                            type="file"
+                            accept=".csv, .xlsx, .xls"
+                            className="absolute inset-0 opacity-0 cursor-pointer"
+                            onChange={handleImport}
+                        />
+                        <Button variant="outline" className="rounded-xl border-border">Importar</Button>
+                    </div>
+                    <Button
+                        onClick={() => setIsAddModalOpen(true)}
+                        className="bg-primary text-primary-foreground rounded-xl hover:opacity-90"
+                    >
                         Adicionar Lead
                     </Button>
                 </div>
@@ -285,6 +354,12 @@ export default function CRMKanban() {
                 isOpen={isModalOpen}
                 onClose={() => setIsModalOpen(false)}
                 onSave={handleSaveLead}
+            />
+
+            <AddLeadModal
+                isOpen={isAddModalOpen}
+                onClose={() => setIsAddModalOpen(false)}
+                onAdd={handleAddLead}
             />
         </div>
     );
