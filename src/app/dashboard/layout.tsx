@@ -70,7 +70,12 @@ export default async function DashboardLayout({
 
             {/* Main Content */}
             <div className="flex-1 flex flex-col">
-                <header className="flex h-16 items-center justify-between border-b border-border bg-card px-6">
+                <header className="flex h-16 items-center justify-between border-b border-border bg-card px-6 relative">
+                    <div className="absolute top-0 left-0 w-full h-1 bg-red-600 animate-pulse z-50 flex items-center justify-center">
+                        <span className="bg-red-600 text-[8px] text-white px-2 font-bold uppercase tracking-widest px-2 py-0.5 rounded-b-md">
+                            MODO DEBUG ATIVO: {process.env.NEXT_PUBLIC_META_APP_ID ? 'CHAVE OK' : 'CHAVE AUSENTE'}
+                        </span>
+                    </div>
                     <button className="md:hidden text-muted-foreground">
                         <Menu size={24} />
                     </button>

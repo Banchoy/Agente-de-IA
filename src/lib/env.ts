@@ -20,6 +20,8 @@ const envSchema = z.object({
     NEXT_PUBLIC_APP_URL: z.string().optional(),
 });
 
+console.log("🔍 [env.ts] Keys encontradas em process.env:", Object.keys(process.env).filter(k => k.includes("META") || k.includes("NEXT_PUBLIC_APP")));
+
 const parsed = envSchema.safeParse(process.env);
 
 if (!parsed.success) {

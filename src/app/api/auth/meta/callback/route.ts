@@ -90,7 +90,7 @@ export async function GET(request: NextRequest) {
                     })
                     .onConflictDoUpdate({
                         target: metaIntegrations.organizationId,
-                        set: { accessToken: longToken, updatedAt: new Date() },
+                        set: { accessToken: longToken },
                     });
             }
         }

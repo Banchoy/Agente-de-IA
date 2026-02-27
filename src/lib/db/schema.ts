@@ -154,5 +154,4 @@ export const metaIntegrations = pgTable("meta_integrations", {
     webhookVerifyToken: text("webhook_verify_token"),
     fieldMapping: jsonb("field_mapping").default({}), // Mapping of Facebook form fields to CRM fields
     createdAt: timestamp("created_at").defaultNow().notNull(),
-    updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });

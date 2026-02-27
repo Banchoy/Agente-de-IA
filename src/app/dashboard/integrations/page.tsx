@@ -25,6 +25,10 @@ const APP_URL = process.env.NEXT_PUBLIC_APP_URL || (typeof window !== "undefined
 const CALLBACK_URI = `${APP_URL}/api/auth/meta/callback`;
 const OAUTH_SCOPES = "leads_retrieval,pages_show_list,pages_read_engagement,ads_read";
 
+console.log("🔍 Diagnóstico Frontend:");
+console.log("- NEXT_PUBLIC_META_APP_ID:", process.env.NEXT_PUBLIC_META_APP_ID);
+console.log("- NEXT_PUBLIC_APP_URL:", process.env.NEXT_PUBLIC_APP_URL);
+
 function IntegrationsInner() {
     const searchParams = useSearchParams();
     const router = useRouter();
@@ -35,7 +39,15 @@ function IntegrationsInner() {
     const [pages, setPages] = useState<any[]>([]);
     const [selectedPage, setSelectedPage] = useState<any>(null);
     const [forms, setForms] = useState<any[]>([]);
-    const [isDemoMode, setIsDemoMode] = useState(!META_APP_ID);
+    const [isDemoMode, setIsDemoMode] = useState(true);
+
+    // Logs de persistência de env
+    useEffect(() => {
+        const appId = process.env.NEXT_PUBLIC_META_APP_ID;
+        console.log("🔍 Integrations Page Mounted");
+        console.log("- process.env.NEXT_PUBLIC_META_APP_ID:", appId);
+        setIsDemoMode(!appId);
+    }, []);
 
     // Processar retorno do OAuth callback
     useEffect(() => {
@@ -230,7 +242,27 @@ function IntegrationsInner() {
                 </div>
             )}
 
-            <div className="grid gap-8">
+            <div className="space-y-6">
+                {/* Seção de Diagnóstico (Apenas visível se em desenvolvimento ou se houver erro) */}
+                {(isDemoMode || process.env.NODE_ENV === "development") && (
+                    <Card className="border-yellow-500/50 bg-yellow-500/5">
+                        <CardHeader className="py-3">
+                            <CardTitle className="text-sm font-medium flex items-center gap-2">
+                                <Info className="h-4 w-4 text-yellow-500" />
+                                Diagnóstico de Conexão
+                            </CardTitle>
+                        </CardHeader>
+                        <CardContent className="text-xs space-y-1 font-mono">
+                            <p>ID do App (Real): <span className="text-blue-500">{process.env.NEXT_PUBLIC_META_APP_ID || "NÃO ENCONTRADO"}</span></p>
+                            <p>URL do App: <span className="text-blue-500">{process.env.NEXT_PUBLIC_APP_URL || "PADRÃO (LH:3000)"}</span></p>
+                            <p>Modo Atual: <span className={isDemoMode ? "text-orange-500" : "text-green-500"}>{isDemoMode ? "DEMONSTRAÇÃO" : "REAL"}</span></p>
+                            {isDemoMode && (
+                                <p className="text-red-400 mt-2">DICA: Se o ID está no .env mas aparece como "NÃO ENCONTRADO", tente rodar `npm run dev` novamente ou limpe o cache do navegador.</p>
+                            )}
+                        </CardContent>
+                    </Card>
+                )}
+
                 <Card className="border-zinc-200 shadow-xl rounded-3xl overflow-hidden border-none bg-white">
                     <CardHeader className="bg-zinc-900 text-white p-8">
                         <div className="flex items-center justify-between">

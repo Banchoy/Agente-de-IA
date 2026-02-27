@@ -9,6 +9,11 @@ import { auth } from "@clerk/nextjs/server";
 
 const IS_REAL_META = !!(process.env.META_APP_ID && process.env.META_APP_SECRET);
 
+console.log("🔍 Diagnóstico Backend (Actions):");
+console.log("- META_APP_ID presente:", !!process.env.META_APP_ID);
+console.log("- META_APP_SECRET presente:", !!process.env.META_APP_SECRET);
+console.log("- IS_REAL_META:", IS_REAL_META);
+
 /**
  * Chamado APÓS o callback OAuth.
  * Recebe o token já válido que foi salvo pela rota de callback,
@@ -18,6 +23,10 @@ const IS_REAL_META = !!(process.env.META_APP_ID && process.env.META_APP_SECRET);
 export async function connectMetaAccount(longLivedToken?: string, pagesFromCallback?: any[]) {
     const { orgId } = await auth();
     if (!orgId) throw new Error("Organização não selecionada");
+
+    console.log("🚀 [connectMetaAccount] Iniciando...");
+    console.log("- IS_REAL_META:", IS_REAL_META);
+    console.log("- META_APP_ID:", process.env.META_APP_ID);
 
     const org = await db.query.organizations.findFirst({
         where: eq(organizations.clerkOrgId, orgId),
@@ -33,7 +42,7 @@ export async function connectMetaAccount(longLivedToken?: string, pagesFromCallb
             webhookVerifyToken: Math.random().toString(36).substring(7),
         }).onConflictDoUpdate({
             target: metaIntegrations.organizationId,
-            set: { accessToken: mockToken, updatedAt: new Date() },
+            set: { accessToken: mockToken },
         });
 
         const pages = [
@@ -73,6 +82,7 @@ export async function getFormsForPage(pageId: string) {
     });
     if (!integration) throw new Error("Integração Meta não encontrada. Reconecte sua conta.");
 
+    if (!integration.accessToken) throw new Error("Token de acesso não encontrado. Reconecte sua conta.");
     const forms = await MetaService.getPageForms(integration.accessToken, pageId);
     return { success: true, forms };
 }
@@ -104,6 +114,7 @@ export async function toggleFormIntegration(formId: string, pageName: string, ac
     });
     if (!integration) throw new Error("Integração Meta não encontrada. Reconecte sua conta.");
 
+    if (!integration.accessToken) throw new Error("Token de acesso não encontrado. Reconecte sua conta.");
     const count = await MetaService.backfillLeads(org.id, formId, pageName, integration.accessToken);
     return { success: true, message: `${count} leads históricos importados do Facebook!`, count };
 }
