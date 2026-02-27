@@ -55,6 +55,13 @@ export async function GET(request: NextRequest) {
 
         const { access_token: longToken } = await longTokenRes.json();
 
+        // 2.5 Depuração: Verificar permissões concedidas
+        const permRes = await fetch(
+            `https://graph.facebook.com/${GRAPH_VERSION}/me/permissions?access_token=${longToken}`
+        );
+        const perms = await permRes.json();
+        console.log("🛡️ [Meta Callback] Permissões concedidas pelo usuário:", JSON.stringify(perms, null, 2));
+
         // 3. Buscar as páginas reais do usuário
         const pagesRes = await fetch(
             `https://graph.facebook.com/${GRAPH_VERSION}/me/accounts?` +
