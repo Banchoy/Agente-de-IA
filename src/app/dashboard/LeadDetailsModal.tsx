@@ -147,8 +147,7 @@ export default function LeadDetailsModal({ lead, isOpen, onClose, onSave }: Lead
                                     <button
                                         key={tab.id}
                                         onClick={() => setActiveTab(tab.id)}
-                                        className={`pb-4 text-xs font-black uppercase tracking-widest transition-all relative whitespace-nowrap ${activeTab === tab.id ? 'text-zinc-900' : 'text-zinc-400 hover:text-zinc-600'
-                                            }`}
+                                        className={`pb-4 text-xs font-black uppercase tracking-widest transition-all relative whitespace-nowrap ${activeTab === tab.id ? 'text-zinc-900' : 'text-zinc-400 hover:text-zinc-600'}`}
                                     >
                                         {tab.label}
                                         {activeTab === tab.id && (
@@ -364,7 +363,7 @@ export default function LeadDetailsModal({ lead, isOpen, onClose, onSave }: Lead
                                     <div className="space-y-2">
                                         <div className="flex items-center justify-between">
                                             <span className="text-[10px] font-black text-zinc-900 uppercase">Lead Capturado</span>
-                                            <span className="text-[9px] font-bold text-zinc-400">há {Math.floor((Date.now() - new Date(lead.createdAt).getTime()) / 60000)} min</span>
+                                            <span className="text-[9px] font-bold text-zinc-400">há {lead.createdAt ? Math.floor((Date.now() - new Date(lead.createdAt).getTime()) / 60000) : '0'} min</span>
                                         </div>
                                         <div className="p-4 bg-zinc-50 rounded-2xl border border-zinc-100 text-xs text-zinc-600 leading-relaxed font-medium">
                                             Origem: <span className="font-black text-zinc-900">{lead.source}</span>
