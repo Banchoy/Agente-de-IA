@@ -26,6 +26,10 @@ export default async function DashboardLayout({
                         <LayoutDashboard size={20} />
                         CRM de Vendas
                     </Link>
+                    <Link href="/dashboard/analytics" className="flex items-center gap-3 rounded-lg px-3 py-2 text-muted-foreground hover:bg-accent hover:text-accent-foreground transition-colors">
+                        <Activity size={20} />
+                        Dashboard Analítico
+                    </Link>
                     <Link href="/dashboard/whatsapp" className="flex items-center gap-3 rounded-lg px-3 py-2 text-muted-foreground hover:bg-accent hover:text-accent-foreground transition-colors">
                         <MessageSquare size={20} />
                         WhatsApp

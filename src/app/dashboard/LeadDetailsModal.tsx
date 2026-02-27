@@ -56,6 +56,8 @@ export default function LeadDetailsModal({ lead, isOpen, onClose, onSave }: Lead
         onClose();
     };
 
+    const [editableSuggestions, setEditableSuggestions] = useState<any[]>([]);
+
     const tabs = [
         { id: "dados", label: "Dados cadastrais" },
         { id: "qualificacao", label: "Qualificação / Negociação" },
@@ -63,23 +65,48 @@ export default function LeadDetailsModal({ lead, isOpen, onClose, onSave }: Lead
         { id: "cotas", label: "Cotas" },
     ];
 
-    const aiSuggestions = [
-        {
-            title: "Primeiro Contato",
-            message: `Olá ${lead.name}! Vi seu interesse em nosso sistema através do Meta Ads. Como posso te ajudar hoje?`,
-            type: "Saudação"
-        },
-        {
-            title: "Pedido de Qualificação",
-            message: `Olá ${lead.name}, para eu te passar os melhores valores, qual seria a sua renda mensal aproximada e o valor de crédito que você busca?`,
-            type: "Qualificação"
-        },
-        {
-            title: "Agendamento",
-            message: `Podemos marcar uma breve ligação de 5 minutos para eu te explicar como funciona o nosso plano de ${formData.product || 'consórcio'}?`,
-            type: "Conversão"
+    useEffect(() => {
+        if (lead) {
+            setEditableSuggestions([
+                {
+                    id: 1,
+                    title: "Primeiro Contato",
+                    message: `Olá ${lead.name}! Vi seu interesse em nosso sistema através do Meta Ads. Como posso te ajudar hoje?`,
+                    type: "Saudação"
+                },
+                {
+                    id: 2,
+                    title: "Pedido de Qualificação",
+                    message: `Olá ${lead.name}, para eu te passar os melhores valores, qual seria a sua renda mensal aproximada e o valor de crédito que você busca?`,
+                    type: "Qualificação"
+                },
+                {
+                    id: 3,
+                    title: "Agendamento",
+                    message: `Podemos marcar uma breve ligação de 5 minutos para eu te explicar como funciona o nosso plano de ${formData.product || 'consórcio'}?`,
+                    type: "Conversão"
+                }
+            ]);
         }
-    ];
+    }, [lead, formData.product]);
+
+    const handleMessageChange = (id: number, newMessage: string) => {
+        setEditableSuggestions(prev => prev.map(s => s.id === id ? { ...s, message: newMessage } : s));
+    };
+
+    const handleRegenerate = (id: number) => {
+        // Mocking AI regeneration
+        const suggestion = editableSuggestions.find(s => s.id === id);
+        if (suggestion) {
+            const variations = [
+                `Ei ${lead.name}, tudo bem? Notei que você se cadastrou no nosso anúncio. Que tal batermos um papo?`,
+                `Olá ${lead.name}! Sou consultor da LeadDirector. Vi seu interesse em ${formData.product || 'nossos produtos'}.`,
+                `Oi ${lead.name}, aqui é da equipe de vendas. Recebi sua solicitação de contato. Qual melhor horário para falarmos?`
+            ];
+            const randomVar = variations[Math.floor(Math.random() * variations.length)];
+            handleMessageChange(id, randomVar);
+        }
+    };
 
     const handleSendWhatsApp = (message: string) => {
         const encodedMsg = encodeURIComponent(message);
@@ -264,29 +291,42 @@ export default function LeadDetailsModal({ lead, isOpen, onClose, onSave }: Lead
                                         <Sparkles className="text-emerald-600 mt-1 flex-shrink-0" size={18} />
                                         <div>
                                             <h4 className="text-[10px] font-black text-emerald-700 uppercase tracking-widest">IA Co-Pilot</h4>
-                                            <p className="text-xs text-emerald-600/80 font-medium">Use as sugestões da IA para acelerar seu atendimento via WhatsApp.</p>
+                                            <p className="text-xs text-emerald-600/80 font-medium">Edite as sugestões ou peça uma nova variação para a IA antes de enviar.</p>
                                         </div>
                                     </div>
 
                                     <div className="grid gap-4">
-                                        {aiSuggestions.map((suggestion, idx) => (
-                                            <div key={idx} className="group p-5 bg-white border border-zinc-100 rounded-2xl shadow-sm hover:border-emerald-200 transition-all">
+                                        {editableSuggestions.map((suggestion) => (
+                                            <div key={suggestion.id} className="group p-5 bg-white border border-zinc-100 rounded-2xl shadow-sm hover:border-emerald-200 transition-all">
                                                 <div className="flex justify-between items-start mb-3">
                                                     <div className="space-y-1">
                                                         <span className="text-[9px] font-black text-zinc-400 uppercase tracking-widest">{suggestion.type}</span>
                                                         <h5 className="text-sm font-black text-zinc-900">{suggestion.title}</h5>
                                                     </div>
-                                                    <Button
-                                                        onClick={() => handleSendWhatsApp(suggestion.message)}
-                                                        className="bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl h-9 px-4 text-[10px] font-black uppercase gap-2 transition-all active:scale-95 shadow-lg shadow-emerald-100"
-                                                    >
-                                                        <Phone size={14} />
-                                                        Mandar no WhatsApp
-                                                    </Button>
+                                                    <div className="flex gap-2">
+                                                        <Button
+                                                            variant="outline"
+                                                            size="icon"
+                                                            onClick={() => handleRegenerate(suggestion.id)}
+                                                            className="h-9 w-9 rounded-xl border-zinc-200 text-zinc-400 hover:text-emerald-600 hover:border-emerald-200"
+                                                            title="Regerar sugestão"
+                                                        >
+                                                            <Plus className="w-4 h-4 rotate-45 group-hover:rotate-0 transition-transform" />
+                                                        </Button>
+                                                        <Button
+                                                            onClick={() => handleSendWhatsApp(suggestion.message)}
+                                                            className="bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl h-9 px-4 text-[10px] font-black uppercase gap-2 transition-all active:scale-95 shadow-lg shadow-emerald-100"
+                                                        >
+                                                            <Phone size={14} />
+                                                            Mandar no WhatsApp
+                                                        </Button>
+                                                    </div>
                                                 </div>
-                                                <p className="text-xs text-zinc-500 font-medium leading-relaxed italic border-l-2 border-zinc-100 pl-4">
-                                                    "{suggestion.message}"
-                                                </p>
+                                                <Textarea
+                                                    value={suggestion.message}
+                                                    onChange={(e) => handleMessageChange(suggestion.id, e.target.value)}
+                                                    className="text-xs text-zinc-600 font-medium leading-relaxed italic bg-zinc-50 border-none focus-visible:ring-1 focus-visible:ring-emerald-500 rounded-xl resize-none min-h-[80px]"
+                                                />
                                             </div>
                                         ))}
                                     </div>
@@ -323,26 +363,40 @@ export default function LeadDetailsModal({ lead, isOpen, onClose, onSave }: Lead
                                     <div className="absolute -left-[31px] top-0 h-4 w-4 rounded-full bg-zinc-900 border-4 border-white shadow-sm" />
                                     <div className="space-y-2">
                                         <div className="flex items-center justify-between">
-                                            <span className="text-[10px] font-black text-zinc-900 uppercase">Qualificação IA</span>
-                                            <span className="text-[9px] font-bold text-zinc-400">há 2 horas</span>
+                                            <span className="text-[10px] font-black text-zinc-900 uppercase">Lead Capturado</span>
+                                            <span className="text-[9px] font-bold text-zinc-400">há {Math.floor((Date.now() - new Date(lead.createdAt).getTime()) / 60000)} min</span>
                                         </div>
                                         <div className="p-4 bg-zinc-50 rounded-2xl border border-zinc-100 text-xs text-zinc-600 leading-relaxed font-medium">
-                                            O lead demonstrou interesse em crédito imobiliário acima de R$ 300k. Possui entrada de 20% e busca parcelas de até R$ 2.500.
+                                            Origem: <span className="font-black text-zinc-900">{lead.source}</span>
+                                            {lead.metaData?.form_responses && (
+                                                <div className="mt-3 space-y-2 pt-3 border-t border-zinc-200/50">
+                                                    <p className="text-[9px] font-black text-zinc-400 uppercase mb-2">Respostas do Formulário:</p>
+                                                    {Object.entries(lead.metaData.form_responses).map(([question, answer]: [string, any]) => (
+                                                        <div key={question} className="bg-white p-2 rounded-lg border border-zinc-100 shadow-sm">
+                                                            <p className="text-[10px] font-bold text-zinc-500">{question}</p>
+                                                            <p className="text-xs font-black text-zinc-900">{answer}</p>
+                                                        </div>
+                                                    ))}
+                                                </div>
+                                            )}
                                         </div>
                                     </div>
                                 </div>
-                                <div className="relative">
-                                    <div className="absolute -left-[31px] top-0 h-4 w-4 rounded-full bg-zinc-100 border-4 border-white shadow-sm" />
-                                    <div className="space-y-2">
-                                        <div className="flex items-center justify-between">
-                                            <span className="text-[10px] font-black text-zinc-400 uppercase">Lead Capturado</span>
-                                            <span className="text-[9px] font-bold text-zinc-400">20/dez 13:31</span>
-                                        </div>
-                                        <div className="p-4 bg-zinc-50/50 rounded-2xl border border-dashed border-zinc-200 text-xs text-zinc-400 font-medium">
-                                            Origem: Facebook Leads (Campanha Imóveis 2024)
+
+                                {lead.metaData?.ai_summary && (
+                                    <div className="relative">
+                                        <div className="absolute -left-[31px] top-0 h-4 w-4 rounded-full bg-emerald-500 border-4 border-white shadow-sm" />
+                                        <div className="space-y-2">
+                                            <div className="flex items-center justify-between">
+                                                <span className="text-[10px] font-black text-emerald-600 uppercase">Qualificação IA</span>
+                                                <span className="text-[9px] font-bold text-zinc-400">automático</span>
+                                            </div>
+                                            <div className="p-4 bg-emerald-50/50 rounded-2xl border border-emerald-100 text-xs text-emerald-700 leading-relaxed font-medium">
+                                                {lead.metaData.ai_summary}
+                                            </div>
                                         </div>
                                     </div>
-                                </div>
+                                )}
                             </div>
                         </div>
                         <div className="p-6 border-t border-zinc-100 bg-zinc-50/50">
