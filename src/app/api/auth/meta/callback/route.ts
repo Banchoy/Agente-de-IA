@@ -65,6 +65,8 @@ export async function GET(request: NextRequest) {
         );
 
         const pagesData = await pagesRes.json();
+        console.log("📄 [Meta Callback] Dados brutos das páginas:", JSON.stringify(pagesData, null, 2));
+
         const pages = (pagesData.data || []).map((p: any) => ({
             id: p.id,
             name: p.name,
@@ -72,6 +74,8 @@ export async function GET(request: NextRequest) {
             image: p.picture?.data?.url || `https://api.dicebear.com/7.x/initials/svg?seed=${p.name}`,
             pageAccessToken: p.access_token, // Token específico da página
         }));
+
+        console.log(`✅ [Meta Callback] ${pages.length} páginas processadas.`);
 
         // 4. Identificar a organização do Clerk e salvar o token
         const { orgId } = await auth();
