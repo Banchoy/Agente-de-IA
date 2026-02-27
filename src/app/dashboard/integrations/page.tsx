@@ -40,13 +40,22 @@ function IntegrationsInner() {
     const [selectedPage, setSelectedPage] = useState<any>(null);
     const [forms, setForms] = useState<any[]>([]);
     const [isDemoMode, setIsDemoMode] = useState(true);
+    const [runtimeConfig, setRuntimeConfig] = useState<{ appId: string | undefined, appUrl: string | undefined }>({ appId: undefined, appUrl: undefined });
 
-    // Logs de persistência de env
+    // Logs de persistência de env e busca de config real
     useEffect(() => {
-        const appId = process.env.NEXT_PUBLIC_META_APP_ID;
-        console.log("🔍 Integrations Page Mounted");
-        console.log("- process.env.NEXT_PUBLIC_META_APP_ID:", appId);
-        setIsDemoMode(!appId);
+        async function loadConfig() {
+            try {
+                const { getMetaConfig } = await import("./actions");
+                const config = await getMetaConfig();
+                console.log("🔍 Runtime Config Loaded:", config);
+                setRuntimeConfig(config);
+                setIsDemoMode(!config.appId);
+            } catch (err) {
+                console.error("Erro ao carregar config:", err);
+            }
+        }
+        loadConfig();
     }, []);
 
     // Processar retorno do OAuth callback
@@ -83,7 +92,9 @@ function IntegrationsInner() {
     const handleConnect = async () => {
         setIsLoading(true);
 
-        if (META_APP_ID) {
+        const currentAppId = runtimeConfig.appId || META_APP_ID;
+
+        if (currentAppId) {
             // MODO REAL: abrir popup com URL oficial do Facebook
             const width = 500;
             const height = 700;
@@ -92,7 +103,7 @@ function IntegrationsInner() {
 
             const oauthUrl = `https://www.facebook.com/v21.0/dialog/oauth?` +
                 new URLSearchParams({
-                    client_id: META_APP_ID,
+                    client_id: currentAppId,
                     redirect_uri: CALLBACK_URI,
                     scope: OAUTH_SCOPES,
                     response_type: "code",
@@ -253,11 +264,11 @@ function IntegrationsInner() {
                             </CardTitle>
                         </CardHeader>
                         <CardContent className="text-xs space-y-1 font-mono">
-                            <p>ID do App (Real): <span className="text-blue-500">{process.env.NEXT_PUBLIC_META_APP_ID || "NÃO ENCONTRADO"}</span></p>
-                            <p>URL do App: <span className="text-blue-500">{process.env.NEXT_PUBLIC_APP_URL || "PADRÃO (LH:3000)"}</span></p>
+                            <p>ID do App (Server): <span className="text-blue-500">{runtimeConfig.appId || "NÃO ENCONTRADO"}</span></p>
+                            <p>URL do App (Server): <span className="text-blue-500">{runtimeConfig.appUrl || "PADRÃO"}</span></p>
                             <p>Modo Atual: <span className={isDemoMode ? "text-orange-500" : "text-green-500"}>{isDemoMode ? "DEMONSTRAÇÃO" : "REAL"}</span></p>
                             {isDemoMode && (
-                                <p className="text-red-400 mt-2">DICA: Se o ID está no .env mas aparece como "NÃO ENCONTRADO", tente rodar `npm run dev` novamente ou limpe o cache do navegador.</p>
+                                <p className="text-red-400 mt-2">DICA: Verifique se as variáveis META_APP_ID e META_APP_SECRET estão salvas e o deploy terminou no Railway.</p>
                             )}
                         </CardContent>
                     </Card>
