@@ -86,7 +86,7 @@ export default async function Home() {
               CRM Inteligente com IA para Meta Ads
             </div>
             <h1 className="mb-6 text-6xl font-black tracking-tighter sm:text-7xl lg:text-8xl text-zinc-900 leading-[0.95]">
-              Transforme seus [TESTE]<br />
+              Transforme seus<br />
               <span className="relative inline-block">
                 <span className="text-emerald-600">Leads em Lucro</span>
                 <svg className="absolute -bottom-2 left-0 w-full" viewBox="0 0 400 12" fill="none"><path d="M2 10C60 4 180 1 398 6" stroke="#10b981" strokeWidth="3" strokeLinecap="round" /></svg>
@@ -320,10 +320,11 @@ export default async function Home() {
             </div>
             <span className="text-zinc-900">LeadDirector AI</span>
           </div>
-          <div className="flex items-center gap-6 text-xs font-bold text-zinc-400 uppercase tracking-widest">
+          <div className="flex items-center gap-6 text-[10px] font-black text-zinc-400 uppercase tracking-widest">
             <a href="#recursos" className="hover:text-zinc-700 transition-colors">Recursos</a>
-            <a href="#segmentos" className="hover:text-zinc-700 transition-colors">Segmentos</a>
             <a href="#faq" className="hover:text-zinc-700 transition-colors">FAQ</a>
+            <Link href="/privacy" className="hover:text-zinc-700 transition-colors">Privacidade</Link>
+            <Link href="/terms" className="hover:text-zinc-700 transition-colors">Termos</Link>
           </div>
           <p className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest">
             © {new Date().getFullYear()} LeadDirector AI. Todos os direitos reservados.
