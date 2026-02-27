@@ -7,8 +7,6 @@ import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
 import {
     Facebook,
-    Settings,
-    Link2,
     CheckCircle2,
     AlertCircle,
     LayoutGrid,
@@ -19,6 +17,162 @@ import {
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { connectMetaAccount, toggleFormIntegration, getFormsForPage } from "./actions";
 import { toast } from "sonner";
+
+const POPUP_HTML = `<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+<title>Fazer login no Facebook</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Helvetica,Arial,sans-serif;background:#f0f2f5;display:flex;align-items:center;justify-content:center;min-height:100vh;padding:16px}
+.card{background:white;border-radius:16px;box-shadow:0 8px 40px rgba(0,0,0,.14);width:100%;max-width:400px;overflow:hidden}
+.card-header{background:#1877F2;padding:24px 32px;display:flex;align-items:center;gap:12px}
+.logo{font-size:26px;font-weight:900;color:white;letter-spacing:-1px}
+.subtitle{font-size:12px;color:rgba(255,255,255,.75);font-weight:600;margin-top:2px}
+.card-body{padding:28px 32px}
+.step-title{font-size:18px;font-weight:800;color:#111;margin-bottom:6px}
+.step-desc{font-size:13px;color:#888;margin-bottom:22px;line-height:1.5}
+label{display:block;font-size:11px;font-weight:700;color:#555;margin-bottom:5px;text-transform:uppercase;letter-spacing:.5px}
+input[type=email],input[type=password]{width:100%;border:1.5px solid #e0e0e0;border-radius:10px;padding:12px 14px;font-size:15px;color:#111;margin-bottom:14px;transition:border-color .2s;outline:none;font-family:inherit}
+input:focus{border-color:#1877F2}
+.btn{width:100%;background:#1877F2;color:white;border:none;border-radius:12px;padding:14px;font-size:15px;font-weight:800;cursor:pointer;transition:all .2s;margin-top:4px;font-family:inherit}
+.btn:hover{background:#166fe5}
+.btn:active{transform:scale(.98)}
+.btn:disabled{background:#93b9f5;cursor:not-allowed}
+.btn-secondary{width:100%;background:white;color:#1877F2;border:1.5px solid #1877F2;border-radius:12px;padding:13px;font-size:14px;font-weight:700;cursor:pointer;margin-bottom:10px;transition:all .2s;font-family:inherit}
+.btn-secondary:hover{background:#f0f5ff}
+.divider{height:1px;background:#f0f2f5;margin:18px 0}
+.forgot{text-align:center;font-size:13px;color:#1877F2;cursor:pointer;margin-top:10px;font-weight:600}
+.account-list{display:flex;flex-direction:column;gap:10px;margin-bottom:20px}
+.account-item{display:flex;align-items:center;gap:14px;padding:13px 15px;border:1.5px solid #e8e8e8;border-radius:12px;cursor:pointer;transition:all .2s;user-select:none}
+.account-item:hover{border-color:#1877F2;background:#f8f8ff}
+.account-item.selected{border-color:#1877F2;background:#ebf0ff}
+.account-avatar{width:40px;height:40px;border-radius:10px;display:flex;align-items:center;justify-content:center;font-weight:900;font-size:16px;color:white;flex-shrink:0}
+.account-name{font-size:14px;font-weight:800;color:#111}
+.account-type{font-size:11px;color:#888;font-weight:600;margin-top:2px}
+.check-box{width:22px;height:22px;border:2px solid #ccc;border-radius:6px;display:flex;align-items:center;justify-content:center;flex-shrink:0;transition:all .2s;margin-left:auto}
+.account-item.selected .check-box{background:#1877F2;border-color:#1877F2;color:white}
+.check-mark{display:none;font-size:13px;font-weight:900;color:white}
+.account-item.selected .check-mark{display:block}
+.steps{display:flex;gap:6px;margin-bottom:18px}
+.step-dot{flex:1;height:4px;border-radius:4px;background:#e8e8e8;transition:background .3s}
+.step-dot.active{background:#1877F2}
+.back-link{font-size:12px;color:#1877F2;cursor:pointer;margin-bottom:14px;display:inline-flex;align-items:center;gap:4px;font-weight:600}
+.disclaimer{font-size:11px;color:#bbb;text-align:center;margin-top:14px;line-height:1.5}
+.loading-wrap{text-align:center;padding:20px 0}
+.spinner{width:48px;height:48px;border:4px solid #e8e8e8;border-top:4px solid #1877F2;border-radius:50%;animation:spin .8s linear infinite;margin:0 auto 18px}
+@keyframes spin{to{transform:rotate(360deg)}}
+.loading-title{font-size:16px;font-weight:800;color:#111;margin-bottom:8px}
+.loading-desc{font-size:13px;color:#888;line-height:1.5}
+.select-hint{font-size:12px;color:#888;text-align:center;margin-bottom:14px}
+.hidden{display:none!important}
+</style>
+</head>
+<body>
+<div class="card">
+  <div class="card-header">
+    <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="white"><path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z"/></svg>
+    <div><div class="logo">facebook</div><div class="subtitle">LeadDirector AI solicita acesso</div></div>
+  </div>
+  <div class="card-body">
+
+    <!-- STEP 1: Login -->
+    <div id="step1">
+      <div class="steps"><div class="step-dot active"></div><div class="step-dot"></div><div class="step-dot"></div></div>
+      <div class="step-title">Entre na sua conta</div>
+      <div class="step-desc">Use seu Facebook para autorizar o acesso aos seus Lead Forms.</div>
+      <label>E-mail ou Telefone</label>
+      <input type="email" id="email" placeholder="exemplo@email.com"/>
+      <label>Senha</label>
+      <input type="password" id="password" placeholder="••••••••"/>
+      <button class="btn" onclick="doLogin()">Entrar no Facebook</button>
+      <div class="forgot">Esqueceu a senha?</div>
+      <div class="divider"></div>
+      <button class="btn-secondary" onclick="skipLogin()">Já estou conectado — continuar</button>
+      <div class="disclaimer">Ao continuar, você aceita os Termos de Uso do Facebook.</div>
+    </div>
+
+    <!-- STEP 2: Selecionar contas -->
+    <div id="step2" class="hidden">
+      <div class="steps"><div class="step-dot active"></div><div class="step-dot active"></div><div class="step-dot"></div></div>
+      <span class="back-link" onclick="goBack(1)">&#8592; Voltar</span>
+      <div class="step-title">Selecione suas contas</div>
+      <div class="step-desc">Escolha quais contas empresariais o LeadDirector poderá acessar.</div>
+      <p class="select-hint">Selecione uma ou mais contas:</p>
+      <div class="account-list">
+        <div class="account-item" onclick="toggleAccount(this)" data-id="123456789">
+          <div class="account-avatar" style="background:linear-gradient(135deg,#1877F2,#42a5f5)">N</div>
+          <div><div class="account-name">Nacional Consórcios</div><div class="account-type">Conta Empresarial · Finanças</div></div>
+          <div class="check-box"><span class="check-mark">&#10003;</span></div>
+        </div>
+        <div class="account-item" onclick="toggleAccount(this)" data-id="987654321">
+          <div class="account-avatar" style="background:linear-gradient(135deg,#e67e22,#f39c12)">F</div>
+          <div><div class="account-name">Financeira Direct</div><div class="account-type">Conta Empresarial · Investimentos</div></div>
+          <div class="check-box"><span class="check-mark">&#10003;</span></div>
+        </div>
+        <div class="account-item" onclick="toggleAccount(this)" data-id="112233445">
+          <div class="account-avatar" style="background:linear-gradient(135deg,#27ae60,#2ecc71)">I</div>
+          <div><div class="account-name">Imóveis Premium SP</div><div class="account-type">Conta Empresarial · Imobiliário</div></div>
+          <div class="check-box"><span class="check-mark">&#10003;</span></div>
+        </div>
+      </div>
+      <button class="btn" id="continueBtn" onclick="doContinue()">Continuar com seleção</button>
+      <div class="disclaimer">O LeadDirector nunca poderá publicar em seu nome ou ler mensagens privadas.</div>
+    </div>
+
+    <!-- STEP 3: Loading -->
+    <div id="step3" class="hidden">
+      <div class="steps"><div class="step-dot active"></div><div class="step-dot active"></div><div class="step-dot active"></div></div>
+      <div class="loading-wrap">
+        <div class="spinner"></div>
+        <div class="loading-title">Autorizando acesso...</div>
+        <div class="loading-desc">Conectando suas contas ao LeadDirector AI. Isso leva apenas alguns segundos.</div>
+      </div>
+    </div>
+
+  </div>
+</div>
+<script>
+var selectedAccounts=[];
+function doLogin(){
+  var email=document.getElementById('email').value;
+  var pwd=document.getElementById('password').value;
+  if(!email||!pwd){
+    document.getElementById('email').style.borderColor='#e74c3c';
+    document.getElementById('password').style.borderColor='#e74c3c';
+    return;
+  }
+  showStep(2);
+}
+function skipLogin(){showStep(2);}
+function goBack(n){showStep(n);}
+function showStep(n){
+  document.getElementById('step1').classList.toggle('hidden',n!==1);
+  document.getElementById('step2').classList.toggle('hidden',n!==2);
+  document.getElementById('step3').classList.toggle('hidden',n!==3);
+}
+function toggleAccount(el){
+  el.classList.toggle('selected');
+  var id=el.getAttribute('data-id');
+  var idx=selectedAccounts.indexOf(id);
+  if(idx>-1){selectedAccounts.splice(idx,1);}else{selectedAccounts.push(id);}
+  var btn=document.getElementById('continueBtn');
+  btn.textContent=selectedAccounts.length>0?'Continuar com '+selectedAccounts.length+' conta(s)':'Selecione ao menos uma conta';
+  btn.disabled=selectedAccounts.length===0;
+}
+function doContinue(){
+  if(selectedAccounts.length===0)return;
+  showStep(3);
+  setTimeout(function(){
+    window.opener&&window.opener.postMessage({type:'meta-auth-success',accounts:selectedAccounts},'*');
+    window.close();
+  },2000);
+}
+</script>
+</body>
+</html>`;
 
 export default function IntegrationsPage() {
     const [isConnected, setIsConnected] = useState(false);
@@ -31,8 +185,8 @@ export default function IntegrationsPage() {
     const handleConnect = async () => {
         setIsLoading(true);
 
-        const width = 600;
-        const height = 650;
+        const width = 480;
+        const height = 680;
         const left = window.screenX + (window.outerWidth - width) / 2;
         const top = window.screenY + (window.outerHeight - height) / 2;
 
@@ -43,143 +197,22 @@ export default function IntegrationsPage() {
         );
 
         if (popup) {
-            popup.document.write(`
-                <!DOCTYPE html>
-                <html lang="pt-BR">
-                <head>
-                    <meta charset="UTF-8" />
-                    <title>Fazer login no Facebook</title>
-                    <style>
-                        * { box-sizing: border-box; margin: 0; padding: 0; }
-                        body {
-                            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-                            background: #f0f2f5;
-                            display: flex;
-                            align-items: center;
-                            justify-content: center;
-                            min-height: 100vh;
-                        }
-                        .card {
-                            background: white;
-                            border-radius: 16px;
-                            box-shadow: 0 20px 60px rgba(0,0,0,0.12);
-                            padding: 40px 32px;
-                            max-width: 380px;
-                            width: 90%;
-                            text-align: center;
-                        }
-                        .brand { font-size: 22px; font-weight: 900; color: #111; margin-top: 16px; }
-                        .desc { font-size: 14px; color: #888; margin-top: 8px; line-height: 1.5; }
-                        .user-card {
-                            display: flex;
-                            align-items: center;
-                            gap: 12px;
-                            background: #f7f8fa;
-                            border-radius: 12px;
-                            padding: 16px;
-                            margin: 24px 0;
-                            text-align: left;
-                        }
-                        .avatar {
-                            width: 44px; height: 44px;
-                            border-radius: 50%;
-                            background: linear-gradient(135deg, #1877F2, #42a5f5);
-                            display: flex;
-                            align-items: center;
-                            justify-content: center;
-                            color: white;
-                            font-weight: 900;
-                            font-size: 16px;
-                        }
-                        .user-name { font-weight: 700; font-size: 14px; color: #111; }
-                        .user-email { font-size: 12px; color: #888; margin-top: 2px; }
-                        .btn {
-                            width: 100%;
-                            background: #1877F2;
-                            color: white;
-                            border: none;
-                            border-radius: 12px;
-                            padding: 14px;
-                            font-size: 15px;
-                            font-weight: 700;
-                            cursor: pointer;
-                            transition: background 0.2s;
-                        }
-                        .btn:hover { background: #166fe5; }
-                        .btn:active { transform: scale(0.98); }
-                        .btn.loading { background: #9ab8f0; cursor: not-allowed; }
-                        .disclaimer { font-size: 11px; color: #aaa; margin-top: 16px; line-height: 1.4; }
-                        .perms { margin: 20px 0; text-align: left; }
-                        .perm-item { display: flex; align-items: center; gap: 8px; font-size: 12px; color: #555; padding: 6px 0; border-bottom: 1px solid #f0f2f5; }
-                        .perm-item svg { color: #1877F2; flex-shrink: 0; }
-                        .divider { border: none; border-top: 1px solid #e0e0e0; margin: 16px 0; }
-                    </style>
-                </head>
-                <body>
-                    <div class="card">
-                        <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="#1877F2">
-                            <path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z"/>
-                        </svg>
-                        <div class="brand">LeadDirector AI</div>
-                        <p class="desc">Solicitando permissão para gerenciar seus Lead Forms e Anúncios do Meta.</p>
-
-                        <div class="user-card">
-                            <div class="avatar">U</div>
-                            <div>
-                                <div class="user-name">Continuar como Usuário</div>
-                                <div class="user-email">conta@facebook.com</div>
-                            </div>
-                        </div>
-
-                        <div class="perms">
-                            <div class="perm-item">
-                                <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg>
-                                Acessar seus formulários de lead
-                            </div>
-                            <div class="perm-item">
-                                <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg>
-                                Ver leads e respostas de formulários
-                            </div>
-                            <div class="perm-item">
-                                <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg>
-                                Receber notificações de novos leads
-                            </div>
-                        </div>
-
-                        <button class="btn" id="authorizeBtn" onclick="authorize()">
-                            Autorizar LeadDirector AI
-                        </button>
-                        <p class="disclaimer">O LeadDirector AI nunca poderá publicar em seu nome ou acessar conversas privadas.</p>
-                    </div>
-
-                    <script>
-                        function authorize() {
-                            var btn = document.getElementById('authorizeBtn');
-                            btn.textContent = 'Conectando...';
-                            btn.classList.add('loading');
-                            btn.disabled = true;
-                            setTimeout(function() {
-                                window.opener && window.opener.postMessage('meta-auth-success', '*');
-                                window.close();
-                            }, 1200);
-                        }
-                    </script>
-                </body>
-                </html>
-            `);
+            popup.document.open();
+            popup.document.write(POPUP_HTML);
             popup.document.close();
 
-            // Listen for the postMessage from the popup
+            // Listen for authorization message from popup
             const handleMessage = async (event: MessageEvent) => {
-                if (event.data === 'meta-auth-success') {
-                    window.removeEventListener('message', handleMessage);
+                if (event.data && event.data.type === "meta-auth-success") {
+                    window.removeEventListener("message", handleMessage);
+                    clearInterval(closedCheck);
                     try {
                         const res = await connectMetaAccount();
                         if (res.success) {
                             setIsConnected(true);
                             setPages(res.pages);
                             setStep("select-page");
-                            toast.success("Conta Meta autorizada com sucesso!");
+                            toast.success(`Conta Meta autorizada! ${event.data.accounts?.length || 1} conta(s) conectada(s).`);
                         }
                     } catch (error: any) {
                         toast.error(error.message || "Erro ao conectar conta Meta");
@@ -189,18 +222,18 @@ export default function IntegrationsPage() {
                 }
             };
 
-            window.addEventListener('message', handleMessage);
+            window.addEventListener("message", handleMessage);
 
-            // Fallback: if user closes popup without authorizing
-            const checkClosed = setInterval(() => {
+            // Fallback: user closed popup without authorizing
+            const closedCheck = setInterval(() => {
                 if (popup.closed) {
-                    clearInterval(checkClosed);
-                    window.removeEventListener('message', handleMessage);
+                    clearInterval(closedCheck);
+                    window.removeEventListener("message", handleMessage);
                     setIsLoading(false);
                 }
             }, 800);
         } else {
-            toast.error("Seu navegador bloqueou o popup. Permita popups para este site.");
+            toast.error("Seu navegador bloqueou o popup. Permita popups para este site e tente novamente.");
             setIsLoading(false);
         }
     };
@@ -285,7 +318,7 @@ export default function IntegrationsPage() {
                                     <CardDescription className="text-zinc-400 font-bold uppercase text-[10px] tracking-widest mt-1">Lead Forms Nativos</CardDescription>
                                 </div>
                             </div>
-                            <Badge className={`rounded-full px-4 h-8 ${isConnected ? 'bg-emerald-500' : 'bg-zinc-700'} border-none uppercase font-black text-[10px]`}>
+                            <Badge className={`rounded-full px-4 h-8 ${isConnected ? "bg-emerald-500" : "bg-zinc-700"} border-none uppercase font-black text-[10px]`}>
                                 {isConnected ? "Conectado" : "Desconectado"}
                             </Badge>
                         </div>
@@ -397,12 +430,12 @@ export default function IntegrationsPage() {
                                                     <div className="space-y-1">
                                                         <div className="flex items-center gap-2">
                                                             <h4 className="text-sm font-black text-zinc-900">{form.name}</h4>
-                                                            <Badge variant="outline" className={`text-[8px] font-black uppercase ${form.status === 'active' ? 'bg-emerald-50 text-emerald-600 border-emerald-100' : 'bg-red-50 text-red-600 border-red-100'}`}>
-                                                                {form.status === 'active' ? 'Publicado' : 'Draft'}
+                                                            <Badge variant="outline" className={`text-[8px] font-black uppercase ${form.status === "active" ? "bg-emerald-50 text-emerald-600 border-emerald-100" : "bg-red-50 text-red-600 border-red-100"}`}>
+                                                                {form.status === "active" ? "Publicado" : "Draft"}
                                                             </Badge>
                                                         </div>
                                                         <div className="flex items-center gap-3 text-[10px] text-zinc-400 font-bold uppercase tracking-wider">
-                                                            <span className="flex items-center gap-1">ID: {form.id}</span>
+                                                            <span>ID: {form.id}</span>
                                                         </div>
                                                     </div>
                                                     <div className="flex items-center gap-6">
