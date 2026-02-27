@@ -62,6 +62,13 @@ export async function GET(request: NextRequest) {
         const perms = await permRes.json();
         console.log("🛡️ [Meta Callback] Permissões concedidas pelo usuário:", JSON.stringify(perms, null, 2));
 
+        // 2.6 Verificar Identidade do Usuário
+        const userRes = await fetch(
+            `https://graph.facebook.com/${GRAPH_VERSION}/me?fields=id,name&access_token=${longToken}`
+        );
+        const userData = await userRes.json();
+        console.log(`👤 [Meta Callback] Token pertencente a: ${userData.name} (ID: ${userData.id})`);
+
         // 3. Buscar as páginas reais do usuário
         const pagesRes = await fetch(
             `https://graph.facebook.com/${GRAPH_VERSION}/me/accounts?` +
