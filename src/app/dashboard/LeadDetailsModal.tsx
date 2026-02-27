@@ -39,7 +39,7 @@ export default function LeadDetailsModal({ lead, isOpen, onClose, onSave }: Lead
                 phone: lead.phone || "",
                 email: lead.email || "",
                 source: lead.source || "",
-                ...lead.metaData
+                ...(lead.metaData || {})
             });
         }
     }, [lead]);
@@ -57,6 +57,16 @@ export default function LeadDetailsModal({ lead, isOpen, onClose, onSave }: Lead
     };
 
     const [editableSuggestions, setEditableSuggestions] = useState<any[]>([]);
+    const [captureTimeLabel, setCaptureTimeLabel] = useState<string>("0");
+
+    useEffect(() => {
+        if (lead?.createdAt) {
+            const diff = Math.floor((Date.now() - new Date(lead.createdAt).getTime()) / 60000);
+            setCaptureTimeLabel(diff >= 0 ? String(diff) : "0");
+        } else {
+            setCaptureTimeLabel("0");
+        }
+    }, [lead]);
 
     const tabs = [
         { id: "dados", label: "Dados cadastrais" },
@@ -129,7 +139,7 @@ export default function LeadDetailsModal({ lead, isOpen, onClose, onSave }: Lead
                                     </div>
                                     <div>
                                         <h2 className="text-xl font-black text-zinc-900 uppercase tracking-tight">{lead.name}</h2>
-                                        <span className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest">Lead ID: {lead.id.slice(0, 8)}</span>
+                                        <span className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest">Lead ID: {String(lead.id).slice(0, 8)}</span>
                                     </div>
                                 </div>
                                 <div className="flex gap-2">
@@ -363,7 +373,7 @@ export default function LeadDetailsModal({ lead, isOpen, onClose, onSave }: Lead
                                     <div className="space-y-2">
                                         <div className="flex items-center justify-between">
                                             <span className="text-[10px] font-black text-zinc-900 uppercase">Lead Capturado</span>
-                                            <span className="text-[9px] font-bold text-zinc-400">há {lead.createdAt ? Math.floor((Date.now() - new Date(lead.createdAt).getTime()) / 60000) : '0'} min</span>
+                                            <span className="text-[9px] font-bold text-zinc-400">há {captureTimeLabel} min</span>
                                         </div>
                                         <div className="p-4 bg-zinc-50 rounded-2xl border border-zinc-100 text-xs text-zinc-600 leading-relaxed font-medium">
                                             Origem: <span className="font-black text-zinc-900">{lead.source}</span>
