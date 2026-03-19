@@ -40,8 +40,12 @@ services:
       - STORE_MESSAGES=true
       - WEBHOOK_GLOBAL_ENABLED=true
       - WEBHOOK_GLOBAL_URL=http://app:3000/api/webhooks/evolution
+      - CACHE_REDIS_ENABLED=true
+      - CACHE_REDIS_URI=redis://redis:6379/1
+      - CACHE_REDIS_PREFIX=EVO
     depends_on:
       - db
+      - redis
 
   # Database for Evolution API
   db:
@@ -55,8 +59,19 @@ services:
     volumes:
       - evolution_db_data:/var/lib/postgresql/data
 
+  # Redis for Evolution API Cache and Sessions
+  redis:
+    image: redis:7-alpine
+    container_name: evolution_redis
+    restart: always
+    ports:
+      - "6379:6379"
+    volumes:
+      - evolution_redis_data:/data
+
 volumes:
   evolution_db_data:
+  evolution_redis_data:
 
 
 networks:
