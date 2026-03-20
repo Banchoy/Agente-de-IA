@@ -1,6 +1,6 @@
 
 import { pgTable, text, uuid, timestamp, jsonb, index, uniqueIndex } from "drizzle-orm/pg-core";
-import { sql } from "drizzle-orm";
+import { sql, relations } from "drizzle-orm";
 
 // -----------------------------------------------------------------------------
 // Organizations Table
@@ -60,6 +60,7 @@ export const agents = pgTable("agents", {
     config: jsonb("config").default({}), // For AI-specific configuration
     createdAt: timestamp("created_at").defaultNow().notNull(),
     updatedAt: timestamp("updated_at").defaultNow().notNull(),
+    whatsappInstanceName: text("whatsapp_instance_name"), // To map agent to a specific instance
 }, (table) => {
     return {
         organizationIdIdx: index("agents_organization_id_idx").on(table.organizationId),
@@ -142,6 +143,10 @@ export const leads = pgTable("leads", {
     }
 });
 
+export const leadsRelations = relations(leads, ({ many }) => ({
+    messages: many(messages),
+}));
+
 // -----------------------------------------------------------------------------
 // CRM: Meta Integrations Table
 // -----------------------------------------------------------------------------
@@ -175,3 +180,30 @@ export const whatsappSessions = pgTable("whatsapp_sessions", {
         sessionKeyUnique: uniqueIndex("whatsapp_session_key_unique").on(table.sessionId, table.key),
     }
 });
+
+// -----------------------------------------------------------------------------
+// Messages Table (Chat History)
+// -----------------------------------------------------------------------------
+export const messages = pgTable("messages", {
+    id: uuid("id").defaultRandom().primaryKey(),
+    organizationId: uuid("organization_id")
+        .notNull()
+        .references(() => organizations.id, { onDelete: "cascade" }),
+    leadId: uuid("lead_id")
+        .references(() => leads.id, { onDelete: "cascade" }),
+    role: text("role").notNull(), // 'user', 'assistant', 'system'
+    content: text("content").notNull(),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+}, (table) => {
+    return {
+        organizationIdIdx: index("messages_organization_id_idx").on(table.organizationId),
+        leadIdIdx: index("messages_lead_id_idx").on(table.leadId),
+    }
+});
+
+export const messagesRelations = relations(messages, ({ one }) => ({
+    lead: one(leads, {
+        fields: [messages.leadId],
+        references: [leads.id],
+    }),
+}));

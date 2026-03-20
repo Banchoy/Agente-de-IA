@@ -21,6 +21,14 @@ export const LeadRepository = {
         });
     },
 
+    getByPhone: async (phone: string) => {
+        return await withOrgContext(async (tx) => {
+            return await tx.query.leads.findFirst({
+                where: eq(leads.phone, phone)
+            });
+        });
+    },
+
     create: async (data: typeof leads.$inferInsert) => {
         return await withOrgContext(async (tx) => {
             const [newLead] = await tx.insert(leads).values(data).returning();

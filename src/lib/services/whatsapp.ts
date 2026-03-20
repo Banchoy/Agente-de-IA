@@ -8,11 +8,13 @@ import makeWASocket, {
 import { Boom } from "@hapi/boom";
 import pino from "pino";
 import { db } from "@/lib/db";
-import { whatsappSessions, organizations } from "@/lib/db/schema";
+import { whatsappSessions, organizations, messages as messagesTable, leads } from "@/lib/db/schema";
 import { eq, and, sql } from "drizzle-orm";
 import QRCode from "qrcode";
 import { OrganizationRepository } from "@/lib/repositories/organization";
 import { AgentRepository } from "@/lib/repositories/agent";
+import { LeadRepository } from "@/lib/repositories/lead";
+import { MessageRepository } from "@/lib/repositories/message";
 import { AIService } from "@/lib/services/ai";
 
 const logger = pino({ level: "silent" });
@@ -241,23 +243,66 @@ export const WhatsappService = {
                         const text = msg.message.conversation || msg.message.extendedTextMessage?.text;
                         if (!text) continue;
 
+                        const phone = jid.split("@")[0];
+
                         try {
                             const org = await OrganizationRepository.getById(organizationId);
                             if (!org) continue;
+
+                            // 1. Find or Create Lead
+                            let lead = await LeadRepository.getByPhone(phone);
+                            if (!lead) {
+                                console.log(`🆕 [Baileys] Criando novo lead para o número: ${phone}`);
+                                lead = await LeadRepository.create({
+                                    organizationId: org.id,
+                                    name: msg.pushName || phone,
+                                    phone: phone,
+                                    status: "active",
+                                    source: "whatsapp"
+                                });
+                            }
+
+                            // 2. Save Incoming Message
+                            await MessageRepository.create({
+                                organizationId: org.id,
+                                leadId: lead.id,
+                                role: "user",
+                                content: text
+                            });
+
+                            // 3. Find Mapped Agent (or fallback)
                             const agents = await AgentRepository.listByOrgId(org.id);
-                            const agent = agents[0];
-                            if (!agent) continue;
+                            // Try to find agent with matching instance name
+                            let agent = agents.find(a => (a as any).whatsappInstanceName === sessionId);
+                            if (!agent) agent = agents[0]; // Fallback to first agent
+                            
+                            if (!agent) {
+                                console.warn(`⚠️ [Baileys] Nenhum agente encontrado para a instância ${sessionId}`);
+                                continue;
+                            }
+
                             const config = (agent.config as any) || {};
 
+                            // 4. Generate AI Response
                             const aiResponse = await AIService.generateResponse(
                                 config.provider || "google",
                                 config.model || "gemini-1.5-flash",
                                 config.systemPrompt || "Você é um assistente virtual.",
                                 [{ role: "user", content: text }]
                             );
+
+                            // 5. Send Message and Save to DB
                             await sock.sendMessage(jid, { text: aiResponse });
+                            
+                            await MessageRepository.create({
+                                organizationId: org.id,
+                                leadId: lead.id,
+                                role: "assistant",
+                                content: aiResponse
+                            });
+
                         } catch (err) {
-                            console.error("❌ Erro IA Response:", err);
+                            console.error("❌ Erro IA/Message Logging Response:", err);
                         }
                     }
                 });

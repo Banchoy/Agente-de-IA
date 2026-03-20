@@ -17,10 +17,12 @@ export async function updateAgent(id: string, formData: FormData) {
     const testMode = formData.get("testMode") === "on";
     const testNumber = formData.get("testNumber") as string;
     const whatsappResponse = formData.get("whatsappResponse") === "on";
+    const whatsappInstanceName = formData.get("whatsappInstanceName") as string;
 
     await AgentRepository.update(id, {
         name,
         description,
+        whatsappInstanceName,
         config: {
             provider,
             model,

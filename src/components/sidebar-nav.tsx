@@ -23,6 +23,11 @@ const navItems = [
         icon: MessageSquare,
     },
     {
+        name: "Chats",
+        href: "/dashboard/chats",
+        icon: History,
+    },
+    {
         name: "Agentes",
         href: "/dashboard/agents",
         icon: Bot,

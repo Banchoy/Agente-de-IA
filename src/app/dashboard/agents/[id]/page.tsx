@@ -1,7 +1,7 @@
 import { auth } from "@clerk/nextjs/server";
 import { redirect, notFound } from "next/navigation";
 import { AgentRepository } from "@/lib/repositories/agent";
-import { ArrowLeft, Sparkles, Bot, Save, Trash2 } from "lucide-react";
+import { ArrowLeft, Sparkles, Bot, Save, Trash2, Phone, Zap } from "lucide-react";
 import Link from "next/link";
 import { updateAgent } from "../actions";
 
@@ -19,147 +19,191 @@ export default async function AgentDetailsPage({ params }: { params: { id: strin
     const config = (agent.config as any) || {};
 
     return (
-        <div className="mx-auto max-w-4xl space-y-8">
-            <div className="flex items-center justify-between">
-                <Link href="/dashboard/agents" className="inline-flex items-center gap-2 text-sm text-zinc-600 hover:text-zinc-900 transition-colors">
-                    <ArrowLeft size={16} />
-                    Voltar para Agentes
+        <div className="mx-auto max-w-5xl space-y-10 pb-20">
+            {/* Navigation & Header */}
+            <div className="flex flex-col gap-6">
+                <Link href="/dashboard/agents" className="inline-flex items-center gap-2 text-xs font-black text-muted-foreground hover:text-foreground transition-all uppercase tracking-widest group w-fit">
+                    <ArrowLeft size={14} className="group-hover:-translate-x-1 transition-transform" />
+                    Voltar para a Central de Agentes
                 </Link>
-                <div className="flex gap-2">
-                    <button className="flex items-center gap-2 rounded-lg border border-red-200 px-4 py-2 text-sm font-semibold text-red-600 hover:bg-red-50 transition-all">
-                        <Trash2 size={18} />
-                        Excluir
-                    </button>
+                
+                <div className="flex flex-col md:flex-row md:items-end justify-between gap-6">
+                    <div className="flex items-center gap-6">
+                        <div className="flex h-20 w-20 items-center justify-center rounded-[2rem] bg-foreground text-background shadow-2xl ring-4 ring-primary/20 rotate-3 hover:rotate-0 transition-all duration-500">
+                            <Bot size={40} />
+                        </div>
+                        <div className="space-y-1">
+                            <div className="flex items-center gap-3">
+                                <h1 className="text-4xl font-black tracking-tighter text-foreground uppercase">{agent.name}</h1>
+                                <span className={`px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest ${agent.status === 'active' ? 'bg-green-500/10 text-green-500 border border-green-500/20' : 'bg-red-500/10 text-red-500 border border-red-500/20'}`}>
+                                    {agent.status}
+                                </span>
+                            </div>
+                            <p className="text-xs font-bold text-muted-foreground uppercase tracking-widest opacity-60">ID do Sistema: {agent.id}</p>
+                        </div>
+                    </div>
+                    
+                    <div className="flex gap-3">
+                        <button className="flex items-center gap-2 rounded-2xl border-2 border-red-500/20 px-6 py-3 text-xs font-black text-red-500 uppercase tracking-widest hover:bg-red-500 hover:text-white transition-all active:scale-95">
+                            <Trash2 size={16} />
+                            Desativar Agente
+                        </button>
+                    </div>
                 </div>
             </div>
 
-            <div className="flex items-center gap-4">
-                <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-zinc-900 text-white">
-                    <Bot size={32} />
-                </div>
-                <div>
-                    <h1 className="text-3xl font-bold tracking-tight text-zinc-900">{agent.name}</h1>
-                    <p className="text-zinc-600">ID: {agent.id}</p>
-                </div>
-            </div>
+            <form action={updateAgent.bind(null, agent.id)} className="grid gap-8 lg:grid-cols-12">
+                {/* Left Column: Configurations */}
+                <div className="lg:col-span-8 space-y-8">
+                    {/* General Settings Card */}
+                    <div className="rounded-[2.5rem] border border-border bg-card p-10 shadow-xl relative overflow-hidden ring-1 ring-white/5">
+                        <div className="flex items-center gap-3 mb-8">
+                            <div className="p-2 bg-primary/10 rounded-xl">
+                                <Zap size={18} className="text-primary" />
+                            </div>
+                            <h2 className="text-xl font-black text-foreground uppercase tracking-tight">Núcleo de Inteligência</h2>
+                        </div>
 
-            <form action={updateAgent.bind(null, agent.id)} className="grid gap-8 md:grid-cols-3">
-                <div className="md:col-span-2 space-y-6">
-                    <div className="rounded-2xl border border-zinc-200 bg-white p-8 shadow-sm space-y-6">
-                        <h2 className="text-lg font-bold text-zinc-900">Configurações Gerais</h2>
-
-                        <div className="space-y-4">
-                            <div className="space-y-2">
-                                <label className="text-sm font-medium text-zinc-900">Nome do Agente</label>
+                        <div className="grid gap-8">
+                            <div className="space-y-3">
+                                <label className="text-xs font-black text-muted-foreground uppercase tracking-widest px-1">Pseudônimo do Agente</label>
                                 <input
                                     name="name"
                                     defaultValue={agent.name}
-                                    placeholder="Ex: Atendente de Vendas"
+                                    placeholder="ex: atendente de vendas"
                                     required
-                                    className="w-full rounded-lg border border-zinc-200 px-4 py-2.5 text-sm focus:border-zinc-900 focus:outline-none transition-all"
+                                    className="w-full rounded-2xl border-2 border-border bg-background px-6 py-4 text-sm font-bold text-foreground focus:border-primary focus:outline-none transition-all shadow-inner"
                                 />
                             </div>
-                            <div className="space-y-2">
-                                <label className="text-sm font-medium text-zinc-900">Descrição</label>
+                            <div className="space-y-3">
+                                <label className="text-xs font-black text-muted-foreground uppercase tracking-widest px-1">Missão Principal (Descrição)</label>
                                 <textarea
                                     name="description"
                                     defaultValue={agent.description || ""}
-                                    placeholder="O que este agente faz?"
-                                    rows={2}
-                                    className="w-full rounded-lg border border-zinc-200 px-4 py-2.5 text-sm focus:border-zinc-900 focus:outline-none transition-all"
+                                    placeholder="descreva o propósito deste agente no seu fluxo..."
+                                    rows={3}
+                                    className="w-full rounded-2xl border-2 border-border bg-background px-6 py-4 text-sm font-bold text-foreground focus:border-primary focus:outline-none transition-all shadow-inner resize-none"
                                 />
                             </div>
-                        </div>
 
-                        <hr className="border-zinc-100" />
+                            <hr className="border-border/50" />
 
-                        <div className="space-y-4">
-                            <h3 className="text-sm font-bold text-zinc-900 uppercase tracking-wider text-zinc-500">Personalidade e Inteligência</h3>
-                            <div className="space-y-2">
-                                <label className="text-sm font-medium text-zinc-900">Prompt do Sistema</label>
+                            <div className="space-y-4">
+                                <div className="flex items-center justify-between px-1">
+                                    <h3 className="text-xs font-black text-primary uppercase tracking-[0.2em]">Diretrizes do Sistema (Prompt)</h3>
+                                    <span className="text-[10px] text-muted-foreground font-bold lowercase opacity-40 italic">instruções de comportamento</span>
+                                </div>
                                 <textarea
                                     name="systemPrompt"
                                     defaultValue={config.systemPrompt || ""}
-                                    placeholder="Instruções para o agente..."
-                                    rows={8}
+                                    placeholder="Aja como um especialista em..."
+                                    rows={10}
                                     required
-                                    className="w-full rounded-lg border border-zinc-200 px-4 py-3 text-sm focus:border-zinc-900 focus:outline-none transition-all resize-none font-mono"
+                                    className="w-full rounded-[2rem] border-2 border-border bg-background/50 px-8 py-6 text-sm font-medium text-foreground focus:border-primary focus:outline-none transition-all resize-none font-mono leading-relaxed"
                                 ></textarea>
                             </div>
                         </div>
                     </div>
 
-                    <div className="rounded-2xl border border-zinc-200 bg-white p-8 shadow-sm space-y-6 border-dashed border-2">
-                        <h2 className="text-lg font-bold text-zinc-900">WhatsApp & Automação</h2>
-                        
-                        <div className="flex items-center gap-4">
-                            <input
-                                type="checkbox"
-                                name="whatsappResponse"
-                                defaultChecked={config.whatsappResponse}
-                                className="h-5 w-5 rounded border-zinc-200 text-zinc-900 focus:ring-zinc-900"
-                            />
-                            <div className="space-y-1">
-                                <label className="text-sm font-bold text-zinc-700">Responder no WhatsApp</label>
-                                <p className="text-xs text-zinc-500">Quando ativado, este agente responderá automaticamente a todas as mensagens recebidas.</p>
+                    {/* WhatsApp Automation Card */}
+                    <div className="rounded-[2.5rem] border border-border bg-muted/20 p-10 space-y-8 ring-1 ring-white/5">
+                        <div className="flex items-center gap-3">
+                            <div className="p-2 bg-green-500/10 rounded-xl">
+                                <Phone size={18} className="text-green-500" />
                             </div>
+                            <h2 className="text-xl font-black text-foreground uppercase tracking-tight">Integração WhatsApp</h2>
                         </div>
+                        
+                        <div className="grid gap-8">
+                            <div className="flex items-start gap-4 p-4 rounded-3xl bg-card border border-border shadow-sm group hover:border-primary/50 transition-colors">
+                                <div className="relative inline-flex items-center cursor-pointer mt-1">
+                                    <input
+                                        type="checkbox"
+                                        name="whatsappResponse"
+                                        defaultChecked={config.whatsappResponse}
+                                        className="sr-only peer"
+                                    />
+                                    <div className="w-11 h-6 bg-muted peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-primary shadow-inner"></div>
+                                </div>
+                                <div className="space-y-1">
+                                    <label className="text-sm font-black text-foreground uppercase tracking-tight">Ativar Respostas Automáticas</label>
+                                    <p className="text-xs text-muted-foreground font-medium lowercase leading-relaxed">quando ligado, o robô assume o controle de todas as mensagens recebidas via baileys.</p>
+                                </div>
+                            </div>
 
-                        <hr className="border-zinc-100" />
+                            <div className="space-y-3 p-6 bg-background rounded-3xl border-2 border-border border-dashed">
+                                <label className="text-xs font-black text-muted-foreground uppercase tracking-widest px-1">ID da Instância (Mapping)</label>
+                                <input
+                                    name="whatsappInstanceName"
+                                    defaultValue={(agent as any).whatsappInstanceName || ""}
+                                    placeholder="ex: session_01"
+                                    className="w-full rounded-2xl border border-border bg-card px-5 py-4 text-sm font-bold text-foreground focus:border-primary focus:outline-none transition-all"
+                                />
+                                <p className="text-[10px] text-muted-foreground px-1 leading-relaxed lowercase italic">vincule este robô a um número de whatsapp específico.</p>
+                            </div>
 
-                        <h2 className="text-sm font-bold text-zinc-500 uppercase tracking-widest">Modo de Teste</h2>
-                        <p className="text-sm text-zinc-500">Habilite para que o agente responda apenas a um número específico no WhatsApp.</p>
+                            <div className="space-y-6 pt-4 border-t border-border/50">
+                                <div className="flex items-center gap-4">
+                                    <div className="relative inline-flex items-center cursor-pointer">
+                                        <input
+                                            type="checkbox"
+                                            name="testMode"
+                                            defaultChecked={config.testMode}
+                                            className="sr-only peer"
+                                        />
+                                        <div className="w-11 h-6 bg-muted peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-500 shadow-inner"></div>
+                                    </div>
+                                    <label className="text-sm font-black text-foreground uppercase tracking-tight">Modo Sandbox (Teste)</label>
+                                </div>
 
-                        <div className="flex items-center gap-4">
-                            <input
-                                type="checkbox"
-                                name="testMode"
-                                defaultChecked={config.testMode}
-                                className="h-5 w-5 rounded border-zinc-200 text-zinc-900 focus:ring-zinc-900"
-                            />
-                            <label className="text-sm font-medium text-zinc-700">Ativar Modo de Teste</label>
-                        </div>
-
-                        <div className="space-y-2">
-                            <label className="text-sm font-medium text-zinc-900">Número de Teste (DDI + DDD + Número)</label>
-                            <input
-                                name="testNumber"
-                                defaultValue={config.testNumber || ""}
-                                placeholder="Ex: 5511999999999"
-                                className="w-full rounded-lg border border-zinc-200 px-4 py-2.5 text-sm focus:border-zinc-900 focus:outline-none transition-all"
-                            />
+                                <div className="space-y-3">
+                                    <label className="text-xs font-black text-muted-foreground uppercase tracking-widest px-1">Número Seguro para Testes</label>
+                                    <input
+                                        name="testNumber"
+                                        defaultValue={config.testNumber || ""}
+                                        placeholder="5511999999999"
+                                        className="w-full rounded-2xl border border-border bg-card px-6 py-4 text-sm font-bold text-foreground focus:border-primary focus:outline-none transition-all shadow-inner"
+                                    />
+                                </div>
+                            </div>
                         </div>
                     </div>
                 </div>
 
-                <div className="space-y-6">
-                    <div className="rounded-2xl border border-zinc-200 bg-white p-6 shadow-sm space-y-6">
-                        <h2 className="text-sm font-bold text-zinc-900 uppercase tracking-wider text-zinc-500">Modelo de IA</h2>
+                {/* Right Column: AI Info & Save */}
+                <div className="lg:col-span-4 space-y-8">
+                    <div className="rounded-[2.5rem] border border-border bg-card p-8 shadow-xl space-y-8 sticky top-6 ring-1 ring-white/5">
+                        <div className="space-y-6">
+                            <h2 className="text-xs font-black text-muted-foreground underline decoration-primary decoration-2 underline-offset-8 uppercase tracking-[0.2em] mb-4">Motor de IA</h2>
 
-                        <div className="space-y-4">
-                            <div className="space-y-2">
-                                <label className="text-xs font-medium text-zinc-500">Provedor</label>
+                            <div className="space-y-3">
+                                <label className="text-[10px] font-black text-muted-foreground uppercase tracking-widest opacity-60">Provedor Local</label>
                                 <select
                                     name="provider"
                                     defaultValue={config.provider || "google"}
-                                    className="w-full rounded-lg border border-zinc-200 px-3 py-2 text-sm focus:border-zinc-900 focus:outline-none bg-zinc-50 transition-all font-medium"
+                                    className="w-full rounded-2xl border border-border bg-muted/30 px-4 py-3 text-sm font-bold text-foreground focus:outline-none appearance-none cursor-pointer"
                                 >
                                     <option value="google">Google Gemini</option>
                                 </select>
                             </div>
-                            <div className="space-y-2">
-                                <label className="text-xs font-medium text-zinc-500">Modelo</label>
+                            
+                            <div className="space-y-3">
+                                <label className="text-[10px] font-black text-muted-foreground uppercase tracking-widest opacity-60">Modelo Neuronal</label>
                                 <select
                                     name="model"
                                     defaultValue={config.model || "gemini-1.5-flash"}
-                                    className="w-full rounded-lg border border-zinc-200 px-3 py-2 text-sm focus:border-zinc-900 focus:outline-none bg-zinc-50 transition-all font-medium"
+                                    className="w-full rounded-2xl border border-border bg-muted/30 px-4 py-3 text-sm font-bold text-foreground focus:outline-none appearance-none cursor-pointer"
                                 >
                                     <option value="gemini-1.5-flash">Gemini 1.5 Flash</option>
                                     <option value="gemini-1.5-pro">Gemini 1.5 Pro</option>
                                 </select>
                             </div>
-                            <div className="space-y-2">
-                                <label className="text-xs font-medium text-zinc-500">Temperatura: {config.temperature || 0.7}</label>
+
+                            <div className="space-y-4 pt-4 border-t border-border/50">
+                                <div className="flex justify-between items-center text-[10px] font-black text-muted-foreground uppercase tracking-widest">
+                                    <span>Temperatura</span>
+                                    <span className="text-primary">{config.temperature || 0.7}</span>
+                                </div>
                                 <input
                                     type="range"
                                     name="temperature"
@@ -167,32 +211,32 @@ export default async function AgentDetailsPage({ params }: { params: { id: strin
                                     max="1"
                                     step="0.1"
                                     defaultValue={config.temperature || 0.7}
-                                    className="w-full h-2 bg-zinc-200 rounded-lg appearance-none cursor-pointer accent-zinc-900"
+                                    className="w-full h-1.5 bg-muted rounded-full appearance-none cursor-pointer accent-primary"
                                 />
-                                <div className="flex justify-between text-[10px] text-zinc-400 font-bold px-1">
-                                    <span>PRECISO</span>
-                                    <span>CRIATIVO</span>
+                                <div className="flex justify-between text-[8px] text-muted-foreground font-black uppercase opacity-40">
+                                    <span>Conservador</span>
+                                    <span>Criativo</span>
                                 </div>
                             </div>
                         </div>
 
                         <button
                             type="submit"
-                            className="flex w-full items-center justify-center gap-2 rounded-xl bg-zinc-900 py-3 text-sm font-bold text-white hover:bg-zinc-800 transition-all active:scale-[0.98] shadow-sm"
+                            className="group relative flex w-full items-center justify-center gap-3 rounded-2xl bg-foreground py-5 text-xs font-black uppercase tracking-widest text-background hover:bg-foreground/90 transition-all active:scale-[0.98] shadow-2xl overflow-hidden"
                         >
-                            <Save size={18} />
-                            Salvar Alterações
+                            <Save size={18} className="transition-transform group-hover:scale-110" />
+                            Sincronizar Alterações
                         </button>
-                    </div>
 
-                    <div className="rounded-2xl border border-zinc-200 bg-blue-50/50 p-6 space-y-3">
-                        <div className="flex items-center gap-2 text-blue-700">
-                            <Sparkles size={18} />
-                            <span className="text-xs font-bold uppercase tracking-wider">Dica Premium</span>
+                        <div className="p-6 bg-primary/5 rounded-[1.5rem] border border-primary/10 space-y-3 relative overflow-hidden group">
+                            <div className="absolute top-0 right-0 p-3 text-primary/20 group-hover:text-primary/40 transition-colors">
+                                <Sparkles size={24} />
+                            </div>
+                            <h4 className="text-[10px] font-black text-primary uppercase tracking-[0.25em]">Dica Especial</h4>
+                            <p className="text-[10px] text-primary/80 leading-relaxed font-bold lowercase italic">
+                                defina uma **temperatura baixa** (0.2 - 0.4) para assistentes de suporte que precisam seguir regras rígidas de negócio.
+                            </p>
                         </div>
-                        <p className="text-xs text-blue-600 leading-relaxed">
-                            Use um **System Prompt** detalhado para que o agente entenda exatamente o contexto do seu negócio. Defina o tom de voz e os limites da assistência.
-                        </p>
                     </div>
                 </div>
             </form>
