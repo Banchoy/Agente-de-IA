@@ -118,7 +118,7 @@ export const EvolutionService = {
                 token: apiKey,
                 integration: "WHATSAPP-BAILEYS",
                 qrcode: true,
-                alwaysOnline: true,
+                alwaysOnline: false, // 🚀 DESATIVADO na criação inicial para evitar loops de handshake
                 readMessages: true,
                 readStatus: true,
                 syncFullHistory: false,
@@ -128,7 +128,7 @@ export const EvolutionService = {
                 webhook: {
                     url: webhookUrl,
                     enabled: true,
-                    byEvents: false, // Envia todos por padrão ou filtramos? v2 prefere false para enviar básicos
+                    byEvents: false,
                     base64: true,
                     events: [
                         "QRCODE_UPDATED",

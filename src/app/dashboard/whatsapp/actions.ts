@@ -57,25 +57,32 @@ export async function connectWhatsApp() {
             const instances = await EvolutionService.getInstances(apiUrl, apiKey);
             const existing = instances.find((i: any) => i.instanceName === instanceName || i.name === instanceName);
             
-            if (existing && (existing.status === 'open' || existing.connectionStatus === 'open')) {
-                console.log(`✅ Instância ${instanceName} já está ativa e conectada. Reutilizando.`);
-                await OrganizationRepository.update(org.id, {
-                    evolutionInstanceName: instanceName,
-                    evolutionInstanceStatus: "connected"
-                });
-                revalidatePath("/dashboard/whatsapp");
-                return { success: true, status: "connected" };
-            }
-
-            // Se existe mas não está conectada, tentamos apenas dar o connect sem deletar primeiro
-            // Mas para garantir um QR fresco na v2, às vezes deletar é melhor se estiver em 'close'.
             if (existing) {
-                console.log(`ℹ️ Instância ${instanceName} existe mas não está conectada (Status: ${existing.status}). Reiniciando...`);
-                await EvolutionService.deleteInstance(apiUrl, apiKey, instanceName);
-                await new Promise(resolve => setTimeout(resolve, 5000)); // 5s para limpeza v2
+                const status = existing.status || existing.connectionStatus;
+                console.log(`🔍 Instância ${instanceName} encontrada - Status: ${status}`);
+
+                if (status === 'open') {
+                    console.log(`✅ Instância ${instanceName} já está ativa. Reutilizando.`);
+                    await OrganizationRepository.update(org.id, {
+                        evolutionInstanceName: instanceName,
+                        evolutionInstanceStatus: "connected"
+                    });
+                    revalidatePath("/dashboard/whatsapp");
+                    return { success: true, status: "connected" };
+                }
+
+                if (status === 'connecting') {
+                    console.log(`⏳ Instância ${instanceName} já está em processo de conexão. Não deletar.`);
+                    // Prosseguir para o polling do QR Code via EvolutionService.connect
+                } else {
+                    // Se estiver em 'close' ou outro estado não funcional, deletamos para garantir um QR novo
+                    console.log(`ℹ️ Reiniciando instância ${instanceName} no estado: ${status}`);
+                    await EvolutionService.deleteInstance(apiUrl, apiKey, instanceName);
+                    await new Promise(resolve => setTimeout(resolve, 3000));
+                }
             }
         } catch (e) {
-            console.warn("⚠️ Falha ao verificar instâncias existentes, prosseguindo com fluxo padrão.");
+            console.warn("⚠️ Falha ao verificar instâncias existentes, prosseguindo.");
         }
 
         // Connect via service
