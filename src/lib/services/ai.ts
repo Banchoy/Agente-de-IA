@@ -6,6 +6,10 @@ export type AIProvider = "google" | "openai" | "anthropic";
 export interface ChatMessage {
     role: "user" | "model" | "system";
     content: string;
+    media?: {
+        mimeType: string;
+        data: string; // base64
+    };
 }
 
 export const AIService = {
@@ -81,17 +85,24 @@ export const AIService = {
 
             const history = messages
                 .filter(m => m.role !== "system")
-                .map(m => ({
-                    role: m.role === "model" ? "model" : "user" as any,
-                    parts: [{ text: m.content }]
-                }));
+                .map(m => {
+                    const parts: any[] = [];
+                    if (m.content) parts.push({ text: m.content });
+                    if (m.media) parts.push({ inlineData: m.media });
+                    
+                    return {
+                        role: m.role === "model" ? "model" : "user" as any,
+                        parts: parts
+                    };
+                });
 
             const chat = geminiModel.startChat({
                 history: history.slice(0, -1),
             });
 
             const lastMessage = history[history.length - 1];
-            const result = await chat.sendMessage(lastMessage.parts[0].text);
+            // Envia todos os parts da última mensagem
+            const result = await chat.sendMessage(lastMessage.parts);
             return result.response.text();
         };
 

@@ -136,6 +136,8 @@ export const leads = pgTable("leads", {
     aiActive: text("ai_active").default("true").notNull(), // 'true' or 'false' for handover
     lastReadAt: timestamp("last_read_at"),
     isTyping: text("is_typing").default("false").notNull(), // 'true' or 'false'
+    outreachStatus: text("outreach_status").default("idle").notNull(), // idle, pending, completed, failed
+    lastOutreachAt: timestamp("last_outreach_at"),
     createdAt: timestamp("created_at").defaultNow().notNull(),
     updatedAt: timestamp("updated_at").defaultNow().notNull(),
 }, (table) => {

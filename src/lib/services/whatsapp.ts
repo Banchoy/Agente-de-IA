@@ -296,17 +296,36 @@ export const WhatsappService = {
                             }
 
                             // Tentar capturar texto de várias formas possíveis
+                            const isAudio = !!msg.message.audioMessage;
+                            let audioData: any = null;
+
                             const text = msg.message.conversation || 
                                          msg.message.extendedTextMessage?.text || 
                                          msg.message.imageMessage?.caption ||
                                          msg.message.videoMessage?.caption ||
                                          msg.message.buttonsResponseMessage?.selectedButtonId ||
                                          msg.message.listResponseMessage?.title ||
-                                         "";
+                                         (isAudio ? "[Áudio]" : "");
                             
-                            if (!text) {
-                                console.log(`⏩ [Baileys] Mensagem [${index+1}] sem texto útil. Chaves: ${Object.keys(msg.message).join(',')}`);
+                            if (!text && !isAudio) {
+                                console.log(`⏩ [Baileys] Mensagem [${index+1}] sem conteúdo útil.`);
                                 continue;
+                            }
+
+                            // Download audio if present
+                            if (isAudio) {
+                                console.log(`🎤 [Baileys] Baixando mensagem de áudio...`);
+                                try {
+                                    const { downloadMediaMessage } = await import('@whiskeysockets/baileys');
+                                    const buffer = await downloadMediaMessage(msg, 'buffer', {});
+                                    audioData = {
+                                        mimeType: msg.message?.audioMessage?.mimetype || "audio/ogg; codecs=opus",
+                                        data: buffer.toString('base64')
+                                    };
+                                    console.log(`🎤 [Baileys] Áudio baixado e convertido para base64. Tamanho: ${audioData.data.length}`);
+                                } catch (err) {
+                                    console.error(`❌ [Baileys] Erro ao baixar áudio:`, err);
+                                }
                             }
 
                             const phone = jid.split("@")[0];
@@ -411,8 +430,18 @@ export const WhatsappService = {
                                 const history = await (MessageRepository as any).listByLeadSystem(lead.id, 10);
                                 let formattedHistory = history.reverse().map((m: any) => ({
                                     role: m.role === "assistant" ? "model" : "user",
-                                    content: m.content
+                                    content: m.content,
+                                    media: undefined as any
                                 }));
+
+                                // Se a mensagem atual for áudio, anexa os dados ao último item do histórico (que é a mensagem que acabou de ser salva)
+                                if (audioData && formattedHistory.length > 0) {
+                                    const lastIndex = formattedHistory.length - 1;
+                                    if (formattedHistory[lastIndex].role === "user") {
+                                        formattedHistory[lastIndex].media = audioData;
+                                        console.log(`🎤 [Baileys] Áudio anexado à última mensagem do histórico para processamento.`);
+                                    }
+                                }
 
                                 // CRÍTICO: O Gemini exige que a primeira mensagem seja do 'user'.
                                 // Se o bloco de 10 mensagens começar com uma resposta da IA, removemos para evitar erro.

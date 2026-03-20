@@ -135,23 +135,17 @@ export async function startOutreach(leadIds?: string[]) {
         const config = (agent.config as any) || {};
         const systemPrompt = config.systemPrompt || "Você é um assistente virtual iniciando contato.";
 
-        // 3. Enviar mensagens (Assíncrono em lote? Simplificado por agora)
+        // 3. Marcar leads para prospecção (Serão processados pelo OutreachService em background)
         let successCount = 0;
         for (const lead of leadsToContact) {
             try {
-                // Mensagem inicial personalizada ou gerada
-                const initialMessage = `Olá ${lead.name.split(' ')[0]}, tudo bem? Vi seu interesse em ${lead.metaData?.product || 'nossos serviços'}. Como posso te ajudar hoje?`;
-                
-                await EvolutionService.sendText(
-                    org.evolutionApiUrl || process.env.EVOLUTION_API_URL || "",
-                    org.evolutionApiKey || process.env.EVOLUTION_API_KEY || "",
-                    org.evolutionInstanceName,
-                    lead.phone.replace(/\D/g, ""),
-                    initialMessage
-                );
+                await LeadRepository.update(lead.id, {
+                    outreachStatus: "pending",
+                    lastOutreachAt: null // Garante que será processado na próxima volta do cron
+                });
                 successCount++;
             } catch (err) {
-                console.error(`Erro ao enviar mensagem para ${lead.name}:`, err);
+                console.error(`Erro ao agendar prospecção para ${lead.name}:`, err);
             }
         }
 

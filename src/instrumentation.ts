@@ -14,6 +14,13 @@ export async function register() {
             } catch (err) {
                 console.error("❌ [Instrumentation] Falha crítica ao resumir sessões:", err);
             }
+
+            // Iniciar o processamento de prospecção a cada 1 minuto
+            console.log("📨 [Instrumentation] Iniciando cron de prospecção...");
+            setInterval(async () => {
+                const { OutreachService } = await import('@/lib/services/outreach');
+                await OutreachService.processQueue();
+            }, 60 * 1000); // 1 minuto
         }, 3000);
         
     } catch (error) {
