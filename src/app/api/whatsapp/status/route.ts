@@ -18,14 +18,7 @@ export async function GET(req: NextRequest) {
         }
 
         const sessionId = `wa_${org.id.split('-')[0]}`;
-        let session = WhatsappService.getSession(sessionId);
-
-        // Se a sessão não existir ou estiver fechada, tentamos conectar
-        if (!session || session.status === "close") {
-            console.log(`🔌 Iniciando conexão automática para ${sessionId}`);
-            await WhatsappService.connect(org.id, sessionId);
-            session = WhatsappService.getSession(sessionId);
-        }
+        const session = WhatsappService.getSession(sessionId);
 
         return NextResponse.json({
             status: session?.status || "disconnected",

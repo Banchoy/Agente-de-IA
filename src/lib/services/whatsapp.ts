@@ -20,6 +20,23 @@ import { AIService } from "@/lib/services/ai";
 
 const logger = pino({ level: "silent" });
 
+function fixBuffers(data: any): any {
+    if (Array.isArray(data)) {
+        return data.map(item => fixBuffers(item));
+    }
+    if (data && typeof data === 'object') {
+        if (data.type === 'Buffer' && Array.isArray(data.data)) {
+            return Buffer.from(data.data);
+        }
+        const newObj: any = {};
+        for (const key in data) {
+            newObj[key] = fixBuffers(data[key]);
+        }
+        return newObj;
+    }
+    return data;
+}
+
 /**
  * Custom Drizzle-based Auth State for Baileys
  */
@@ -31,7 +48,7 @@ async function useDrizzleAuthState(sessionId: string, organizationId: string) {
                 eq(whatsappSessions.key, key)
             )
         });
-        return result ? JSON.parse(result.data) : null;
+        return result ? fixBuffers(JSON.parse(result.data)) : null;
     };
 
     const writeData = async (key: string, data: any) => {
@@ -58,7 +75,8 @@ async function useDrizzleAuthState(sessionId: string, organizationId: string) {
             ));
     };
 
-    let creds: AuthenticationCreds = await readData("creds") || (await import("@whiskeysockets/baileys")).initAuthCreds();
+    const credsData = await readData("creds");
+    let creds: AuthenticationCreds = credsData || (await import("@whiskeysockets/baileys")).initAuthCreds();
 
     return {
         state: {
@@ -71,9 +89,6 @@ async function useDrizzleAuthState(sessionId: string, organizationId: string) {
                             let value = await readData(`${type}-${id}`);
                             if (type === "app-state-sync-key" && value) {
                                 value = (await import("@whiskeysockets/baileys")).proto.Message.AppStateSyncKeyData.fromObject(value);
-                            }
-                            if (value && typeof value === 'object' && value.type === 'Buffer') {
-                                value = Buffer.from(value.data);
                             }
                             data[id] = value;
                         })
@@ -103,10 +118,13 @@ export const WhatsappService = {
     sessions: new Map<string, any>(),
 
     connect: async (organizationId: string, sessionId: string) => {
-        // Evitar múltiplas conexões para o mesmo sessionId
+        // Evitar múltiplas conexões para o mesmo sessionId se já estiver em progresso
         if (WhatsappService.sessions.has(sessionId)) {
             const existing = WhatsappService.sessions.get(sessionId);
-            if (existing.status === "open") return existing.sock;
+            if (existing.status === "open" || existing.status === "connecting") {
+                console.log(`ℹ️ [Baileys] Já existe uma conexão em andamento para ${sessionId} (${existing.status})`);
+                return existing.sock;
+            }
         }
 
         const { state, saveCreds } = await useDrizzleAuthState(sessionId, organizationId);
@@ -145,10 +163,15 @@ export const WhatsappService = {
             }
 
             if (connection === "close") {
+                const bounceError = (lastDisconnect?.error as Boom)?.output?.statusCode === DisconnectReason.connectionLost || 
+                                   (lastDisconnect?.error as Boom)?.output?.statusCode === DisconnectReason.connectionClosed;
+                
                 const shouldReconnect = (lastDisconnect?.error as Boom)?.output?.statusCode !== DisconnectReason.loggedOut;
-                console.log(`❌ [Baileys] Conexão fechada (${sessionId}). Reconectando: ${shouldReconnect}`);
+                console.log(`❌ [Baileys] Conexão fechada (${sessionId}). Reason: ${(lastDisconnect?.error as Boom)?.output?.statusCode}. Reconectando: ${shouldReconnect}`);
                 
                 if (shouldReconnect) {
+                    // Limpar sessão antiga antes de tentar de novo
+                    WhatsappService.sessions.delete(sessionId);
                     setTimeout(() => WhatsappService.connect(organizationId, sessionId), 5000);
                 } else {
                     WhatsappService.sessions.delete(sessionId);
