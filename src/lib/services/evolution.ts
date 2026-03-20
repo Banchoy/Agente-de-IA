@@ -186,5 +186,20 @@ export const EvolutionService = {
             })
         });
         return await response.json();
+    },
+
+    deleteInstance: async (apiUrl: string, apiKey: string, instanceName: string) => {
+        console.log(`🗑️ Deletando instância: ${instanceName}`);
+        try {
+            const response = await fetch(`${apiUrl}/instance/delete/${instanceName}`, {
+                method: "DELETE",
+                headers: { "apikey": apiKey }
+            });
+            const data = await response.json();
+            return data;
+        } catch (e) {
+            console.warn(`⚠️ Erro ao tentar deletar instância ${instanceName}:`, e);
+            return null;
+        }
     }
 };

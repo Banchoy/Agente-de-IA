@@ -52,8 +52,13 @@ export async function connectWhatsApp() {
         // Usamos um nome estável por organização para evitar a criação de múltiplas instâncias
         const instanceName = `inst_${org.id.split('-')[0]}`;
 
+        // 🚀 SOLUÇÃO DEFINITIVA: 
+        // Deletamos a instância existente antes de conectar para garantir um estado limpo 
+        // e evitar o erro de "instância já em uso" sem QR Code.
+        await EvolutionService.deleteInstance(apiUrl, apiKey, instanceName);
+
         // Connect via service
-        console.log(`🚀 Iniciando conexão para instância: ${instanceName} na URL: ${org.evolutionApiUrl}`);
+        console.log(`🚀 Iniciando nova conexão para instância: ${instanceName}`);
 
         const result = await EvolutionService.connect(
             org.id,
