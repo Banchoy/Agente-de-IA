@@ -1,9 +1,11 @@
 import { auth } from "@clerk/nextjs/server";
 import { redirect } from "next/navigation";
 import { MessageRepository } from "@/lib/repositories/message";
-import { LeadRepository } from "@/lib/repositories/lead"; // Assuming this exists
+import { LeadRepository } from "@/lib/repositories/lead";
 import { Search, MessageSquare, User, Send, Bot, Clock } from "lucide-react";
 import { OrganizationRepository } from "@/lib/repositories/organization";
+import { PageHeader } from "@/components/page-header";
+import { ChatPolling } from "./ChatPolling";
 
 export default async function ChatsPage({
     searchParams,
@@ -176,6 +178,7 @@ export default async function ChatsPage({
                 .custom-scrollbar::-webkit-scrollbar-thumb { background: rgba(0,0,0,0.1); border-radius: 10px; }
                 .dark .custom-scrollbar::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.05); }
             `}} />
+            <ChatPolling interval={3000} />
         </div>
     );
 }

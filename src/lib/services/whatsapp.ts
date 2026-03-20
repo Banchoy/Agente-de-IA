@@ -316,31 +316,38 @@ export const WhatsappService = {
                             console.log(`✨ [Baileys] MENSAGEM VÁLIDA: (${role}) de ${phone}. Texto: "${text.substring(0, 50)}..."`);
 
                             // 0. Get Organization
+                            console.log(`🔍 [Baileys] Buscando organização ID: ${organizationId}`);
                             const org = await OrganizationRepository.getById(organizationId);
                             if (!org) {
-                                console.warn(`⚠️ [Baileys] Organização ${organizationId} não encontrada.`);
+                                console.warn(`⚠️ [Baileys] Organização ${organizationId} não encontrada no banco.`);
                                 continue;
                             }
+                            console.log(`🏢 [Baileys] Org vinculada: ${org.name} (UUID: ${org.id})`);
 
                             // 1. Find or Create Lead
+                            console.log(`👤 [Baileys] Buscando/Criando lead para o telefone: ${phone}`);
                             let lead = await (LeadRepository as any).getByPhoneSystem(phone, org.id);
+                            
                             if (!lead) {
-                                console.log(`🆕 [Baileys] Criando novo lead para o número: ${phone}`);
+                                console.log(`👤 [Baileys] Lead novo detectado. Criando...`);
                                 lead = await (LeadRepository as any).createSystem({
                                     organizationId: org.id,
                                     name: msg.pushName || phone,
                                     phone: phone,
-                                    status: "active",
-                                    source: "whatsapp"
+                                    status: "novo",
                                 });
+                                console.log(`👤 [Baileys] Lead criado com sucesso: ${lead.id}`);
+                            } else {
+                                console.log(`👤 [Baileys] Lead existente encontrado: ${lead.id}`);
                             }
 
-                            // 2. Save Message to DB (Sempre salvamos para histórico)
+                            // 2. Save Message to History
+                            console.log(`💾 [Baileys] Salvando mensagem no histórico do lead: ${lead.id}`);
                             await (MessageRepository as any).createSystem({
                                 organizationId: org.id,
                                 leadId: lead.id,
                                 role: role,
-                                content: text
+                                content: text,
                             });
                             console.log(`✅ [Baileys] Mensagem (${role}) salva no histórico.`);
 
