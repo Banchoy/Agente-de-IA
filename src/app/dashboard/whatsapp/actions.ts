@@ -44,7 +44,7 @@ export async function connectWhatsApp() {
         const org = await OrganizationRepository.getByClerkId(clerkOrgId);
         if (!org) throw new Error("Organização não encontrada.");
 
-        const sessionId = `inst_${org.id.split('-')[0]}`;
+        const sessionId = `wa_${org.id.split('-')[0]}`;
         
         console.log(`🔌 [Baileys] Solicitando conexão para: ${sessionId}`);
         

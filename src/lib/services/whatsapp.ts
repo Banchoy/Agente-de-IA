@@ -13,6 +13,7 @@ import pino from "pino";
 import { db } from "@/lib/db";
 import { whatsappSessions, organizations } from "@/lib/db/schema";
 import { eq, and } from "drizzle-orm";
+import QRCode from "qrcode";
 import { OrganizationRepository } from "@/lib/repositories/organization";
 import { AgentRepository } from "@/lib/repositories/agent";
 import { AIService } from "@/lib/services/ai";
@@ -127,7 +128,15 @@ export const WhatsappService = {
 
             const session = WhatsappService.sessions.get(sessionId);
             if (session) {
-                if (qr) session.qr = qr;
+                if (qr) {
+                    try {
+                        const qrBase64 = await QRCode.toDataURL(qr);
+                        session.qr = qrBase64;
+                    } catch (err) {
+                        console.error("❌ Error generating QR Base64:", err);
+                        session.qr = null;
+                    }
+                }
                 if (connection) session.status = connection;
             }
 

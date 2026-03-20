@@ -17,7 +17,7 @@ export async function GET(req: NextRequest) {
             return NextResponse.json({ error: "Organization not found" }, { status: 404 });
         }
 
-        const sessionId = `inst_${org.id.split('-')[0]}`;
+        const sessionId = `wa_${org.id.split('-')[0]}`;
         let session = WhatsappService.getSession(sessionId);
 
         // Se a sessão não existir ou estiver fechada, tentamos conectar
