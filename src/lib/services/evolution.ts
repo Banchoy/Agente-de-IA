@@ -77,28 +77,46 @@ export const EvolutionService = {
                                 pollData = await pollResp.json();
                             } else {
                                 const text = await pollResp.text();
-                                if (text.length > 100) pollData = { base64: text };
+                                if (text.length > 50) pollData = { base64: text };
                             }
 
-                            // Se a instância já estiver aberta/conectada, retornamos o status
+                            // Verifica se a instância já está aberta/conectada
                             if (pollData?.instance?.status === "open" || pollData?.status === "open") {
                                 console.log("✅ Instância já está conectada!");
                                 return pollData;
                             }
 
-                            const pollQr = pollData?.base64 || pollData?.qrcode?.base64 || pollData?.code || pollData?.qrcode;
-                            if (pollQr && typeof pollQr === 'string' && pollQr.length > 50) {
+                            // Busca exaustiva pelo QR Code no objeto de resposta
+                            const pollQr = pollData?.base64 || 
+                                           pollData?.qrcode?.base64 || 
+                                           pollData?.code || 
+                                           pollData?.qrcode || 
+                                           (pollData?.instance?.state === 'connecting' ? pollData?.instance?.qrcode?.base64 : null);
+
+                            if (pollQr && typeof pollQr === 'string' && pollQr.length > 30) {
                                 console.log(`✅ QR Code CAPTURADO com sucesso em: ${url}`);
-                                return pollData;
+                                // Garantimos que retornamos um objeto que o frontend entenda
+                                return { ...pollData, base64: pollQr };
                             }
                         }
                     } catch (e) { /* silent fail */ }
+                }
+
+                // Fallback: Tentar endpoint direto de busca se o loop falhou em achar no connect
+                if (i % 3 === 0) {
+                   try {
+                     const direct = await fetch(`${apiUrl}/instance/qr-code/base64/${instanceName}`, { headers: { "apikey": apiKey } });
+                     if (direct.ok) {
+                        const d = await direct.json();
+                        if (d.base64) return d;
+                     }
+                   } catch(e) {}
                 }
             }
 
             // 4. Se chegamos aqui, mantemos a instância viva
             console.log(`⚠️ Tempo esgotado para ${instanceName}.`);
-            throw new Error("O servidor WhatsApp está processando. Aguarde 15 segundos e clique em Conectar novamente.");
+            throw new Error("O servidor WhatsApp demorou para responder. Por favor, tente clicar em 'Conectar' novamente em alguns segundos.");
 
         } catch (error: any) {
             console.error("❌ Falha crítica na conexão com Evolution API:", error.message);

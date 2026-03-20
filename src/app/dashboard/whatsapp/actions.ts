@@ -57,6 +57,10 @@ export async function connectWhatsApp() {
         // e evitar o erro de "instância já em uso" sem QR Code.
         await EvolutionService.deleteInstance(apiUrl, apiKey, instanceName);
 
+        // Aguarda 3 segundos para o servidor processar a deleção
+        console.log("⏳ Aguardando limpeza do servidor...");
+        await new Promise(resolve => setTimeout(resolve, 3000));
+
         // Connect via service
         console.log(`🚀 Iniciando nova conexão para instância: ${instanceName}`);
 
