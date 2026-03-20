@@ -9,17 +9,21 @@ export default function WhatsAppConnectButton() {
     const [qrCode, setQrCode] = useState<string | null>(null);
     const [showModal, setShowModal] = useState(false);
 
-    // Polling to check connection status
+    // Polling para checar status detalhado via Baileys interno
     const pollStatus = async () => {
         try {
-            // This is a simplified check. In a real app, you'd call a dedicated 'status' endpoint.
-            // For now, we reuse connectWhatsApp or a new status action.
-            const response = await fetch("/api/integrations/whatsapp/status");
+            const response = await fetch("/api/whatsapp/status");
             const data = await response.json();
 
-            if (data.status === "connected" || data.status === "open") {
+            if (data.status === "open" || data.status === "connected") {
                 setShowModal(false);
-                window.location.reload(); // Refresh to show connected state
+                window.location.reload(); 
+                return;
+            }
+
+            if (data.qr) {
+                setQrCode(data.qr);
+                if (!showModal) setShowModal(true);
             }
         } catch (e) {
             console.error("Polling error:", e);
@@ -28,77 +32,27 @@ export default function WhatsAppConnectButton() {
 
     useEffect(() => {
         let interval: NodeJS.Timeout;
-        if (showModal) {
+        if (showModal || isLoading) {
             interval = setInterval(pollStatus, 3000);
         }
         return () => clearInterval(interval);
-    }, [showModal]);
+    }, [showModal, isLoading]);
 
     const handleConnect = async () => {
         setIsLoading(true);
         try {
             const result = await connectWhatsApp();
-            console.log("📦 Resposta do Connect:", result);
-
             if (result && !result.success) {
                 alert(`Erro: ${result.error}`);
+                setIsLoading(false);
                 return;
             }
 
-            // Função para buscar o QR code recursivamente em qualquer lugar do objeto
-            const findQr = (obj: any, depth = 0): string | null => {
-                if (!obj || depth > 5) return null;
-
-                // 1. Checagem direta de campos conhecidos
-                const direct = obj.base64 || obj.code || obj.qrcode?.base64 || obj.qrcode?.code || obj.qrcode;
-                if (typeof direct === 'string' && (direct.startsWith('data:image') || direct.length > 100)) return direct;
-
-                // 2. Busca recursiva em todos os campos do objeto
-                for (const key in obj) {
-                    if (obj[key] && typeof obj[key] === 'object') {
-                        const found = findQr(obj[key], depth + 1);
-                        if (found) return found;
-                    }
-                    if (typeof obj[key] === 'string' && (obj[key].startsWith('data:image') || obj[key].length > 500)) {
-                        return obj[key];
-                    }
-                }
-
-                return null;
-            };
-
-            let rawCode = findQr(result);
-
-            if (rawCode) {
-                if (!rawCode.startsWith("data:")) {
-                    rawCode = `data:image/png;base64,${rawCode}`;
-                }
-                setQrCode(rawCode);
-                setShowModal(true);
-            } else if (result && (result.status === "connected" || result.status === "open")) {
-                alert("WhatsApp já está conectado!");
-                window.location.reload();
-            } else {
-                console.warn("⚠️ QR Code não encontrado na primeira tentativa. Tentando novamente em 2 segundos...");
-                // Pequeno delay caso a instância esteja subindo
-                setTimeout(async () => {
-                    const retryResult = await connectWhatsApp();
-                    const retryCode = findQr(retryResult);
-                    if (retryCode) {
-                        let finalCode = retryCode;
-                        if (!finalCode.startsWith("data:")) finalCode = `data:image/png;base64,${finalCode}`;
-                        setQrCode(finalCode);
-                        setShowModal(true);
-                    } else {
-                        console.error("❌ Nenhum QR Code encontrado após re-tentativa:", retryResult);
-                        alert("O servidor respondeu, mas o WhatsApp ainda não gerou o QR Code. Tente clicar em Conectar novamente em alguns segundos.");
-                    }
-                }, 2000);
-            }
+            // O polling via useEffect vai cuidar de pegar o QR code assim que disponível
+            setShowModal(true);
         } catch (error: any) {
             console.error("Failed to connect:", error);
             alert(`Falha na comunicação com o servidor: ${error.message || "Tente novamente mais tarde."}`);
-        } finally {
             setIsLoading(false);
         }
     };

@@ -155,3 +155,22 @@ export const metaIntegrations = pgTable("meta_integrations", {
     fieldMapping: jsonb("field_mapping").default({}), // Mapping of Facebook form fields to CRM fields
     createdAt: timestamp("created_at").defaultNow().notNull(),
 });
+
+// -----------------------------------------------------------------------------
+// WhatsApp Sessions Table (Baileys)
+// -----------------------------------------------------------------------------
+export const whatsappSessions = pgTable("whatsapp_sessions", {
+    id: uuid("id").defaultRandom().primaryKey(),
+    organizationId: uuid("organization_id")
+        .notNull()
+        .references(() => organizations.id, { onDelete: "cascade" }),
+    sessionId: text("session_id").notNull(),
+    key: text("key").notNull(), // Creds or specific key type
+    data: text("data").notNull(), // JSON stringified data
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+    updatedAt: timestamp("updated_at").defaultNow().notNull(),
+}, (table) => {
+    return {
+        sessionKeyUnique: uniqueIndex("whatsapp_session_key_unique").on(table.sessionId, table.key),
+    }
+});
