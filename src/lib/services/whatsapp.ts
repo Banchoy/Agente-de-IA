@@ -178,6 +178,26 @@ export const WhatsappService = {
 
                 WhatsappService.sessions.set(sessionId, { sock, qr: null, status: "connecting" });
 
+                // Heartbeat para garantir que o processo está vivo
+                const heartbeat = setInterval(() => {
+                    const session = WhatsappService.sessions.get(sessionId);
+                    if (session && session.status === "open") {
+                        console.log(`💓 [Baileys] Heatbeat (Vivo): ${sessionId}`);
+                    }
+                }, 60000); // 1 minuto
+
+                // Debug: Logar TODOS os eventos do socket (pode ser muito ruidoso, mas ajuda no diagnóstico)
+                sock.ev.process(async (events) => {
+                    if (events['connection.update']) {
+                        const update = events['connection.update']!;
+                        // ... handlado abaixo por sock.ev.on ...
+                    }
+                    if (events['messages.upsert']) {
+                        const { messages, type } = events['messages.upsert']!;
+                        console.log(`📢 [Baileys] INTERNO - Upsert tipo: ${type}, total: ${messages.length}`);
+                    }
+                });
+
                 sock.ev.on("connection.update", async (update) => {
                     const { connection, lastDisconnect, qr } = update;
                     const session = WhatsappService.sessions.get(sessionId);
@@ -245,12 +265,18 @@ export const WhatsappService = {
 
                 // IA and History Handler
                 sock.ev.on("messages.upsert", async ({ messages, type }) => {
-                    // Permitimos notify e append para garantir que pegamos mensagens síncronas
+                    console.log(`🔍 [Baileys] Entrando handler upsert: type=${type}, count=${messages.length}`);
+                    
+                    // Respondemos apenas para notify (mensagens novas em tempo real)
+                    // Mas salvamos append (mensagens de sincronia) para histórico se necessário
                     if (type !== "notify" && type !== "append") return;
 
                     for (const msg of messages) {
                         try {
-                            if (!msg.message) continue;
+                            if (!msg.message) {
+                                console.log(`⏩ [Baileys] Mensagem sem conteúdo (provavelmente evento de sistema).`);
+                                continue;
+                            }
 
                             const jid = msg.key.remoteJid;
                             if (!jid || !jid.endsWith("@s.whatsapp.net")) continue;
