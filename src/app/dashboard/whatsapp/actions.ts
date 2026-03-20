@@ -14,7 +14,27 @@ const normalizeUrl = (url: string) => {
     return normalized.replace(/\/$/, "");
 };
 
-// ... (saveEvolutionSettings can stay for now, but we don't need it)
+export async function saveEvolutionSettings(formData: FormData) {
+    try {
+        const { orgId: clerkOrgId } = await auth();
+        if (!clerkOrgId) throw new Error("Unauthorized");
+
+        const apiUrl = normalizeUrl(formData.get("apiUrl") as string);
+        const apiKey = (formData.get("apiKey") as string).trim();
+
+        const org = await OrganizationRepository.getByClerkId(clerkOrgId);
+        if (!org) throw new Error("Organization not found");
+
+        await OrganizationRepository.update(org.id, {
+            evolutionApiUrl: apiUrl,
+            evolutionApiKey: apiKey,
+        });
+
+        revalidatePath("/dashboard/whatsapp");
+    } catch (error: any) {
+        console.error("❌ Erro ao salvar configurações:", error.message);
+    }
+}
 
 export async function connectWhatsApp() {
     try {
