@@ -25,7 +25,9 @@ export const MessageRepository = {
                     m.content, 
                     m.created_at,
                     l.name as lead_name, 
-                    l.phone as lead_phone
+                    l.phone as lead_phone,
+                    l.last_read_at as last_read_at,
+                    l.is_typing as is_typing
                 FROM messages m
                 JOIN leads l ON m.lead_id = l.id
                 WHERE l.organization_id = NULLIF(current_setting('app.current_org_id', true), '')::uuid
@@ -33,7 +35,6 @@ export const MessageRepository = {
             `);
 
             // Mapear os resultados para o formato que a UI espera
-            // O resultado do db.execute varia conforme o driver, em postgres-js são as linhas diretamente
             return (rawResults as any).map((row: any) => ({
                 id: row.id,
                 leadId: row.lead_id,
@@ -42,7 +43,9 @@ export const MessageRepository = {
                 createdAt: row.created_at,
                 lead: {
                     name: row.lead_name,
-                    phone: row.lead_phone
+                    phone: row.lead_phone,
+                    lastReadAt: row.last_read_at,
+                    isTyping: row.is_typing
                 }
             }));
         });

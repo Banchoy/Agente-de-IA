@@ -134,6 +134,8 @@ export const leads = pgTable("leads", {
     source: text("source"), // e.g., 'meta_ads', 'manual'
     metaData: jsonb("metadata").default({}), // Unified metadata storage (AI extracted info, campaign info)
     aiActive: text("ai_active").default("true").notNull(), // 'true' or 'false' for handover
+    lastReadAt: timestamp("last_read_at"),
+    isTyping: text("is_typing").default("false").notNull(), // 'true' or 'false'
     createdAt: timestamp("created_at").defaultNow().notNull(),
     updatedAt: timestamp("updated_at").defaultNow().notNull(),
 }, (table) => {

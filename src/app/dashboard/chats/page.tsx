@@ -33,6 +33,11 @@ export default async function ChatsPage({
         ? await LeadRepository.getById(activeLeadId)
         : null;
 
+    // MARCAR COMO LIDA ao abrir a conversa
+    if (activeLeadId) {
+        await LeadRepository.update(activeLeadId, { lastReadAt: new Date() });
+    }
+
     return (
         <div className="flex h-[calc(100vh-140px)] gap-0 border border-border bg-card rounded-3xl overflow-hidden shadow-2xl ring-1 ring-white/10">
             {/* Sidebar: Contact List */}
@@ -55,26 +60,41 @@ export default async function ChatsPage({
                             <p className="text-[10px] uppercase font-bold tracking-widest">Nenhuma conversa</p>
                         </div>
                     ) : (
-                        conversations.map((chat: any) => (
-                            <a 
-                                key={chat.leadId}
-                                href={`/dashboard/chats?leadId=${chat.leadId}`}
-                                className={`flex items-center gap-4 p-5 hover:bg-card transition-all border-b border-border/50 group ${activeLeadId === chat.leadId ? 'bg-card border-l-4 border-l-primary' : ''}`}
-                            >
-                                <div className="h-12 w-12 rounded-full bg-primary/10 flex items-center justify-center text-primary font-black border border-primary/20 shadow-sm group-hover:scale-110 transition-transform">
-                                    {chat.lead?.name.charAt(0)}
-                                </div>
-                                <div className="flex-1 min-w-0">
-                                    <div className="flex justify-between items-baseline mb-1">
-                                        <h4 className="text-xs font-black text-foreground truncate uppercase">{chat.lead?.name}</h4>
-                                        <span className="text-[8px] font-bold text-muted-foreground uppercase">{new Date(chat.createdAt).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</span>
+                        conversations.map((chat: any) => {
+                            const isUnread = !chat.lead?.lastReadAt || new Date(chat.createdAt) > new Date(chat.lead.lastReadAt);
+                            
+                            return (
+                                <a 
+                                    key={chat.leadId}
+                                    href={`/dashboard/chats?leadId=${chat.leadId}`}
+                                    className={`flex items-center gap-4 p-5 hover:bg-card transition-all border-b border-border/50 group relative ${activeLeadId === chat.leadId ? 'bg-card border-l-4 border-l-primary' : ''}`}
+                                >
+                                    <div className="h-12 w-12 rounded-full bg-primary/10 flex items-center justify-center text-primary font-black border border-primary/20 shadow-sm group-hover:scale-110 transition-transform relative">
+                                        {chat.lead?.name.charAt(0)}
+                                        {isUnread && (
+                                            <div className="absolute -top-1 -right-1 h-4 w-4 bg-primary border-2 border-card rounded-full shadow-lg animate-pulse" />
+                                        )}
                                     </div>
-                                    <p className="text-[10px] text-muted-foreground truncate font-medium lowercase italic leading-tight">
-                                        {chat.role === 'assistant' ? '🤖 ' : ''}{chat.content}
-                                    </p>
-                                </div>
-                            </a>
-                        ))
+                                    <div className="flex-1 min-w-0">
+                                        <div className="flex justify-between items-baseline mb-1">
+                                            <h4 className={`text-xs font-black truncate uppercase ${isUnread ? 'text-foreground' : 'text-muted-foreground'}`}>{chat.lead?.name}</h4>
+                                            <span className="text-[8px] font-bold text-muted-foreground uppercase">{new Date(chat.createdAt).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</span>
+                                        </div>
+                                        <p className={`text-[10px] truncate font-medium lowercase italic leading-tight ${isUnread ? 'text-primary font-bold' : 'text-muted-foreground'}`}>
+                                            {chat.lead?.isTyping === 'true' ? (
+                                                <span className="flex items-center gap-1 text-primary animate-pulse">
+                                                    digitando... <Bot size={10} />
+                                                </span>
+                                            ) : (
+                                                <>
+                                                    {chat.role === 'assistant' ? '🤖 ' : ''}{chat.content}
+                                                </>
+                                            )}
+                                        </p>
+                                    </div>
+                                </a>
+                            );
+                        })
                     )}
                 </div>
             </div>
@@ -102,8 +122,19 @@ export default async function ChatsPage({
                                 <div>
                                     <h3 className="text-sm font-black text-foreground uppercase tracking-wider">{activeLead?.name}</h3>
                                     <div className="flex items-center gap-2 mt-0.5">
-                                        <div className="h-1.5 w-1.5 rounded-full bg-green-500 animate-pulse" />
-                                        <span className="text-[9px] font-black text-muted-foreground uppercase tracking-widest leading-none">Online</span>
+                                        {activeLead?.isTyping === 'true' ? (
+                                            <div className="flex items-center gap-1">
+                                                <div className="h-1.5 w-1.5 rounded-full bg-primary animate-bounce [animation-delay:-0.3s]" />
+                                                <div className="h-1.5 w-1.5 rounded-full bg-primary animate-bounce [animation-delay:-0.15s]" />
+                                                <div className="h-1.5 w-1.5 rounded-full bg-primary animate-bounce" />
+                                                <span className="text-[9px] font-black text-primary uppercase ml-1">IA digitando...</span>
+                                            </div>
+                                        ) : (
+                                            <>
+                                                <div className="h-1.5 w-1.5 rounded-full bg-green-500 animate-pulse" />
+                                                <span className="text-[9px] font-black text-muted-foreground uppercase tracking-widest leading-none">Online</span>
+                                            </>
+                                        )}
                                     </div>
                                 </div>
                             </div>
@@ -116,6 +147,19 @@ export default async function ChatsPage({
 
                         {/* Messages Area */}
                         <div className="flex-1 overflow-y-auto p-10 space-y-6 custom-scrollbar flex flex-col-reverse relative z-0">
+                            {/* Typing Animation placeholder within message area if needed */}
+                            {activeLead?.isTyping === 'true' && (
+                                <div className="flex justify-end animate-in slide-in-from-bottom-2 duration-300">
+                                    <div className="max-w-[70%] bg-primary/10 px-5 py-4 rounded-3xl rounded-br-none border border-primary/20">
+                                         <div className="flex items-center gap-1">
+                                            <div className="h-1.5 w-1.5 rounded-full bg-primary animate-bounce [animation-delay:-0.3s]" />
+                                            <div className="h-1.5 w-1.5 rounded-full bg-primary animate-bounce [animation-delay:-0.15s]" />
+                                            <div className="h-1.5 w-1.5 rounded-full bg-primary animate-bounce" />
+                                        </div>
+                                    </div>
+                                </div>
+                            )}
+
                             {/* Message bubbles with reversed order */}
                             {[...activeMessages].reverse().map((msg: any) => (
                                 <div 

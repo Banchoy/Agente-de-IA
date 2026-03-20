@@ -402,29 +402,36 @@ export const WhatsappService = {
 
                             // 4. Generate AI Response
                             console.log(`🤖 [Baileys] Chamando AIService para: ${agent.name}. Provider: ${config.provider || "google"}`);
-                            const aiResponse = await AIService.generateResponse(
-                                config.provider || "google",
-                                config.model || "gemini-1.5-flash",
-                                config.systemPrompt || "Você é um assistente virtual.",
-                                [{ role: "user", content: text }]
-                            );
-                            console.log(`🤖 [Baileys] Resposta da IA recebida. Tamanho: ${aiResponse?.length || 0}`);
-
-                            if (!aiResponse) {
-                                console.warn(`⚠️ [Baileys] IA retornou resposta vazia.`);
-                                continue;
-                            }
-
-                            // 5. Send Message and Save to DB
-                            await sock.sendMessage(jid, { text: aiResponse });
-                            console.log(`📤 [Baileys] Resposta enviada para ${phone}`);
                             
-                            await (MessageRepository as any).createSystem({
-                                organizationId: org.id,
-                                leadId: lead.id,
-                                role: "assistant",
-                                content: aiResponse
-                            });
+                            try {
+                                // ATIVAR DIGITANDO
+                                await (LeadRepository as any).updateSystem(lead.id, { isTyping: "true" });
+
+                                const aiResponse = await AIService.generateResponse(
+                                    config.provider || "google",
+                                    config.model || "gemini-1.5-flash",
+                                    config.systemPrompt || "Você é um assistente virtual.",
+                                    [{ role: "user", content: text }]
+                                );
+                                
+                                console.log(`🤖 [Baileys] Resposta da IA recebida. Tamanho: ${aiResponse?.length || 0}`);
+
+                                if (aiResponse) {
+                                    // 5. Send Message and Save to DB
+                                    await sock.sendMessage(jid, { text: aiResponse });
+                                    console.log(`📤 [Baileys] Resposta enviada para ${phone}`);
+                                    
+                                    await (MessageRepository as any).createSystem({
+                                        organizationId: org.id,
+                                        leadId: lead.id,
+                                        role: "assistant",
+                                        content: aiResponse
+                                    });
+                                }
+                            } finally {
+                                // DESATIVAR DIGITANDO
+                                await (LeadRepository as any).updateSystem(lead.id, { isTyping: "false" });
+                            }
 
                         } catch (err) {
                             console.error("❌ Erro IA/Message Logging Response:", err);

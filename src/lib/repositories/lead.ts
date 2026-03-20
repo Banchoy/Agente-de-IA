@@ -50,6 +50,14 @@ export const LeadRepository = {
         return newLead;
     },
 
+    updateSystem: async (id: string, data: Partial<typeof leads.$inferInsert>) => {
+        const [updatedLead] = await db.update(leads)
+            .set({ ...data, updatedAt: new Date() })
+            .where(eq(leads.id, id))
+            .returning();
+        return updatedLead;
+    },
+
     createMany: async (data: (typeof leads.$inferInsert)[]) => {
         return await withOrgContext(async (tx) => {
             const results = await tx.insert(leads).values(data).returning();
