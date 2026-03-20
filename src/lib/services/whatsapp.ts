@@ -348,37 +348,54 @@ export const WhatsappService = {
                             if (isFromMe) continue; // Não responde a si mesmo
 
                             // 3. Find Mapped Agent (or fallback)
+                            console.log(`🤖 [Baileys] Buscando agente para a instância: ${sessionId}`);
                             const agents = await AgentRepository.listByOrgIdSystem(org.id);
+                            console.log(`🤖 [Baileys] Agentes encontrados na org: ${agents.length}`);
+                            
+                            // Log de mapeamento para depuração
+                            agents.forEach(a => console.log(`   - Agente: ${a.name}, InstanceName no DB: ${(a as any).whatsappInstanceName}`));
+
                             // Try to find agent with matching instance name
                             let agent = agents.find(a => (a as any).whatsappInstanceName === sessionId);
-                            if (!agent) agent = agents[0]; // Fallback to first agent
                             
                             if (!agent) {
-                                console.warn(`⚠️ [Baileys] Nenhum agente encontrado para a instância ${sessionId}`);
+                                console.log(`🤖 [Baileys] Nenhum agente mapeado para ${sessionId}. Usando primeiro agente como fallback.`);
+                                agent = agents[0];
+                            }
+                            
+                            if (!agent) {
+                                console.warn(`⚠️ [Baileys] Nenhum agente TOTALMENTE disponível para a organização ${org.id}`);
                                 continue;
                             }
 
+                            console.log(`🤖 [Baileys] Agente SELECIONADO: ${agent.name} (ID: ${agent.id})`);
+
                             const config = (agent.config as any) || {};
+                            console.log(`🤖 [Baileys] Config do Agente:`, JSON.stringify(config));
 
                             // VERIFICAÇÕES DE RESPOSTA
                             if (!config.whatsappResponse) {
-                                console.log(`⏩ [Baileys] Resposta automática DESATIVADA para o agente ${agent.name}`);
+                                console.log(`⏩ [Baileys] Resposta automática DESATIVADA (whatsappResponse: false) para o agente ${agent.name}`);
                                 continue;
                             }
 
-                            if (config.testMode && config.testNumber !== phone) {
-                                console.log(`🛡️ [Baileys] Modo de Teste ATIVO. Ignorando número externo: ${phone} (Permitido apenas: ${config.testNumber})`);
-                                continue;
+                            if (config.testMode) {
+                                console.log(`🛡️ [Baileys] Modo de Teste ATIVO. Validando número: ${phone} vs Permitido: ${config.testNumber}`);
+                                if (config.testNumber !== phone) {
+                                    console.log(`🛡️ [Baileys] Número de teste NÃO corresponde. Ignorando.`);
+                                    continue;
+                                }
                             }
 
                             // 4. Generate AI Response
-                            console.log(`🤖 [Baileys] Gerando resposta IA com agente: ${agent.name}...`);
+                            console.log(`🤖 [Baileys] Chamando AIService para: ${agent.name}. Provider: ${config.provider || "google"}`);
                             const aiResponse = await AIService.generateResponse(
                                 config.provider || "google",
                                 config.model || "gemini-1.5-flash",
                                 config.systemPrompt || "Você é um assistente virtual.",
                                 [{ role: "user", content: text }]
                             );
+                            console.log(`🤖 [Baileys] Resposta da IA recebida. Tamanho: ${aiResponse?.length || 0}`);
 
                             if (!aiResponse) {
                                 console.warn(`⚠️ [Baileys] IA retornou resposta vazia.`);
