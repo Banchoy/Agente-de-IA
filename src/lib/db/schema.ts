@@ -13,6 +13,7 @@ export const organizations = pgTable("organizations", {
     evolutionApiKey: text("evolution_api_key"),
     evolutionInstanceStatus: text("evolution_instance_status").default("disconnected"),
     evolutionInstanceName: text("evolution_instance_name"),
+    evolutionQrCode: text("evolution_qr_code"),
     createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 

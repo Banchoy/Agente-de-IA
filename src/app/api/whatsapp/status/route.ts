@@ -21,8 +21,8 @@ export async function GET(req: NextRequest) {
         const session = WhatsappService.getSession(sessionId);
 
         return NextResponse.json({
-            status: session?.status || "disconnected",
-            qr: session?.qr || null,
+            status: session?.status || org.evolutionInstanceStatus || "disconnected",
+            qr: org.evolutionQrCode || session?.qr || null,
             instanceName: sessionId
         });
     } catch (error) {

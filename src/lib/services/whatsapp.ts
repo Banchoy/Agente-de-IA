@@ -121,7 +121,7 @@ export const WhatsappService = {
     deleteSessionFromDb: async (sessionId: string) => {
         console.log(`🧹 [Baileys] Iniciando limpeza profunda da sessão ${sessionId}...`);
         try {
-            const result = await db.delete(whatsappSessions)
+            await db.delete(whatsappSessions)
                 .where(eq(whatsappSessions.sessionId, sessionId));
             console.log(`✅ [Baileys] Dados da sessão ${sessionId} removidos do banco.`);
         } catch (err) {
@@ -130,7 +130,6 @@ export const WhatsappService = {
     },
 
     connect: async (organizationId: string, sessionId: string) => {
-        // Bloqueio de Concorrência (Promise Lock)
         if (WhatsappService.connectionPromises.has(sessionId)) {
             console.log(`ℹ️ [Baileys] Conexão já solicitada para ${sessionId}, aguardando promise...`);
             return WhatsappService.connectionPromises.get(sessionId);
@@ -138,7 +137,6 @@ export const WhatsappService = {
 
         const connectionPromise = (async () => {
             try {
-                // Verificar se já está aberto
                 if (WhatsappService.sessions.has(sessionId)) {
                     const existing = WhatsappService.sessions.get(sessionId);
                     if (existing.status === "open") {
@@ -166,43 +164,57 @@ export const WhatsappService = {
                     const { connection, lastDisconnect, qr } = update;
                     const session = WhatsappService.sessions.get(sessionId);
                     
-                    if (session) {
-                        if (qr) {
-                            try {
-                                session.qr = await QRCode.toDataURL(qr);
-                            } catch (err) {
-                                console.error("❌ Erro ao gerar QR Base64:", err);
-                            }
+                    if (qr) {
+                        console.log(`📡 [Baileys] QR Code gerado para ${sessionId}`);
+                        try {
+                            const qrBase64 = await QRCode.toDataURL(qr);
+                            if (session) session.qr = qrBase64;
+                            
+                            // PERSISTÊNCIA NO BANCO (Para cross-process sync)
+                            await db.update(organizations)
+                                .set({ evolutionQrCode: qrBase64 })
+                                .where(eq(organizations.id, organizationId));
+                            
+                        } catch (err) {
+                            console.error("❌ Erro ao gerar/salvar QR Code:", err);
                         }
-                        if (connection) session.status = connection;
                     }
 
-                    if (qr) console.log(`📡 [Baileys] QR Code gerado para ${sessionId}`);
-
-                    if (connection === "close") {
-                        const statusCode = (lastDisconnect?.error as Boom)?.output?.statusCode;
-                        const isLoggedOut = statusCode === DisconnectReason.loggedOut;
-                        const shouldReconnect = !isLoggedOut;
+                    if (connection) {
+                        if (session) session.status = connection;
                         
-                        console.log(`❌ [Baileys] Conexão fechada (${sessionId}). Reason: ${statusCode}. Reconectando: ${shouldReconnect}`);
-                        
-                        if (shouldReconnect) {
-                            WhatsappService.sessions.delete(sessionId);
-                            setTimeout(() => WhatsappService.connect(organizationId, sessionId), 5000);
-                        } else {
-                            console.log(`⚠️ [Baileys] Erro crítico (401/Logout). Limpando tudo para ${sessionId}...`);
-                            await WhatsappService.deleteSessionFromDb(sessionId);
-                            WhatsappService.sessions.delete(sessionId);
-                            
+                        if (connection === "open") {
+                            console.log(`✅ [Baileys] Conectado: ${sessionId}`);
                             await db.update(organizations)
-                                .set({ evolutionInstanceStatus: "disconnected" })
+                                .set({ 
+                                    evolutionInstanceStatus: "connected", 
+                                    evolutionInstanceName: sessionId,
+                                    evolutionQrCode: null // Limpar QR após conectar
+                                })
                                 .where(eq(organizations.id, organizationId));
+                        } else if (connection === "close") {
+                            const statusCode = (lastDisconnect?.error as Boom)?.output?.statusCode;
+                            const isLoggedOut = statusCode === DisconnectReason.loggedOut;
+                            const shouldReconnect = !isLoggedOut;
+                            
+                            console.log(`❌ [Baileys] Conexão fechada (${sessionId}). Reason: ${statusCode}. Reconectando: ${shouldReconnect}`);
+                            
+                            if (shouldReconnect) {
+                                WhatsappService.sessions.delete(sessionId);
+                                setTimeout(() => WhatsappService.connect(organizationId, sessionId), 5000);
+                            } else {
+                                console.log(`⚠️ [Baileys] Erro 401/Logout. Limpando...`);
+                                await WhatsappService.deleteSessionFromDb(sessionId);
+                                WhatsappService.sessions.delete(sessionId);
+                                
+                                await db.update(organizations)
+                                    .set({ 
+                                        evolutionInstanceStatus: "disconnected",
+                                        evolutionQrCode: null 
+                                    })
+                                    .where(eq(organizations.id, organizationId));
+                            }
                         }
-                    } else if (connection === "open") {
-                        console.log(`✅ [Baileys] Conectado e autenticado: ${sessionId}`);
-                        await db.update(organizations)
-                            .set({ evolutionInstanceStatus: "connected", evolutionInstanceName: sessionId })
-                            .where(eq(organizations.id, organizationId));
                     }
                 });
 
@@ -235,17 +247,16 @@ export const WhatsappService = {
                             );
                             await sock.sendMessage(jid, { text: aiResponse });
                         } catch (err) {
-                            console.error("❌ Erro no processamento de IA:", err);
+                            console.error("❌ Erro IA Response:", err);
                         }
                     }
                 });
 
                 return sock;
             } catch (err) {
-                console.error(`❌ [Baileys] Erro no fluxo de conexão para ${sessionId}:`, err);
+                console.error(`❌ [Baileys] Erro no fluxo ${sessionId}:`, err);
                 throw err;
             } finally {
-                // Liberar lock após a tentativa inicial
                 setTimeout(() => {
                     if (WhatsappService.connectionPromises.get(sessionId) === connectionPromise) {
                         WhatsappService.connectionPromises.delete(sessionId);

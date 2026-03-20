@@ -112,7 +112,8 @@ export async function resetWhatsApp() {
         // 3. Update Org Status
         await OrganizationRepository.update(org.id, {
             evolutionInstanceStatus: "disconnected",
-            evolutionInstanceName: null
+            evolutionInstanceName: null,
+            evolutionQrCode: null
         });
 
         revalidatePath("/dashboard/whatsapp");
