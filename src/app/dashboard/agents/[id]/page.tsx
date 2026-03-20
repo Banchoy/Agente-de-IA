@@ -4,6 +4,9 @@ import { AgentRepository } from "@/lib/repositories/agent";
 import { ArrowLeft, Sparkles, Bot, Save, Trash2, Phone, Zap } from "lucide-react";
 import Link from "next/link";
 import { updateAgent } from "../actions";
+import { db } from "@/lib/db";
+import { whatsappSessions } from "@/lib/db/schema";
+import { eq, sql } from "drizzle-orm";
 
 export default async function AgentDetailsPage({ params }: { params: { id: string } }) {
     const { userId, orgId } = await auth();
@@ -17,6 +20,16 @@ export default async function AgentDetailsPage({ params }: { params: { id: strin
     if (!agent) notFound();
 
     const config = (agent.config as any) || {};
+
+    // Get all available sessions for this organization
+    const sessions = await db.select({ 
+        sessionId: whatsappSessions.sessionId 
+    })
+    .from(whatsappSessions)
+    .where(eq(whatsappSessions.organizationId, agent.organizationId))
+    .groupBy(whatsappSessions.sessionId);
+
+    const availableSessions = sessions.map(s => s.sessionId);
 
     return (
         <div className="mx-auto max-w-5xl space-y-10 pb-20">
@@ -115,8 +128,8 @@ export default async function AgentDetailsPage({ params }: { params: { id: strin
                         </div>
                         
                         <div className="grid gap-8">
-                            <div className="flex items-start gap-4 p-4 rounded-3xl bg-card border border-border shadow-sm group hover:border-primary/50 transition-colors">
-                                <div className="relative inline-flex items-center cursor-pointer mt-1">
+                            <label className="flex items-start gap-4 p-4 rounded-3xl bg-card border border-border shadow-sm group hover:border-primary/50 transition-colors cursor-pointer">
+                                <div className="relative inline-flex items-center mt-1">
                                     <input
                                         type="checkbox"
                                         name="whatsappResponse"
@@ -126,25 +139,30 @@ export default async function AgentDetailsPage({ params }: { params: { id: strin
                                     <div className="w-11 h-6 bg-muted peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-primary shadow-inner"></div>
                                 </div>
                                 <div className="space-y-1">
-                                    <label className="text-sm font-black text-foreground uppercase tracking-tight">Ativar Respostas Automáticas</label>
+                                    <span className="text-sm font-black text-foreground uppercase tracking-tight">Ativar Respostas Automáticas</span>
                                     <p className="text-xs text-muted-foreground font-medium lowercase leading-relaxed">quando ligado, o robô assume o controle de todas as mensagens recebidas via baileys.</p>
                                 </div>
-                            </div>
+                            </label>
 
                             <div className="space-y-3 p-6 bg-background rounded-3xl border-2 border-border border-dashed">
-                                <label className="text-xs font-black text-muted-foreground uppercase tracking-widest px-1">ID da Instância (Mapping)</label>
-                                <input
+                                <label htmlFor="whatsappInstanceName" className="text-xs font-black text-muted-foreground uppercase tracking-widest px-1">ID da Instância (Mapping)</label>
+                                <select
                                     name="whatsappInstanceName"
+                                    id="whatsappInstanceName"
                                     defaultValue={(agent as any).whatsappInstanceName || ""}
-                                    placeholder="ex: session_01"
-                                    className="w-full rounded-2xl border border-border bg-card px-5 py-4 text-sm font-bold text-foreground focus:border-primary focus:outline-none transition-all"
-                                />
+                                    className="w-full rounded-2xl border border-border bg-card px-5 py-4 text-sm font-bold text-foreground focus:border-primary focus:outline-none transition-all appearance-none cursor-pointer"
+                                >
+                                    <option value="">Selecione uma sessão...</option>
+                                    {availableSessions.map(session => (
+                                        <option key={session} value={session}>{session}</option>
+                                    ))}
+                                </select>
                                 <p className="text-[10px] text-muted-foreground px-1 leading-relaxed lowercase italic">vincule este robô a um número de whatsapp específico.</p>
                             </div>
 
                             <div className="space-y-6 pt-4 border-t border-border/50">
-                                <div className="flex items-center gap-4">
-                                    <div className="relative inline-flex items-center cursor-pointer">
+                                <label className="flex items-center gap-4 cursor-pointer">
+                                    <div className="relative inline-flex items-center">
                                         <input
                                             type="checkbox"
                                             name="testMode"
@@ -153,8 +171,8 @@ export default async function AgentDetailsPage({ params }: { params: { id: strin
                                         />
                                         <div className="w-11 h-6 bg-muted peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-500 shadow-inner"></div>
                                     </div>
-                                    <label className="text-sm font-black text-foreground uppercase tracking-tight">Modo Sandbox (Teste)</label>
-                                </div>
+                                    <span className="text-sm font-black text-foreground uppercase tracking-tight">Modo Sandbox (Teste)</span>
+                                </label>
 
                                 <div className="space-y-3">
                                     <label className="text-xs font-black text-muted-foreground uppercase tracking-widest px-1">Número Seguro para Testes</label>

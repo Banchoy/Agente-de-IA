@@ -5,7 +5,7 @@ import { revalidatePath } from "next/cache";
 import { Bot, ArrowLeft, Sparkles, Phone } from "lucide-react";
 import Link from "next/link";
 import { db } from "@/lib/db";
-import { organizations } from "@/lib/db/schema";
+import { organizations, whatsappSessions } from "@/lib/db/schema";
 import { eq } from "drizzle-orm";
 
 export default async function NewAgentPage() {
@@ -22,6 +22,16 @@ export default async function NewAgentPage() {
     if (!dbOrg) {
         redirect("/org-selection");
     }
+
+    // Get all available sessions for this organization
+    const sessions = await db.select({ 
+        sessionId: whatsappSessions.sessionId 
+    })
+    .from(whatsappSessions)
+    .where(eq(whatsappSessions.organizationId, dbOrg.id))
+    .groupBy(whatsappSessions.sessionId);
+
+    const availableSessions = sessions.map(s => s.sessionId);
 
     // Action to create the agent
     async function handleSubmit(formData: FormData) {
@@ -97,14 +107,17 @@ export default async function NewAgentPage() {
                                 <Phone size={14} className="text-primary" />
                                 Instância do WhatsApp
                             </label>
-                            <input
-                                type="text"
+                            <select
                                 name="whatsappInstanceName"
                                 id="whatsappInstanceName"
                                 defaultValue={dbOrg.evolutionInstanceName || ""}
-                                placeholder="ex: wa_instance_01"
-                                className="w-full rounded-xl border border-border bg-background px-5 py-3.5 text-sm font-bold text-foreground focus:border-primary focus:outline-none transition-all shadow-inner"
-                            />
+                                className="w-full rounded-xl border border-border bg-background px-5 py-3.5 text-sm font-bold text-foreground focus:border-primary focus:outline-none transition-all shadow-inner appearance-none cursor-pointer"
+                            >
+                                <option value="">Selecione uma sessão...</option>
+                                {availableSessions.map(session => (
+                                    <option key={session} value={session}>{session}</option>
+                                ))}
+                            </select>
                             <p className="text-[10px] text-muted-foreground px-1 leading-relaxed lowercase italic">
                                 defina em qual número ou instância este agente deve operar. deixe o padrão se for o único disponível.
                             </p>
