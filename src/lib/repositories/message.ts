@@ -1,6 +1,6 @@
 import { db } from "@/lib/db";
 import { messages, leads } from "@/lib/db/schema";
-import { eq, desc, and } from "drizzle-orm";
+import { eq, desc, and, sql } from "drizzle-orm";
 import { withOrgContext } from "./base";
 
 export const MessageRepository = {
@@ -15,15 +15,37 @@ export const MessageRepository = {
 
     listLatestByOrg: async () => {
         return await withOrgContext(async (tx) => {
-            // This is a simplified query to get the last message for each unique lead
-            // for a proper WhatsApp Web style list, we'd need more complex SQL or grouping
-            return await tx.query.messages.findMany({
-                orderBy: [desc(messages.createdAt)],
-                limit: 50,
-                with: {
-                    lead: true
+            const organizationId = (tx as any).organizationId;
+            
+            // Usando SQL puro com DISTINCT ON para garantir uma linha por lead_id
+            const rawResults = await db.execute(sql`
+                SELECT DISTINCT ON (m.lead_id) 
+                    m.id, 
+                    m.lead_id, 
+                    m.role, 
+                    m.content, 
+                    m.created_at,
+                    l.name as lead_name, 
+                    l.phone as lead_phone
+                FROM messages m
+                JOIN leads l ON m.lead_id = l.id
+                WHERE l.organization_id = ${organizationId}::uuid
+                ORDER BY m.lead_id, m.created_at DESC
+            `);
+
+            // Mapear os resultados para o formato que a UI espera
+            // O resultado do db.execute varia conforme o driver, em postgres-js são as linhas diretamente
+            return (rawResults as any).map((row: any) => ({
+                id: row.id,
+                leadId: row.lead_id,
+                role: row.role,
+                content: row.content,
+                createdAt: row.created_at,
+                lead: {
+                    name: row.lead_name,
+                    phone: row.lead_phone
                 }
-            });
+            }));
         });
     },
 

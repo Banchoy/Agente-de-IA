@@ -36,8 +36,9 @@ export const AIService = {
         }
 
         const genAI = new GoogleGenerativeAI(apiKey);
+        const modelName = model || "gemini-1.5-flash";
         const geminiModel = genAI.getGenerativeModel({
-            model: model || "gemini-1.5-flash",
+            model: modelName,
             systemInstruction: systemPrompt,
             generationConfig: {
                 temperature: temperature
