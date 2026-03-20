@@ -55,63 +55,40 @@ export const EvolutionService = {
                 }
             }
 
-            // 3. Loop de Polling (Executa para novas e existentes)
-            console.log(`⏳ Aguardando geração do QR Code para ${instanceName} (espera máx 60s)...`);
+            // 3. Loop de Polling (Focado no endpoint /connect da v2)
+            console.log(`⏳ Aguardando geração do QR Code via /instance/connect para ${instanceName}...`);
             for (let i = 0; i < 20; i++) {
-                await new Promise(r => setTimeout(r, 3000));
+                await new Promise(r => setTimeout(r, 4000)); // Aumentado para 4s para estabilidade
                 console.log(`🔍 Tentativa de busca ${i + 1}/20 para: ${instanceName}...`);
 
-                const pollUrls = [
-                    `${apiUrl}/instance/connect/${instanceName}`,
-                    `${apiUrl}/instance/qr-code/base64/${instanceName}`
-                ];
+                // Na v2, o endpoint principal para QR e conexão é o /instance/connect
+                const connectUrl = `${apiUrl}/instance/connect/${instanceName}`;
+                
+                try {
+                    const pollResp = await fetch(connectUrl, { headers: { "apikey": apiKey } });
+                    if (pollResp.ok) {
+                        const pollData = await pollResp.json();
 
-                for (const url of pollUrls) {
-                    try {
-                        const pollResp = await fetch(url, { headers: { "apikey": apiKey } });
-                        if (pollResp.ok) {
-                            const contentType = pollResp.headers.get("content-type");
-                            let pollData: any;
-
-                            if (contentType?.includes("application/json")) {
-                                pollData = await pollResp.json();
-                            } else {
-                                const text = await pollResp.text();
-                                if (text.length > 50) pollData = { base64: text };
-                            }
-
-                            // Verifica se a instância já está aberta/conectada
-                            if (pollData?.instance?.status === "open" || pollData?.status === "open") {
-                                console.log("✅ Instância já está conectada!");
-                                return pollData;
-                            }
-
-                            // Busca exaustiva pelo QR Code no objeto de resposta
-                            const pollQr = pollData?.base64 || 
-                                           pollData?.qrcode?.base64 || 
-                                           pollData?.code || 
-                                           pollData?.qrcode || 
-                                           (pollData?.instance?.state === 'connecting' ? pollData?.instance?.qrcode?.base64 : null);
-
-                            if (pollQr && typeof pollQr === 'string' && pollQr.length > 30) {
-                                console.log(`✅ QR Code CAPTURADO com sucesso em: ${url}`);
-                                // Garantimos que retornamos um objeto que o frontend entenda
-                                return { ...pollData, base64: pollQr };
-                            }
+                        // Caso a instância já conecte sozinha (por persistência de sessão)
+                        if (pollData?.instance?.status === "open" || pollData?.status === "open") {
+                            console.log("✅ Instância já está conectada via /connect!");
+                            return pollData;
                         }
-                    } catch (e) { /* silent fail */ }
-                }
 
-                // Fallback: Tentar endpoint direto de busca se o loop falhou em achar no connect
-                if (i % 3 === 0) {
-                   try {
-                     const direct = await fetch(`${apiUrl}/instance/qr-code/base64/${instanceName}`, { headers: { "apikey": apiKey } });
-                     if (direct.ok) {
-                        const d = await direct.json();
-                        if (d.base64) return d;
-                     }
-                   } catch(e) {}
-                }
+                        // Busca o QR code no retorno padrão da v2
+                        const pollQr = pollData?.base64 || 
+                                       pollData?.qrcode?.base64 || 
+                                       pollData?.code || 
+                                       pollData?.qrcode;
+
+                        if (pollQr && typeof pollQr === 'string' && pollQr.length > 50) {
+                            console.log(`✅ QR Code CAPTURADO via /instance/connect`);
+                            return { ...pollData, base64: pollQr };
+                        }
+                    } else if (pollResp.status === 404) {
+                        console.warn(`⚠️ Instância ${instanceName} não encontrada no polling. Aguardando...`);
+                    }
+                } catch (e) { /* silent fail */ }
             }
 
             // 4. Se chegamos aqui, mantemos a instância viva
@@ -148,9 +125,16 @@ export const EvolutionService = {
             },
             body: JSON.stringify({
                 instanceName,
-                token: Math.random().toString(36).substring(7),
+                token: apiKey, // Usamos a key global como token para simplificar a autenticação das chamadas
                 integration: "WHATSAPP-BAILEYS",
-                qrcode: true
+                qrcode: true,
+                // Opções de estabilidade recomendadas pelo repositório oficial:
+                alwaysOnline: true,
+                readMessages: true,
+                readStatus: true,
+                syncFullHistory: false, // Evita sobrecarga inicial
+                rejectCall: false,
+                groupsIgnore: false
             })
         });
 
