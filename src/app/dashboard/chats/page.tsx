@@ -1,10 +1,10 @@
 import { auth } from "@clerk/nextjs/server";
+export const revalidate = 0;
 import { redirect } from "next/navigation";
 import { MessageRepository } from "@/lib/repositories/message";
 import { LeadRepository } from "@/lib/repositories/lead";
 import { Search, MessageSquare, User, Send, Bot, Clock } from "lucide-react";
 import { OrganizationRepository } from "@/lib/repositories/organization";
-import { PageHeader } from "@/components/page-header";
 import { ChatPolling } from "./ChatPolling";
 
 export default async function ChatsPage({

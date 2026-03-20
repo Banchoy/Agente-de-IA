@@ -407,12 +407,23 @@ export const WhatsappService = {
                                 // ATIVAR DIGITANDO
                                 await (LeadRepository as any).updateSystem(lead.id, { isTyping: "true" });
 
-                                // BUSCAR HISTÓRICO PARA MEMÓRIA
+                                // BUSCAR HISTÓRICO PARA MEMÓRIA (Últimas 10 mensagens)
                                 const history = await (MessageRepository as any).listByLeadSystem(lead.id, 10);
-                                const formattedHistory = history.reverse().map((m: any) => ({
+                                let formattedHistory = history.reverse().map((m: any) => ({
                                     role: m.role === "assistant" ? "model" : "user",
                                     content: m.content
                                 }));
+
+                                // CRÍTICO: O Gemini exige que a primeira mensagem seja do 'user'.
+                                // Se o bloco de 10 mensagens começar com uma resposta da IA, removemos para evitar erro.
+                                while (formattedHistory.length > 0 && formattedHistory[0].role === "model") {
+                                    formattedHistory.shift();
+                                }
+
+                                // Se o histórico ficar vazio ou se a mensagem atual não estiver nele, garantimos contexto.
+                                if (formattedHistory.length === 0) {
+                                    formattedHistory = [{ role: "user", content: text }];
+                                }
 
                                 const aiResponse = await AIService.generateResponse(
                                     config.provider || "google",

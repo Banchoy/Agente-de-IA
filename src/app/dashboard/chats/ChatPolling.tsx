@@ -3,7 +3,7 @@
 import { useEffect } from "react";
 import { useRouter } from "next/navigation";
 
-export function ChatPolling({ interval = 3000 }: { interval?: number }) {
+export function ChatPolling({ interval = 1500 }: { interval?: number }) {
     const router = useRouter();
 
     useEffect(() => {
