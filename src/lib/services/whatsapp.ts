@@ -1,11 +1,8 @@
 import makeWASocket, { 
     DisconnectReason, 
-    useMultiFileAuthState, 
     fetchLatestBaileysVersion, 
     makeCacheableSignalKeyStore,
-    AuthenticationState,
     AuthenticationCreds,
-    SignalDataSet,
     SignalDataTypeMap
 } from "@whiskeysockets/baileys";
 import { Boom } from "@hapi/boom";
@@ -20,6 +17,10 @@ import { AIService } from "@/lib/services/ai";
 
 const logger = pino({ level: "silent" });
 
+/**
+ * Função recursiva para converter objetos {type: 'Buffer', data: [...]} de volta para Buffer real.
+ * Necessário para que o Baileys reconheça as chaves binárias salvas no banco.
+ */
 function fixBuffers(data: any): any {
     if (Array.isArray(data)) {
         return data.map(item => fixBuffers(item));
@@ -117,8 +118,14 @@ async function useDrizzleAuthState(sessionId: string, organizationId: string) {
 export const WhatsappService = {
     sessions: new Map<string, any>(),
 
+    deleteSessionFromDb: async (sessionId: string) => {
+        console.log(`🧹 [Baileys] Limpando dados da sessão ${sessionId} do banco de dados...`);
+        await db.delete(whatsappSessions)
+            .where(eq(whatsappSessions.sessionId, sessionId));
+    },
+
     connect: async (organizationId: string, sessionId: string) => {
-        // Evitar múltiplas conexões para o mesmo sessionId se já estiver em progresso
+        // Idempotência: Evitar múltiplas conexões simultâneas
         if (WhatsappService.sessions.has(sessionId)) {
             const existing = WhatsappService.sessions.get(sessionId);
             if (existing.status === "open" || existing.status === "connecting") {
@@ -127,6 +134,7 @@ export const WhatsappService = {
             }
         }
 
+        console.log(`🔌 [Baileys] Solicitando conexão para: ${sessionId}`);
         const { state, saveCreds } = await useDrizzleAuthState(sessionId, organizationId);
         const { version } = await fetchLatestBaileysVersion();
 
@@ -151,8 +159,7 @@ export const WhatsappService = {
                         const qrBase64 = await QRCode.toDataURL(qr);
                         session.qr = qrBase64;
                     } catch (err) {
-                        console.error("❌ Error generating QR Base64:", err);
-                        session.qr = null;
+                        console.error("❌ Erro ao gerar QR Base64:", err);
                     }
                 }
                 if (connection) session.status = connection;
@@ -163,67 +170,60 @@ export const WhatsappService = {
             }
 
             if (connection === "close") {
-                const bounceError = (lastDisconnect?.error as Boom)?.output?.statusCode === DisconnectReason.connectionLost || 
-                                   (lastDisconnect?.error as Boom)?.output?.statusCode === DisconnectReason.connectionClosed;
+                const statusCode = (lastDisconnect?.error as Boom)?.output?.statusCode;
+                // Reason 401 é Logout/Token inválido
+                const isLoggedOut = statusCode === DisconnectReason.loggedOut;
+                const shouldReconnect = !isLoggedOut;
                 
-                const shouldReconnect = (lastDisconnect?.error as Boom)?.output?.statusCode !== DisconnectReason.loggedOut;
-                console.log(`❌ [Baileys] Conexão fechada (${sessionId}). Reason: ${(lastDisconnect?.error as Boom)?.output?.statusCode}. Reconectando: ${shouldReconnect}`);
+                console.log(`❌ [Baileys] Conexão fechada (${sessionId}). Reason: ${statusCode}. Reconectando: ${shouldReconnect}`);
                 
                 if (shouldReconnect) {
-                    // Limpar sessão antiga antes de tentar de novo
                     WhatsappService.sessions.delete(sessionId);
                     setTimeout(() => WhatsappService.connect(organizationId, sessionId), 5000);
                 } else {
+                    console.log(`⚠️ [Baileys] Sessão ${sessionId} corrompida ou deslogada (401). Limpando...`);
+                    await WhatsappService.deleteSessionFromDb(sessionId);
                     WhatsappService.sessions.delete(sessionId);
+                    
                     await db.update(organizations)
                         .set({ evolutionInstanceStatus: "disconnected" })
                         .where(eq(organizations.id, organizationId));
                 }
             } else if (connection === "open") {
-                console.log(`✅ [Baileys] Conexão aberta com sucesso: ${sessionId}`);
+                console.log(`✅ [Baileys] Conexão ativa: ${sessionId}`);
                 await db.update(organizations)
-                    .set({ evolutionInstanceStatus: "connected", evolutionInstanceName: sessionId })
+                    .set({ 
+                        evolutionInstanceStatus: "connected", 
+                        evolutionInstanceName: sessionId 
+                    })
                     .where(eq(organizations.id, organizationId));
             }
         });
 
         sock.ev.on("creds.update", saveCreds);
 
-        // Handler de mensagens (IA)
+        // Handler de mensagens da IA
         sock.ev.on("messages.upsert", async ({ messages, type }) => {
             if (type !== "notify") return;
-            
             for (const msg of messages) {
                 if (!msg.message || msg.key.fromMe) continue;
-                
                 const jid = msg.key.remoteJid;
                 if (!jid) continue;
 
                 const textContent = msg.message.conversation || msg.message.extendedTextMessage?.text;
                 if (!textContent) continue;
 
-                console.log(`📩 [Baileys] Mensagem de ${jid}: ${textContent}`);
-
                 try {
                     const org = await OrganizationRepository.getById(organizationId);
-                    if (!org) {
-                        console.error(`❌ [Baileys] Organização ${organizationId} não encontrada.`);
-                        continue;
-                    }
+                    if (!org) continue;
 
                     const agents = await AgentRepository.listByOrgId(org.id);
                     const agent = agents[0];
                     if (!agent) continue;
 
                     const config = (agent.config as any) || {};
-                    const senderNumber = jid.split('@')[0];
+                    if (config.testMode && config.testNumber && jid.split('@')[0] !== config.testNumber) continue;
 
-                    // Test Mode Filter
-                    if (config.testMode && config.testNumber) {
-                        if (senderNumber !== config.testNumber) continue;
-                    }
-
-                    // IA Response
                     const aiResponse = await AIService.generateResponse(
                         config.provider || "google",
                         config.model || "gemini-1.5-flash",
@@ -231,11 +231,9 @@ export const WhatsappService = {
                         [{ role: "user", content: textContent }]
                     );
 
-                    // Send back via Baileys
                     await sock.sendMessage(jid, { text: aiResponse });
-                    console.log(`🚀 [Baileys] Resposta enviada para ${jid}`);
                 } catch (err) {
-                    console.error("❌ [Baileys] Erro ao processar IA ou enviar mensagem:", err);
+                    console.error("❌ Error IA Response:", err);
                 }
             }
         });
