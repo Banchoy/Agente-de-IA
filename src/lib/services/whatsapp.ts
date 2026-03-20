@@ -407,26 +407,27 @@ export const WhatsappService = {
                                 // ATIVAR DIGITANDO
                                 await (LeadRepository as any).updateSystem(lead.id, { isTyping: "true" });
 
+                                // BUSCAR HISTÓRICO PARA MEMÓRIA
+                                const history = await (MessageRepository as any).listByLeadSystem(lead.id, 10);
+                                const formattedHistory = history.reverse().map((m: any) => ({
+                                    role: m.role === "assistant" ? "model" : "user",
+                                    content: m.content
+                                }));
+
                                 const aiResponse = await AIService.generateResponse(
                                     config.provider || "google",
                                     config.model || "gemini-1.5-flash",
                                     config.systemPrompt || "Você é um assistente virtual.",
-                                    [{ role: "user", content: text }]
+                                    formattedHistory
                                 );
                                 
                                 console.log(`🤖 [Baileys] Resposta da IA recebida. Tamanho: ${aiResponse?.length || 0}`);
 
                                 if (aiResponse) {
-                                    // 5. Send Message and Save to DB
+                                    // 5. Send Message (O salvamento no DB será feito pelo evento 'upsert' do Baileys quando o sock enviar)
+                                    // Isso evita a duplicidade no dashboard!
                                     await sock.sendMessage(jid, { text: aiResponse });
                                     console.log(`📤 [Baileys] Resposta enviada para ${phone}`);
-                                    
-                                    await (MessageRepository as any).createSystem({
-                                        organizationId: org.id,
-                                        leadId: lead.id,
-                                        role: "assistant",
-                                        content: aiResponse
-                                    });
                                 }
                             } finally {
                                 // DESATIVAR DIGITANDO

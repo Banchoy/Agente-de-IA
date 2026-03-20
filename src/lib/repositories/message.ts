@@ -13,6 +13,14 @@ export const MessageRepository = {
         });
     },
 
+    listByLeadSystem: async (leadId: string, limit: number = 20) => {
+        return await db.query.messages.findMany({
+            where: eq(messages.leadId, leadId),
+            orderBy: [desc(messages.createdAt)],
+            limit: limit
+        });
+    },
+
     listLatestByOrg: async () => {
         return await withOrgContext(async (tx) => {
             // USAR tx.execute em vez de db.execute para manter a transação/sessão!
