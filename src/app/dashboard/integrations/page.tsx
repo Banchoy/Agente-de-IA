@@ -251,16 +251,16 @@ function IntegrationsInner() {
     return (
         <div className="space-y-8 animate-in fade-in duration-500">
             <div>
-                <h1 className="text-3xl font-black text-zinc-900 uppercase tracking-tighter">Integrações</h1>
-                <p className="text-zinc-500 font-medium">Conecte suas fontes de leads e centralize sua operação.</p>
+                <h1 className="text-3xl font-black text-foreground uppercase tracking-tighter">Integrações</h1>
+                <p className="text-muted-foreground font-medium">Conecte suas fontes de leads e centralize sua operação.</p>
             </div>
 
             {/* Banner de modo demo */}
             {isDemoMode && (
-                <div className="flex items-start gap-3 p-4 bg-amber-50 border border-amber-200 rounded-2xl text-amber-800">
+                <div className="flex items-start gap-3 p-4 bg-amber-500/10 border border-amber-500/20 rounded-2xl text-amber-600 dark:text-amber-400">
                     <Info size={18} className="shrink-0 mt-0.5" />
                     <div className="text-xs font-medium leading-relaxed">
-                        <strong>Modo Demonstração ativo.</strong> Para usar sua conta real do Facebook, configure as variáveis de ambiente <code className="bg-amber-100 px-1 rounded">META_APP_ID</code>, <code className="bg-amber-100 px-1 rounded">META_APP_SECRET</code> e <code className="bg-amber-100 px-1 rounded">NEXT_PUBLIC_META_APP_ID</code> no Railway e crie um App no <a href="https://developers.facebook.com" target="_blank" rel="noreferrer" className="underline">Meta for Developers</a>.
+                        <strong>Modo Demonstração ativo.</strong> Para usar sua conta real do Facebook, configure as variáveis de ambiente <code className="bg-amber-500/20 px-1 rounded">META_APP_ID</code>, <code className="bg-amber-500/20 px-1 rounded">META_APP_SECRET</code> e <code className="bg-amber-500/20 px-1 rounded">NEXT_PUBLIC_META_APP_ID</code> no Railway e crie um App no <a href="https://developers.facebook.com" target="_blank" rel="noreferrer" className="underline">Meta for Developers</a>.
                     </div>
                 </div>
             )}
@@ -268,14 +268,14 @@ function IntegrationsInner() {
             <div className="space-y-6">
                 {/* Seção de Diagnóstico (Apenas visível se em desenvolvimento ou se houver erro) */}
                 {(isDemoMode || process.env.NODE_ENV === "development") && (
-                    <Card className="border-yellow-500/50 bg-yellow-500/5">
+                    <Card className="border-yellow-500/30 bg-yellow-500/10">
                         <CardHeader className="py-3">
-                            <CardTitle className="text-sm font-medium flex items-center gap-2">
-                                <Info className="h-4 w-4 text-yellow-500" />
+                            <CardTitle className="text-sm font-medium flex items-center gap-2 text-yellow-600 dark:text-yellow-400">
+                                <Info className="h-4 w-4" />
                                 Diagnóstico de Conexão
                             </CardTitle>
                         </CardHeader>
-                        <CardContent className="text-xs space-y-1 font-mono">
+                        <CardContent className="text-xs space-y-1 font-mono text-muted-foreground">
                             <p>ID do App (Server): <span className="text-blue-500">{runtimeConfig.appId || "NÃO ENCONTRADO"}</span></p>
                             <p>URL do App (Server): <span className="text-blue-500">{runtimeConfig.appUrl || "PADRÃO"}</span></p>
                             <p>Modo Atual: <span className={isDemoMode ? "text-orange-500" : "text-green-500"}>{isDemoMode ? "DEMONSTRAÇÃO" : "REAL"}</span></p>
@@ -286,7 +286,7 @@ function IntegrationsInner() {
                     </Card>
                 )}
 
-                <Card className="border-zinc-200 shadow-xl rounded-3xl overflow-hidden border-none bg-white">
+                <Card className="border-border shadow-xl rounded-3xl overflow-hidden border-none bg-card">
                     <CardHeader className="bg-zinc-900 text-white p-8">
                         <div className="flex items-center justify-between">
                             <div className="flex items-center gap-4">
@@ -308,14 +308,14 @@ function IntegrationsInner() {
                         {/* Etapa 1: Botão de conexão */}
                         {step === "connect" && (
                             <div className="flex flex-col items-center justify-center py-12 text-center space-y-6">
-                                <div className="p-6 bg-zinc-50 rounded-full">
-                                    <Plug size={48} className="text-zinc-300" />
+                                <div className="p-6 bg-muted rounded-full">
+                                    <Plug size={48} className="text-muted-foreground/30" />
                                 </div>
                                 <div className="max-w-md space-y-2">
-                                    <h3 className="text-xl font-black text-zinc-900 uppercase tracking-tight">
+                                    <h3 className="text-xl font-black text-foreground uppercase tracking-tight">
                                         {isDemoMode ? "Conecte (Modo Demo)" : "Conecte sua conta empresarial"}
                                     </h3>
-                                    <p className="text-zinc-500 font-medium">
+                                    <p className="text-muted-foreground font-medium">
                                         {isDemoMode
                                             ? "Clique para simular a conexão com dados de demonstração."
                                             : "Autorize o LeadDirector AI a acessar seus formulários e anúncios do Meta."
@@ -338,8 +338,8 @@ function IntegrationsInner() {
                             <div className="space-y-6">
                                 <div className="flex items-center justify-between">
                                     <div className="space-y-1">
-                                        <h3 className="text-xl font-black text-zinc-900 uppercase tracking-tight">Selecione a Empresa / Página</h3>
-                                        <p className="text-sm text-zinc-500 font-medium">Escolha qual página você deseja integrar ao CRM.</p>
+                                        <h3 className="text-xl font-black text-foreground uppercase tracking-tight">Selecione a Empresa / Página</h3>
+                                        <p className="text-sm text-muted-foreground font-medium">Escolha qual página você deseja integrar ao CRM.</p>
                                     </div>
                                     <Button variant="ghost" onClick={handleDisconnect} className="text-[10px] font-bold uppercase text-red-500 hover:text-red-600">
                                         Desconectar
@@ -356,16 +356,16 @@ function IntegrationsInner() {
                                                 key={page.id}
                                                 onClick={() => handleSelectPage(page)}
                                                 disabled={isLoading}
-                                                className="p-6 bg-zinc-50 border border-zinc-100 rounded-3xl flex items-center gap-4 hover:border-[#1877F2] hover:bg-white transition-all text-left group disabled:opacity-50"
+                                                className="p-6 bg-muted/30 border border-border rounded-3xl flex items-center gap-4 hover:border-primary hover:bg-card transition-all text-left group disabled:opacity-50"
                                             >
-                                                <div className="h-12 w-12 rounded-2xl bg-white border border-zinc-100 flex items-center justify-center overflow-hidden shrink-0">
+                                                <div className="h-12 w-12 rounded-2xl bg-card border border-border flex items-center justify-center overflow-hidden shrink-0">
                                                     <img src={page.image} alt={page.name} className="w-full h-full object-cover" onError={(e) => { (e.target as HTMLImageElement).src = `https://api.dicebear.com/7.x/initials/svg?seed=${page.name}`; }} />
                                                 </div>
                                                 <div className="flex-1 min-w-0">
-                                                    <p className="text-sm font-black text-zinc-900 group-hover:text-[#1877F2] transition-colors truncate">{page.name}</p>
-                                                    <p className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest">{page.category}</p>
+                                                    <p className="text-sm font-black text-foreground group-hover:text-primary transition-colors truncate">{page.name}</p>
+                                                    <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">{page.category}</p>
                                                 </div>
-                                                {isLoading && <RefreshCw size={14} className="animate-spin text-zinc-300" />}
+                                                {isLoading && <RefreshCw size={14} className="animate-spin text-muted-foreground" />}
                                             </button>
                                         ))}
                                     </div>
@@ -391,12 +391,12 @@ function IntegrationsInner() {
                                             <ChevronLeft size={12} /> Alterar
                                         </Button>
                                     </div>
-                                    <div className="p-6 bg-emerald-50 border border-emerald-100 rounded-3xl flex items-center gap-4 text-emerald-700">
-                                        <div className="h-10 w-10 rounded-full bg-emerald-100 flex items-center justify-center text-emerald-600 shrink-0">
+                                    <div className="p-6 bg-emerald-500/10 border border-emerald-500/20 rounded-3xl flex items-center gap-4 text-emerald-600 dark:text-emerald-400">
+                                        <div className="h-10 w-10 rounded-full bg-emerald-500/20 flex items-center justify-center text-emerald-600 shrink-0">
                                             <CheckCircle2 size={20} />
                                         </div>
                                         <div>
-                                            <p className="text-[10px] font-black uppercase leading-tight">Status</p>
+                                            <p className="text-[10px] font-black uppercase leading-tight text-emerald-600/70">Status</p>
                                             <p className="text-sm font-black">Webhook Ativo em Tempo Real</p>
                                         </div>
                                     </div>
@@ -408,7 +408,7 @@ function IntegrationsInner() {
                                             <div className="h-8 w-8 rounded-lg bg-zinc-100 flex items-center justify-center text-zinc-500">
                                                 <LayoutGrid size={16} />
                                             </div>
-                                            <h3 className="text-sm font-black uppercase tracking-wider text-zinc-900">Formulários · {selectedPage?.name}</h3>
+                                            <h3 className="text-sm font-black uppercase tracking-wider text-foreground">Formulários · {selectedPage?.name}</h3>
                                         </div>
                                         <Button variant="outline" size="sm" className="rounded-xl font-bold uppercase text-[9px] h-8 gap-2 border-zinc-200" onClick={handleRefreshForms} disabled={isLoading}>
                                             <RefreshCw size={12} className={isLoading ? "animate-spin" : ""} /> Atualizar
@@ -420,12 +420,12 @@ function IntegrationsInner() {
                                             <div key={form.id} className="py-5 flex items-center justify-between hover:bg-zinc-50/50 transition-all px-4 rounded-2xl">
                                                 <div className="space-y-1 min-w-0 flex-1 mr-4">
                                                     <div className="flex items-center gap-2 flex-wrap">
-                                                        <h4 className="text-sm font-black text-zinc-900 truncate">{form.name}</h4>
-                                                        <Badge variant="outline" className={`text-[8px] font-black uppercase shrink-0 ${form.status === "active" ? "bg-emerald-50 text-emerald-600 border-emerald-100" : "bg-red-50 text-red-600 border-red-100"}`}>
+                                                        <h4 className="text-sm font-black text-foreground truncate">{form.name}</h4>
+                                                        <Badge variant="outline" className={`text-[8px] font-black uppercase shrink-0 ${form.status === "active" ? "bg-emerald-500/10 text-emerald-600 border-emerald-500/20" : "bg-red-500/10 text-red-600 border-red-500/20"}`}>
                                                             {form.status === "active" ? "Publicado" : "Draft"}
                                                         </Badge>
                                                     </div>
-                                                    <div className="text-[10px] text-zinc-400 font-bold uppercase tracking-wider">
+                                                    <div className="text-[10px] text-muted-foreground font-bold uppercase tracking-wider">
                                                         ID: {form.id}
                                                         {form.leadsCount !== undefined && ` · ${form.leadsCount} leads`}
                                                     </div>
@@ -453,9 +453,9 @@ function IntegrationsInner() {
                                     </div>
                                 </div>
 
-                                <div className="p-4 bg-blue-50 border border-blue-100 rounded-2xl flex gap-3 text-blue-700">
+                                <div className="p-4 bg-blue-500/10 border border-blue-500/20 rounded-2xl flex gap-3 text-blue-600 dark:text-blue-400">
                                     <AlertCircle size={18} className="shrink-0" />
-                                    <div className="text-xs font-medium leading-tight">
+                                    <div className="text-xs font-medium leading-tight text-blue-600 dark:text-blue-400">
                                         <strong>Dica:</strong> Ao ativar um formulário, todos os leads históricos disponíveis serão importados automaticamente para a primeira etapa do seu Funil de Vendas.
                                     </div>
                                 </div>

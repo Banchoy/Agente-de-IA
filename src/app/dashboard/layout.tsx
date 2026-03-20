@@ -3,6 +3,7 @@ import { LayoutDashboard, Users, Settings, History, Bot, Menu, MessageSquare, Ac
 import Link from "next/link";
 import { UserService } from "@/lib/services/user";
 import { ThemeToggle } from "@/components/theme-toggle";
+import { SidebarNav } from "@/components/sidebar-nav";
 
 export const dynamic = "force-dynamic";
 
@@ -21,40 +22,7 @@ export default async function DashboardLayout({
                     <Bot size={24} className="text-foreground" />
                     Agente AI
                 </div>
-                <nav className="flex-1 space-y-1 p-4">
-                    <Link href="/dashboard" className="flex items-center gap-3 rounded-lg px-3 py-2 bg-primary text-primary-foreground font-bold transition-all shadow-md">
-                        <LayoutDashboard size={20} />
-                        CRM de Vendas
-                    </Link>
-                    <Link href="/dashboard/analytics" className="flex items-center gap-3 rounded-lg px-3 py-2 text-muted-foreground hover:bg-accent hover:text-accent-foreground transition-colors">
-                        <Activity size={20} />
-                        Dashboard Analítico
-                    </Link>
-                    <Link href="/dashboard/whatsapp" className="flex items-center gap-3 rounded-lg px-3 py-2 text-muted-foreground hover:bg-accent hover:text-accent-foreground transition-colors">
-                        <MessageSquare size={20} />
-                        WhatsApp
-                    </Link>
-                    <Link href="/dashboard/agents" className="flex items-center gap-3 rounded-lg px-3 py-2 text-muted-foreground hover:bg-accent hover:text-accent-foreground transition-colors">
-                        <Bot size={20} />
-                        Agentes
-                    </Link>
-                    <Link href="/dashboard/integrations" className="flex items-center gap-3 rounded-lg px-3 py-2 text-muted-foreground hover:bg-accent hover:text-accent-foreground transition-colors">
-                        <Activity size={20} />
-                        Integrações
-                    </Link>
-                    <Link href="/dashboard/users" className="flex items-center gap-3 rounded-lg px-3 py-2 text-muted-foreground hover:bg-accent hover:text-accent-foreground transition-colors">
-                        <Users size={20} />
-                        Usuários
-                    </Link>
-                    <Link href="/dashboard/logs" className="flex items-center gap-3 rounded-lg px-3 py-2 text-muted-foreground hover:bg-accent hover:text-accent-foreground transition-colors">
-                        <History size={20} />
-                        Logs de Auditoria
-                    </Link>
-                    <Link href="/dashboard/settings" className="flex items-center gap-3 rounded-lg px-3 py-2 text-muted-foreground hover:bg-accent hover:text-accent-foreground transition-colors">
-                        <Settings size={20} />
-                        Configurações
-                    </Link>
-                </nav>
+                <SidebarNav />
                 <div className="p-4 border-t border-border">
                     <OrganizationSwitcher
                         hidePersonal
