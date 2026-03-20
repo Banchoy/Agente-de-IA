@@ -12,91 +12,76 @@ export const EvolutionService = {
         try {
             console.log(`🚀 Iniciando conexão para: ${instanceName}`);
 
-            // 1. Tentar obter QR Code diretamente (Se já existe)
-            // Tentaremos 3 endpoints comuns da v2
+            // 1. Tentar obter QR Code/Status diretamente
             const endpoints = [
                 `${apiUrl}/instance/connect/${instanceName}`,
-                `${apiUrl}/instance/qr-code/base64/${instanceName}`,
-                `${apiUrl}/instances/${instanceName}/qr-code/image`
+                `${apiUrl}/instance/qr-code/base64/${instanceName}`
             ];
 
             for (const url of endpoints) {
                 try {
-                    console.log(`🔍 Tentando endpoint: ${url}`);
                     const response = await fetch(url, { headers: { "apikey": apiKey } });
-
                     if (response.ok) {
                         const data = await response.json();
-                        // Verifica se tem algo que pareça um QR code
-                        const qr = data.base64 || data.qrcode?.base64 || data.code || (typeof data === 'string' && data.length > 100 ? data : null);
-
+                        const qr = data.base64 || data.qrcode?.base64 || data.code;
+                        
                         if (qr) {
-                            console.log(`✅ QR Code encontrado no endpoint: ${url}`);
+                            console.log(`✅ QR Code encontrado em: ${url}`);
                             return data;
                         }
-                    } else if (response.status === 404) {
-                        console.log(`ℹ️ Endpoint retornou 404: ${url}`);
+
+                        if (data.instance?.status === "open" || data.status === "open") {
+                            console.log("✅ Instância já conectada.");
+                            return data;
+                        }
                     }
-                } catch (e) {
-                    console.warn(`⚠️ Falha ao tentar endpoint ${url}:`, e);
-                }
+                } catch (e) {}
             }
 
-            // 2. Criar ou validar existência
+            // 2. Tentar Criar/Reconectar
             try {
                 const createResult = await EvolutionService.createInstance(apiUrl, apiKey, instanceName);
                 const qr = createResult.base64 || createResult.qrcode?.base64 || createResult.code;
                 if (qr) return createResult;
             } catch (createErr: any) {
-                if (createErr.message.includes("already in use") || createErr.message.includes("403")) {
-                    console.log("ℹ️ Instância já existe. Prosseguindo para o polling de QR Code...");
-                } else {
-                    throw createErr;
-                }
+                console.log("ℹ️ Instância já existe ou erro na criação. Seguindo para polling...");
             }
 
-            // 3. Loop de Polling (Focado no endpoint /connect da v2)
-            console.log(`⏳ Aguardando geração do QR Code via /instance/connect para ${instanceName}...`);
-            for (let i = 0; i < 20; i++) {
-                await new Promise(r => setTimeout(r, 4000)); // Aumentado para 4s para estabilidade
-                console.log(`🔍 Tentativa de busca ${i + 1}/20 para: ${instanceName}...`);
-
-                // Na v2, o endpoint principal para QR e conexão é o /instance/connect
-                const connectUrl = `${apiUrl}/instance/connect/${instanceName}`;
+            // 3. Loop de Polling (Resiliente a 'connecting')
+            console.log(`⏳ Aguardando QR Code/Conexão para ${instanceName}...`);
+            for (let i = 0; i < 15; i++) {
+                await new Promise(r => setTimeout(r, 5000));
                 
                 try {
-                    const pollResp = await fetch(connectUrl, { headers: { "apikey": apiKey } });
+                    const pollResp = await fetch(`${apiUrl}/instance/connect/${instanceName}`, { 
+                        headers: { "apikey": apiKey } 
+                    });
+
                     if (pollResp.ok) {
                         const pollData = await pollResp.json();
+                        const status = pollData?.instance?.status || pollData?.status;
+                        const pollQr = pollData?.base64 || pollData?.qrcode?.base64 || pollData?.code || pollData?.qrcode;
 
-                        // Caso a instância já conecte sozinha (por persistência de sessão)
-                        if (pollData?.instance?.status === "open" || pollData?.status === "open") {
-                            console.log("✅ Instância já está conectada via /connect!");
+                        if (status === "open") {
+                            console.log("✅ Conexão estabelecida!");
                             return pollData;
                         }
 
-                        // Busca o QR code no retorno padrão da v2
-                        const pollQr = pollData?.base64 || 
-                                       pollData?.qrcode?.base64 || 
-                                       pollData?.code || 
-                                       pollData?.qrcode;
-
                         if (pollQr && typeof pollQr === 'string' && pollQr.length > 50) {
-                            console.log(`✅ QR Code CAPTURADO via /instance/connect`);
+                            console.log(`✅ QR Code capturado!`);
                             return { ...pollData, base64: pollQr };
                         }
-                    } else if (pollResp.status === 404) {
-                        console.warn(`⚠️ Instância ${instanceName} não encontrada no polling. Aguardando...`);
+
+                        console.log(`🔍 Status: ${status || 'desconhecido'} - Tentativa ${i + 1}/15`);
                     }
-                } catch (e) { /* silent fail */ }
+                } catch (e) {}
             }
 
-            // 4. Se chegamos aqui, mantemos a instância viva
-            console.log(`⚠️ Tempo esgotado para ${instanceName}.`);
-            throw new Error("O servidor WhatsApp demorou para responder. Por favor, tente clicar em 'Conectar' novamente em alguns segundos.");
+            // Fallback: Retorna status se não houver QR mas a instância existir
+            return { success: true, status: "connecting", message: "A instância está sendo preparada. Aguarde alguns segundos." };
 
         } catch (error: any) {
-            console.error("❌ Falha crítica na conexão com Evolution API:", error.message);
+            console.error("❌ Falha na conexão:", error.message);
             throw error;
         }
     },
