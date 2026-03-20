@@ -15,9 +15,9 @@ export const MessageRepository = {
 
     listLatestByOrg: async () => {
         return await withOrgContext(async (tx) => {
-            // Usando SQL puro com DISTINCT ON para garantir uma linha por lead_id
-            // Utilizamos current_setting('app.current_org_id') que foi definido no withOrgContext
-            const rawResults = await db.execute(sql`
+            // USAR tx.execute em vez de db.execute para manter a transação/sessão!
+            // Usando NULLIF para evitar erro de UUID vazio se a sessão falhar
+            const rawResults = await tx.execute(sql`
                 SELECT DISTINCT ON (m.lead_id) 
                     m.id, 
                     m.lead_id, 
@@ -28,7 +28,7 @@ export const MessageRepository = {
                     l.phone as lead_phone
                 FROM messages m
                 JOIN leads l ON m.lead_id = l.id
-                WHERE l.organization_id = current_setting('app.current_org_id')::uuid
+                WHERE l.organization_id = NULLIF(current_setting('app.current_org_id', true), '')::uuid
                 ORDER BY m.lead_id, m.created_at DESC
             `);
 

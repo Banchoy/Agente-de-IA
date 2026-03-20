@@ -36,11 +36,41 @@ export const AIService = {
         }
 
         const genAI = new GoogleGenerativeAI(apiKey);
-        const primaryModel = model || "gemini-1.5-flash";
-        const fallbackModel = "gemini-1.5-pro";
+        
+        // 1. Descoberta dinâmica de modelos via API REST
+        let modelToUse = model || "gemini-1.5-flash";
+        
+        try {
+            console.log(`🔍 [AIService] Descobrindo modelos compatíveis via API...`);
+            const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models?key=${apiKey}`);
+            const data = await response.json();
+            
+            if (data.models && Array.isArray(data.models)) {
+                const availableModels = data.models
+                    .filter((m: any) => m.supportedGenerationMethods.includes("generateContent"))
+                    .map((m: any) => m.name.replace("models/", ""));
+                
+                console.log(`🤖 [AIService] Modelos compatíveis com sua chave: ${availableModels.join(", ")}`);
+
+                // Se o modelo solicitado não estiver na lista ou for o padrão, buscamos a melhor opção
+                if (!availableModels.includes(modelToUse)) {
+                    console.warn(`⚠️ [AIService] Modelo ${modelToUse} não disponível para esta chave.`);
+                    const bestAvailable = availableModels.find((m: string) => m.includes("gemini-1.5-flash")) ||
+                                         availableModels.find((m: string) => m.includes("gemini-1.5-pro")) ||
+                                         availableModels[0];
+                    
+                    if (bestAvailable) {
+                        console.log(`✅ [AIService] Auto-selecionado: ${bestAvailable}`);
+                        modelToUse = bestAvailable;
+                    }
+                }
+            }
+        } catch (fetchErr) {
+            console.warn(`⚠️ [AIService] Falha ao listar modelos via API. Usando tentativa direta: ${modelToUse}`);
+        }
 
         const tryModel = async (modelName: string) => {
-            console.log(`🚀 [AIService] Tentando modelo: ${modelName}`);
+            console.log(`🚀 [AIService] Iniciando geração com: ${modelName}`);
             const geminiModel = genAI.getGenerativeModel({
                 model: modelName,
                 systemInstruction: systemPrompt,
@@ -66,19 +96,16 @@ export const AIService = {
         };
 
         try {
-            return await tryModel(primaryModel);
+            return await tryModel(modelToUse);
         } catch (err: any) {
-            console.warn(`⚠️ [AIService] Falha com ${primaryModel}: ${err.message}.`);
-            
-            // Se o erro for 404 ou o modelo for o flash, tentamos o pro
-            if (primaryModel !== fallbackModel) {
-                console.log(`🛡️ [AIService] Tentando fallback para: ${fallbackModel}...`);
-                try {
-                    return await tryModel(fallbackModel);
-                } catch (fallbackErr: any) {
-                    console.error(`❌ [AIService] Todas as tentativas de IA falharam.`);
-                    throw fallbackErr;
-                }
+            console.error(`❌ [AIService] Erro com ${modelToUse}:`, err.message);
+            // Fallback de emergência
+            if (modelToUse !== "gemini-1.5-pro") {
+                console.log(`🛡️ [AIService] Tentativa de emergência com gemini-1.5-pro...`);
+                return await tryModel("gemini-1.5-pro").catch(e => {
+                    console.error("❌ [AIService] Fallback também falhou.");
+                    throw e;
+                });
             }
             throw err;
         }
