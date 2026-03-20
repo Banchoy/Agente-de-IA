@@ -2,8 +2,6 @@ import makeWASocket, {
     DisconnectReason, 
     fetchLatestBaileysVersion, 
     makeCacheableSignalKeyStore,
-    // @ts-ignore
-    makeInMemoryStore,
     AuthenticationCreds,
     SignalDataTypeMap
 } from "@whiskeysockets/baileys";
@@ -124,7 +122,6 @@ async function useDrizzleAuthState(sessionId: string, organizationId: string) {
 export const WhatsappService = {
     sessions: new Map<string, any>(),
     connectionPromises: new Map<string, Promise<any>>(),
-    stores: new Map<string, any>(),
 
     deleteSessionFromDb: async (sessionId: string) => {
         console.log(`🧹 [Baileys] Iniciando limpeza profunda da sessão ${sessionId}...`);
@@ -160,13 +157,6 @@ export const WhatsappService = {
                 }
 
                 console.log(`🔌 [Baileys] Iniciando nova conexão para: ${sessionId}`);
-                
-                // Inicializar Store para descriptografia robusta
-                if (!WhatsappService.stores.has(sessionId)) {
-                    const store = makeInMemoryStore({ logger: pino({ level: 'silent' }) });
-                    WhatsappService.stores.set(sessionId, store);
-                }
-                const store = WhatsappService.stores.get(sessionId);
 
                 // Otimização Render: Aguarda DB estar pronto
                 try {
@@ -187,18 +177,9 @@ export const WhatsappService = {
                     logger,
                     browser: ["Agente de IA", "Chrome", "1.0.0"],
                     generateHighQualityLinkPreview: true,
-                    // Implementar getMessage do store para evitar erros de descriptografia
-                    getMessage: async (key) => {
-                        if (store) {
-                            const msg = await store.loadMessage(key.remoteJid!, key.id!);
-                            return msg?.message || undefined;
-                        }
-                        return undefined;
-                    }
+                    // Sem store local (usando apenas auth state)
+                    getMessage: async () => undefined
                 });
-
-                // Ligar store ao socket
-                if (store) store.bind(sock.ev);
 
                 WhatsappService.sessions.set(sessionId, { sock, qr: null, status: "connecting" });
 
