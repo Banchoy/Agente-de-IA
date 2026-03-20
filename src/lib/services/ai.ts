@@ -43,6 +43,7 @@ export const AIService = {
         
         // 1. Descoberta dinâmica de modelos via API REST
         let modelToUse = model || "gemini-1.5-flash";
+        let availableModels: string[] = [];
         
         try {
             console.log(`🔍 [AIService] Descobrindo modelos compatíveis via API...`);
@@ -50,7 +51,7 @@ export const AIService = {
             const data = await response.json();
             
             if (data.models && Array.isArray(data.models)) {
-                const availableModels = data.models
+                availableModels = data.models
                     .filter((m: any) => m.supportedGenerationMethods.includes("generateContent"))
                     .map((m: any) => m.name.replace("models/", ""));
                 
@@ -59,8 +60,10 @@ export const AIService = {
                 // Se o modelo solicitado não estiver na lista ou for o padrão, buscamos a melhor opção
                 if (!availableModels.includes(modelToUse)) {
                     console.warn(`⚠️ [AIService] Modelo ${modelToUse} não disponível para esta chave.`);
-                    const bestAvailable = availableModels.find((m: string) => m.includes("gemini-1.5-flash")) ||
-                                         availableModels.find((m: string) => m.includes("gemini-1.5-pro")) ||
+                    const bestAvailable = availableModels.find((m: string) => m === "gemini-2.0-flash") ||
+                                         availableModels.find((m: string) => m === "gemini-1.5-flash") ||
+                                         availableModels.find((m: string) => m.includes("flash-latest")) ||
+                                         availableModels.find((m: string) => m.includes("2.0-flash")) ||
                                          availableModels[0];
                     
                     if (bestAvailable) {
@@ -74,7 +77,7 @@ export const AIService = {
         }
 
         const tryModel = async (modelName: string) => {
-            console.log(`🚀 [AIService] Iniciando geração com: ${modelName}`);
+            console.log(`🚀 [AIService] Tentando geração com: ${modelName}`);
             const geminiModel = genAI.getGenerativeModel({
                 model: modelName,
                 systemInstruction: systemPrompt,
@@ -101,24 +104,37 @@ export const AIService = {
             });
 
             const lastMessage = history[history.length - 1];
-            // Envia todos os parts da última mensagem
             const result = await chat.sendMessage(lastMessage.parts);
             return result.response.text();
         };
 
-        try {
-            return await tryModel(modelToUse);
-        } catch (err: any) {
-            console.error(`❌ [AIService] Erro com ${modelToUse}:`, err.message);
-            // Fallback de emergência
-            if (modelToUse !== "gemini-1.5-pro") {
-                console.log(`🛡️ [AIService] Tentativa de emergência com gemini-1.5-pro...`);
-                return await tryModel("gemini-1.5-pro").catch(e => {
-                    console.error("❌ [AIService] Fallback também falhou.");
-                    throw e;
-                });
+        // LOOP DE RESILIÊNCIA: Tenta o modelo preferido e depois todos os outros disponíveis
+        const modelsToTry = [modelToUse, ...availableModels.filter(m => m !== modelToUse)];
+        
+        for (const currentModel of modelsToTry) {
+            try {
+                return await tryModel(currentModel);
+            } catch (err: any) {
+                const errMsg = err.message || "";
+                console.error(`❌ [AIService] Erro com ${currentModel}:`, errMsg);
+
+                if (errMsg.includes("429") || errMsg.includes("quota") || errMsg.includes("limit")) {
+                    console.warn(`⚠️ [AIService] Limite atingido para ${currentModel}. Pulando para o próximo...`);
+                    continue;
+                }
+
+                if (errMsg.includes("404") || errMsg.includes("not found")) {
+                    console.warn(`⚠️ [AIService] Modelo ${currentModel} não suportado. Pulando...`);
+                    continue;
+                }
+
+                // Se houver algum erro de segurança ou formato (ex: Gemini não suporta algo no histórico), 
+                // tentamos o próximo modelo também como garantia.
+                console.warn(`⚠️ [AIService] Erro genérico com ${currentModel}. Tentando próximo por segurança...`);
+                continue;
             }
-            throw err;
         }
+
+        throw new Error("Não foi possível gerar resposta com nenhum dos modelos disponíveis para esta chave.");
     }
-};
+}
