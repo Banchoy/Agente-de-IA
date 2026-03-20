@@ -10,10 +10,14 @@ export const AgentRepository = {
         });
     },
 
-    listByOrgId: async (organizationId: string) => {
+    listByOrgIdSystem: async (organizationId: string) => {
         return await db.query.agents.findMany({
             where: eq(agents.organizationId, organizationId)
         });
+    },
+
+    listByOrgId: async (organizationId: string) => {
+        return await AgentRepository.listByOrgIdSystem(organizationId);
     },
 
     getById: async (id: string) => {

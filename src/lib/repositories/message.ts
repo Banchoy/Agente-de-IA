@@ -32,5 +32,10 @@ export const MessageRepository = {
             const [newMessage] = await tx.insert(messages).values(data).returning();
             return newMessage;
         });
+    },
+
+    createSystem: async (data: typeof messages.$inferInsert) => {
+        const [newMessage] = await db.insert(messages).values(data).returning();
+        return newMessage;
     }
 };

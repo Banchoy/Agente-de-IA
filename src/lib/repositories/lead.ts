@@ -29,11 +29,25 @@ export const LeadRepository = {
         });
     },
 
+    getByPhoneSystem: async (phone: string, organizationId: string) => {
+        return await db.query.leads.findFirst({
+            where: and(
+                eq(leads.phone, phone),
+                eq(leads.organizationId, organizationId)
+            )
+        });
+    },
+
     create: async (data: typeof leads.$inferInsert) => {
         return await withOrgContext(async (tx) => {
             const [newLead] = await tx.insert(leads).values(data).returning();
             return newLead;
         });
+    },
+
+    createSystem: async (data: typeof leads.$inferInsert) => {
+        const [newLead] = await db.insert(leads).values(data).returning();
+        return newLead;
     },
 
     createMany: async (data: (typeof leads.$inferInsert)[]) => {

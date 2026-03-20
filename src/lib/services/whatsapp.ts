@@ -244,16 +244,20 @@ export const WhatsappService = {
                         if (!text) continue;
 
                         const phone = jid.split("@")[0];
+                        console.log(`📩 [Baileys] Mensagem recebida de ${phone}: ${text.substring(0, 50)}...`);
 
                         try {
                             const org = await OrganizationRepository.getById(organizationId);
-                            if (!org) continue;
+                            if (!org) {
+                                console.warn(`⚠️ [Baileys] Organização ${organizationId} não encontrada.`);
+                                continue;
+                            }
 
                             // 1. Find or Create Lead
-                            let lead = await LeadRepository.getByPhone(phone);
+                            let lead = await (LeadRepository as any).getByPhoneSystem(phone, org.id);
                             if (!lead) {
                                 console.log(`🆕 [Baileys] Criando novo lead para o número: ${phone}`);
-                                lead = await LeadRepository.create({
+                                lead = await (LeadRepository as any).createSystem({
                                     organizationId: org.id,
                                     name: msg.pushName || phone,
                                     phone: phone,
@@ -263,15 +267,16 @@ export const WhatsappService = {
                             }
 
                             // 2. Save Incoming Message
-                            await MessageRepository.create({
+                            await (MessageRepository as any).createSystem({
                                 organizationId: org.id,
                                 leadId: lead.id,
                                 role: "user",
                                 content: text
                             });
+                            console.log(`✅ [Baileys] Mensagem salva no histórico (Lead ID: ${lead.id})`);
 
                             // 3. Find Mapped Agent (or fallback)
-                            const agents = await AgentRepository.listByOrgId(org.id);
+                            const agents = await AgentRepository.listByOrgIdSystem(org.id);
                             // Try to find agent with matching instance name
                             let agent = agents.find(a => (a as any).whatsappInstanceName === sessionId);
                             if (!agent) agent = agents[0]; // Fallback to first agent
@@ -283,7 +288,19 @@ export const WhatsappService = {
 
                             const config = (agent.config as any) || {};
 
+                            // VERIFICAÇÕES DE RESPOSTA
+                            if (!config.whatsappResponse) {
+                                console.log(`⏩ [Baileys] Resposta automática DESATIVADA para o agente ${agent.name}`);
+                                continue;
+                            }
+
+                            if (config.testMode && config.testNumber !== phone) {
+                                console.log(`🛡️ [Baileys] Modo de Teste ATIVO. Ignorando número externo: ${phone} (Permitido apenas: ${config.testNumber})`);
+                                continue;
+                            }
+
                             // 4. Generate AI Response
+                            console.log(`🤖 [Baileys] Gerando resposta IA com agente: ${agent.name}...`);
                             const aiResponse = await AIService.generateResponse(
                                 config.provider || "google",
                                 config.model || "gemini-1.5-flash",
@@ -291,10 +308,16 @@ export const WhatsappService = {
                                 [{ role: "user", content: text }]
                             );
 
+                            if (!aiResponse) {
+                                console.warn(`⚠️ [Baileys] IA retornou resposta vazia.`);
+                                continue;
+                            }
+
                             // 5. Send Message and Save to DB
                             await sock.sendMessage(jid, { text: aiResponse });
+                            console.log(`📤 [Baileys] Resposta enviada para ${phone}`);
                             
-                            await MessageRepository.create({
+                            await (MessageRepository as any).createSystem({
                                 organizationId: org.id,
                                 leadId: lead.id,
                                 role: "assistant",
