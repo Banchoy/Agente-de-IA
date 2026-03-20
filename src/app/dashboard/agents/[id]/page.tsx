@@ -90,7 +90,24 @@ export default async function AgentDetailsPage({ params }: { params: { id: strin
                     </div>
 
                     <div className="rounded-2xl border border-zinc-200 bg-white p-8 shadow-sm space-y-6 border-dashed border-2">
-                        <h2 className="text-lg font-bold text-zinc-900">Modo de Teste</h2>
+                        <h2 className="text-lg font-bold text-zinc-900">WhatsApp & Automação</h2>
+                        
+                        <div className="flex items-center gap-4">
+                            <input
+                                type="checkbox"
+                                name="whatsappResponse"
+                                defaultChecked={config.whatsappResponse}
+                                className="h-5 w-5 rounded border-zinc-200 text-zinc-900 focus:ring-zinc-900"
+                            />
+                            <div className="space-y-1">
+                                <label className="text-sm font-bold text-zinc-700">Responder no WhatsApp</label>
+                                <p className="text-xs text-zinc-500">Quando ativado, este agente responderá automaticamente a todas as mensagens recebidas.</p>
+                            </div>
+                        </div>
+
+                        <hr className="border-zinc-100" />
+
+                        <h2 className="text-sm font-bold text-zinc-500 uppercase tracking-widest">Modo de Teste</h2>
                         <p className="text-sm text-zinc-500">Habilite para que o agente responda apenas a um número específico no WhatsApp.</p>
 
                         <div className="flex items-center gap-4">

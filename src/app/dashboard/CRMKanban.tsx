@@ -22,12 +22,13 @@ import { CSS } from "@dnd-kit/utilities";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Plus, MoreHorizontal, User, Phone, MessageSquare, Calendar, CheckCircle, XCircle, Search } from "lucide-react";
+import { Plus, MoreHorizontal, User, Phone, MessageSquare, Calendar, CheckCircle, XCircle, Search, RefreshCw, Bot } from "lucide-react";
 import LeadDetailsModal from "./LeadDetailsModal";
 import AddLeadModal from "./AddLeadModal";
-import { updateLeadMetadata, updateLeadStage } from "./leads/actions";
+import { updateLeadMetadata, updateLeadStage, importLeads, startOutreach, createLead } from "./leads/actions";
 import Papa from "papaparse";
 import * as XLSX from "xlsx";
+import { toast } from "sonner";
 
 // Stages requested by user
 const INITIAL_STAGES = [
@@ -35,12 +36,6 @@ const INITIAL_STAGES = [
     { id: "qualification", name: "Qualificação", color: "bg-amber-400" },
     { id: "negotiation", name: "Negociação", color: "bg-blue-400" },
     { id: "sold", name: "Vendido", color: "bg-emerald-500" },
-];
-
-const INITIAL_LEADS = [
-    { id: "1", name: "João Silva", phone: "+55 11 99999-9999", stageId: "prospecting", source: "Meta Ads", value: "R$ 5.000", metaData: { "Idade": "34", "Interesse": "Imóvel 3 Quartos" } },
-    { id: "2", name: "Maria Oliveira", phone: "+55 11 88888-8888", stageId: "qualification", source: "Facebook Leads", value: "R$ 2.500", metaData: { "Procedimento": "Invisalign" } },
-    { id: "3", name: "Roberto Santos", phone: "+55 21 77777-7777", stageId: "negotiation", source: "Instagram Ads", value: "R$ 12.000", metaData: { "Financiamento": "Pré-aprovado" } },
 ];
 
 function SortableItem({ lead, onClick }: { lead: any; onClick: () => void }) {
@@ -156,12 +151,13 @@ function KanbanColumn({ stage, leads, onLeadClick }: { stage: any; leads: any[];
     );
 }
 
-export default function CRMKanban() {
-    const [leadsList, setLeadsList] = useState(INITIAL_LEADS);
+export default function CRMKanban({ initialLeads = [] }: { initialLeads?: any[] }) {
+    const [leadsList, setLeadsList] = useState(initialLeads);
     const [activeId, setActiveId] = useState<string | null>(null);
     const [selectedLead, setSelectedLead] = useState<any | null>(null);
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [isAddModalOpen, setIsAddModalOpen] = useState(false);
+    const [isExporting, setIsExporting] = useState(false);
 
     const sensors = useSensors(
         useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
@@ -176,20 +172,20 @@ export default function CRMKanban() {
         const { active, over } = event;
         if (!over) return;
 
-        const activeLead = leadsList.find((l) => l.id === active.id);
+        const activeLead = leadsList.find((l: any) => l.id === active.id);
         const overId = over.id;
 
         const isOverAStage = INITIAL_STAGES.some((s) => s.id === overId);
         let newStageId = overId;
 
         if (!isOverAStage) {
-            const overLead = leadsList.find((l) => l.id === overId);
+            const overLead = leadsList.find((l: any) => l.id === overId);
             newStageId = overLead ? overLead.stageId : activeLead?.stageId;
         }
 
         if (activeLead && activeLead.stageId !== newStageId) {
-            setLeadsList((prev) =>
-                prev.map((l) => (l.id === active.id ? { ...l, stageId: newStageId } : l))
+            setLeadsList((prev: any) =>
+                prev.map((l: any) => (l.id === active.id ? { ...l, stageId: newStageId } : l))
             );
         }
     };
@@ -202,14 +198,14 @@ export default function CRMKanban() {
         }
 
         if (active.id !== over.id) {
-            const oldIndex = leadsList.findIndex((l) => l.id === active.id);
-            const newIndex = leadsList.findIndex((l) => l.id === over.id);
+            const oldIndex = leadsList.findIndex((l: any) => l.id === active.id);
+            const newIndex = leadsList.findIndex((l: any) => l.id === over.id);
 
             if (newIndex !== -1) {
-                setLeadsList((items) => arrayMove(items, oldIndex, newIndex));
+                setLeadsList((items: any) => arrayMove(items, oldIndex, newIndex));
             }
         } else {
-            const lead = leadsList.find(l => l.id === active.id);
+            const lead = leadsList.find((l: any) => l.id === active.id);
             if (lead) {
                 await updateLeadStage(active.id as string, lead.stageId);
             }
@@ -224,41 +220,70 @@ export default function CRMKanban() {
     };
 
     const handleSaveLead = async (leadId: string, updatedData: any) => {
-        setLeadsList(prev => prev.map(l => l.id === leadId ? updatedData : l));
+        setLeadsList((prev: any) => prev.map((l: any) => l.id === leadId ? updatedData : l));
         await updateLeadMetadata(leadId, updatedData.metaData);
     };
 
-    const handleAddLead = (newLead: any) => {
-        setLeadsList(prev => [newLead, ...prev]);
+    const handleAddLead = async (newLeadData: any) => {
+        const res = await createLead(newLeadData);
+        if (res.success) {
+            setLeadsList((prev: any) => [res.lead, ...prev]);
+            toast.success("Lead adicionado com sucesso!");
+        } else {
+            toast.error("Erro ao salvar lead no banco de dados.");
+        }
     };
 
-    const handleImport = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const handleStartOutreach = async () => {
+        try {
+            setIsExporting(true);
+            const result = await startOutreach();
+            if (result.success) {
+                toast.success(`Prospecção iniciada para ${result.count} leads!`);
+            } else {
+                toast.error(result.error || "Erro ao iniciar prospecção.");
+            }
+        } catch (error) {
+            toast.error("Erro técnico ao iniciar prospecção.");
+        } finally {
+            setIsExporting(false);
+        }
+    };
+
+    const handleImport = async (e: React.ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0];
         if (!file) return;
 
-        const reader = new FileReader();
         const extension = file.name.split(".").pop()?.toLowerCase();
 
         if (extension === "csv") {
             Papa.parse(file, {
                 header: true,
-                complete: (results) => {
+                skipEmptyLines: true,
+                complete: async (results) => {
                     const importedLeads = results.data.map((row: any) => ({
-                        id: Math.random().toString(36).substr(2, 9),
                         name: row.nome || row.name || "Lead Importado",
                         phone: row.telefone || row.phone || "",
                         email: row.email || "",
                         stageId: "prospecting",
                         source: "Importação CSV",
-                        value: row.valor || "R$ 0",
-                        createdAt: new Date().toISOString(),
                         metaData: { ...row }
                     }));
-                    setLeadsList(prev => [...importedLeads, ...prev]);
+                    
+                    const res = await importLeads(importedLeads);
+                    if (res.success) {
+                        toast.success(`${importedLeads.length} leads importados com sucesso!`);
+                        // Recarregar leads aconteceria via revalidatePath no servidor, 
+                        // mas para feedback imediato podemos atualizar localmente também ou forçar refresh
+                        window.location.reload();
+                    } else {
+                        toast.error("Erro ao salvar leads importados.");
+                    }
                 }
             });
         } else if (extension === "xlsx" || extension === "xls") {
-            reader.onload = (evt) => {
+            const reader = new FileReader();
+            reader.onload = async (evt) => {
                 const bstr = evt.target?.result;
                 const wb = XLSX.read(bstr, { type: "binary" });
                 const wsname = wb.SheetNames[0];
@@ -266,23 +291,27 @@ export default function CRMKanban() {
                 const data = XLSX.utils.sheet_to_json(ws);
 
                 const importedLeads = data.map((row: any) => ({
-                    id: Math.random().toString(36).substr(2, 9),
-                    name: row.nome || row.name || "Lead Importado",
-                    phone: row.telefone || row.phone || "",
-                    email: row.email || "",
+                    name: (row as any).nome || (row as any).name || "Lead Importado",
+                    phone: (row as any).telefone || (row as any).phone || "",
+                    email: (row as any).email || "",
                     stageId: "prospecting",
                     source: "Importação Excel",
-                    value: row.valor || "R$ 0",
-                    createdAt: new Date().toISOString(),
                     metaData: { ...row }
                 }));
-                setLeadsList(prev => [...importedLeads, ...prev]);
+
+                const res = await importLeads(importedLeads);
+                if (res.success) {
+                    toast.success(`${importedLeads.length} leads importados com sucesso!`);
+                    window.location.reload();
+                } else {
+                    toast.error("Erro ao salvar leads importados.");
+                }
             };
             reader.readAsBinaryString(file);
         }
     };
 
-    const activeLead = activeId ? leadsList.find((l) => l.id === activeId) : null;
+    const activeLead = activeId ? leadsList.find((l: any) => l.id === activeId) : null;
 
     return (
         <div className="flex-1 flex flex-col gap-6 overflow-hidden">
@@ -309,6 +338,15 @@ export default function CRMKanban() {
                         />
                         <Button variant="outline" className="rounded-xl border-border">Importar</Button>
                     </div>
+                    <Button
+                        onClick={handleStartOutreach}
+                        disabled={isExporting}
+                        variant="outline"
+                        className="border-primary text-primary rounded-xl hover:bg-primary/5 gap-2"
+                    >
+                        {isExporting ? <RefreshCw className="w-4 h-4 animate-spin" /> : <Bot className="w-4 h-4" />}
+                        Iniciar Prospecção
+                    </Button>
                     <Button
                         onClick={() => setIsAddModalOpen(true)}
                         className="bg-primary text-primary-foreground rounded-xl hover:opacity-90"

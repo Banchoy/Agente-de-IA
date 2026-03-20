@@ -38,11 +38,6 @@ const navItems = [
         icon: Users,
     },
     {
-        name: "Logs de Auditoria",
-        href: "/dashboard/logs",
-        icon: History,
-    },
-    {
         name: "Configurações",
         href: "/dashboard/settings",
         icon: Settings,

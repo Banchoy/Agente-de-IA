@@ -16,6 +16,7 @@ export async function updateAgent(id: string, formData: FormData) {
     const temperature = parseFloat(formData.get("temperature") as string || "0.7");
     const testMode = formData.get("testMode") === "on";
     const testNumber = formData.get("testNumber") as string;
+    const whatsappResponse = formData.get("whatsappResponse") === "on";
 
     await AgentRepository.update(id, {
         name,
@@ -26,7 +27,8 @@ export async function updateAgent(id: string, formData: FormData) {
             systemPrompt,
             temperature,
             testMode,
-            testNumber
+            testNumber,
+            whatsappResponse
         }
     });
 
