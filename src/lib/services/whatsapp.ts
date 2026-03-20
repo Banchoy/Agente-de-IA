@@ -349,5 +349,36 @@ export const WhatsappService = {
 
     getSession: (sessionId: string) => {
         return WhatsappService.sessions.get(sessionId);
+    },
+
+    resumeSessions: async () => {
+        console.log("🔄 [Baileys] Resumindo sessões ativas...");
+        try {
+            // Get all unique session/org pairs that have credentials
+            const sessionsToResume = await db
+                .select({
+                    sessionId: whatsappSessions.sessionId,
+                    organizationId: whatsappSessions.organizationId,
+                })
+                .from(whatsappSessions)
+                .where(eq(whatsappSessions.key, "creds"))
+                .groupBy(whatsappSessions.sessionId, whatsappSessions.organizationId);
+
+            console.log(`📡 [Baileys] Encontradas ${sessionsToResume.length} sessões para restaurar.`);
+
+            for (const { sessionId, organizationId } of sessionsToResume) {
+                console.log(`🔌 [Baileys] Restaurando: ${sessionId}...`);
+                try {
+                    // Chamamos connect sem await para não travar o loop de boot
+                    WhatsappService.connect(sessionId, organizationId).catch(err => {
+                        console.error(`❌ [Baileys] Falha ao restaurar ${sessionId}:`, err);
+                    });
+                } catch (err) {
+                    console.error(`❌ [Baileys] Erro crítico ao disparar restauração de ${sessionId}:`, err);
+                }
+            }
+        } catch (err) {
+            console.error("❌ [Baileys] Erro ao buscar sessões para resumir:", err);
+        }
     }
 };
