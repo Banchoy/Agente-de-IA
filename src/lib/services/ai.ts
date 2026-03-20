@@ -40,6 +40,7 @@ export const AIService = {
         const fallbackModel = "gemini-1.5-pro";
 
         const tryModel = async (modelName: string) => {
+            console.log(`🚀 [AIService] Tentando modelo: ${modelName}`);
             const geminiModel = genAI.getGenerativeModel({
                 model: modelName,
                 systemInstruction: systemPrompt,
@@ -67,13 +68,19 @@ export const AIService = {
         try {
             return await tryModel(primaryModel);
         } catch (err: any) {
-            console.warn(`⚠️ [AIService] Falha com ${primaryModel}: ${err.message}. Tentando fallback: ${fallbackModel}...`);
-            try {
-                return await tryModel(fallbackModel);
-            } catch (fallbackErr: any) {
-                console.error(`❌ [AIService] Todas as tentativas falharam:`, fallbackErr);
-                throw fallbackErr;
+            console.warn(`⚠️ [AIService] Falha com ${primaryModel}: ${err.message}.`);
+            
+            // Se o erro for 404 ou o modelo for o flash, tentamos o pro
+            if (primaryModel !== fallbackModel) {
+                console.log(`🛡️ [AIService] Tentando fallback para: ${fallbackModel}...`);
+                try {
+                    return await tryModel(fallbackModel);
+                } catch (fallbackErr: any) {
+                    console.error(`❌ [AIService] Todas as tentativas de IA falharam.`);
+                    throw fallbackErr;
+                }
             }
+            throw err;
         }
     }
 };

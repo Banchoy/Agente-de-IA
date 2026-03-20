@@ -15,10 +15,8 @@ export const MessageRepository = {
 
     listLatestByOrg: async () => {
         return await withOrgContext(async (tx) => {
-            const organizationId = (tx as any).organizationId;
-            
             // Usando SQL puro com DISTINCT ON para garantir uma linha por lead_id
-            // Removendo ::uuid para evitar erro de sintaxe com o placeholder do Drizzle
+            // Utilizamos current_setting('app.current_org_id') que foi definido no withOrgContext
             const rawResults = await db.execute(sql`
                 SELECT DISTINCT ON (m.lead_id) 
                     m.id, 
@@ -30,7 +28,7 @@ export const MessageRepository = {
                     l.phone as lead_phone
                 FROM messages m
                 JOIN leads l ON m.lead_id = l.id
-                WHERE l.organization_id = ${organizationId}
+                WHERE l.organization_id = current_setting('app.current_org_id')::uuid
                 ORDER BY m.lead_id, m.created_at DESC
             `);
 
