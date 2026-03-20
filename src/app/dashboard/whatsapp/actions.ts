@@ -5,19 +5,21 @@ import { OrganizationRepository } from "@/lib/repositories/organization";
 import { EvolutionService } from "@/lib/services/evolution";
 import { revalidatePath } from "next/cache";
 
+const normalizeUrl = (url: string) => {
+    let normalized = url.trim();
+    if (!normalized) return "";
+    if (!normalized.startsWith("http")) {
+        normalized = `https://${normalized}`;
+    }
+    return normalized.replace(/\/$/, "");
+};
+
 export async function saveEvolutionSettings(formData: FormData) {
     const { orgId: clerkOrgId } = await auth();
     if (!clerkOrgId) throw new Error("Unauthorized");
 
-    let apiUrl = (formData.get("apiUrl") as string).trim();
+    const apiUrl = normalizeUrl(formData.get("apiUrl") as string);
     const apiKey = (formData.get("apiKey") as string).trim();
-
-    // Normalização básica da URL
-    if (!apiUrl.startsWith("http")) {
-        apiUrl = `https://${apiUrl}`;
-    }
-    // Remove barra no final se existir
-    apiUrl = apiUrl.replace(/\/$/, "");
 
     const org = await OrganizationRepository.getByClerkId(clerkOrgId);
     if (!org) throw new Error("Organization not found");
@@ -38,7 +40,8 @@ export async function connectWhatsApp() {
         const org = await OrganizationRepository.getByClerkId(clerkOrgId);
         
         // Use organization specific credentials if available, otherwise fallback to system defaults
-        const apiUrl = org?.evolutionApiUrl || process.env.EVOLUTION_API_URL;
+        const rawApiUrl = org?.evolutionApiUrl || process.env.EVOLUTION_API_URL || "";
+        const apiUrl = normalizeUrl(rawApiUrl);
         const apiKey = org?.evolutionApiKey || process.env.EVOLUTION_API_KEY;
 
         if (!org) throw new Error("Organização não encontrada.");
@@ -83,7 +86,7 @@ export async function disconnectWhatsApp() {
     const org = await OrganizationRepository.getByClerkId(clerkOrgId);
     
     // Fallback to system defaults if organization specific ones are missing
-    const apiUrl = org?.evolutionApiUrl || process.env.EVOLUTION_API_URL;
+    const apiUrl = normalizeUrl(org?.evolutionApiUrl || process.env.EVOLUTION_API_URL || "");
     const apiKey = org?.evolutionApiKey || process.env.EVOLUTION_API_KEY;
 
     if (!org || !apiUrl || !apiKey || !org.evolutionInstanceName) {
