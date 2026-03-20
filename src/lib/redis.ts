@@ -10,7 +10,7 @@ if (!redisUrl) {
 
 export const redis = redisUrl 
     ? new Redis(redisUrl, {
-        tls: {}, // Obrigatório para Upstash
+        tls: { rejectUnauthorized: false }, // Obrigatório para Upstash na Render
         maxRetriesPerRequest: null,
         connectTimeout: 10000, // 10s
         retryStrategy: (times) => {

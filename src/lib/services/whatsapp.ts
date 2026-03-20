@@ -2,6 +2,8 @@ import makeWASocket, {
     DisconnectReason, 
     fetchLatestBaileysVersion, 
     makeCacheableSignalKeyStore,
+    // @ts-ignore
+    makeInMemoryStore,
     AuthenticationCreds,
     SignalDataTypeMap
 } from "@whiskeysockets/baileys";
@@ -112,13 +114,17 @@ async function useDrizzleAuthState(sessionId: string, organizationId: string) {
                 }
             }, logger)
         },
-        saveCreds: () => writeData("creds", creds)
+        saveCreds: () => {
+            console.log(`💾 [Baileys] Salvando credenciais para a sessão: ${sessionId}`);
+            return writeData("creds", creds);
+        }
     };
 }
 
 export const WhatsappService = {
     sessions: new Map<string, any>(),
     connectionPromises: new Map<string, Promise<any>>(),
+    stores: new Map<string, any>(),
 
     deleteSessionFromDb: async (sessionId: string) => {
         console.log(`🧹 [Baileys] Iniciando limpeza profunda da sessão ${sessionId}...`);
@@ -155,6 +161,13 @@ export const WhatsappService = {
 
                 console.log(`🔌 [Baileys] Iniciando nova conexão para: ${sessionId}`);
                 
+                // Inicializar Store para descriptografia robusta
+                if (!WhatsappService.stores.has(sessionId)) {
+                    const store = makeInMemoryStore({ logger: pino({ level: 'silent' }) });
+                    WhatsappService.stores.set(sessionId, store);
+                }
+                const store = WhatsappService.stores.get(sessionId);
+
                 // Otimização Render: Aguarda DB estar pronto
                 try {
                     console.log("⏳ [Baileys] Verificando conexão com o banco...");
@@ -174,7 +187,18 @@ export const WhatsappService = {
                     logger,
                     browser: ["Agente de IA", "Chrome", "1.0.0"],
                     generateHighQualityLinkPreview: true,
+                    // Implementar getMessage do store para evitar erros de descriptografia
+                    getMessage: async (key) => {
+                        if (store) {
+                            const msg = await store.loadMessage(key.remoteJid!, key.id!);
+                            return msg?.message || undefined;
+                        }
+                        return undefined;
+                    }
                 });
+
+                // Ligar store ao socket
+                if (store) store.bind(sock.ev);
 
                 WhatsappService.sessions.set(sessionId, { sock, qr: null, status: "connecting" });
 
@@ -231,17 +255,18 @@ export const WhatsappService = {
                                 })
                                 .where(eq(organizations.id, organizationId));
                         } else if (connection === "close") {
-                            const statusCode = (lastDisconnect?.error as Boom)?.output?.statusCode;
+                            const error = lastDisconnect?.error as Boom;
+                            const statusCode = error?.output?.statusCode;
                             const isLoggedOut = statusCode === DisconnectReason.loggedOut;
                             const shouldReconnect = !isLoggedOut;
                             
-                            console.log(`❌ [Baileys] Conexão fechada (${sessionId}). Reason: ${statusCode}. Reconectando: ${shouldReconnect}`);
+                            console.error(`❌ [Baileys] Conexão fechada (${sessionId}). Status: ${statusCode}. Erro:`, error || "Erro desconhecido");
                             
                             if (shouldReconnect) {
                                 WhatsappService.sessions.delete(sessionId);
                                 setTimeout(() => WhatsappService.connect(organizationId, sessionId), 5000);
                             } else {
-                                console.log(`⚠️ [Baileys] Erro 401/Logout. Limpando...`);
+                                console.log(`⚠️ [Baileys] Logout detectado. Limpando dados da sessão...`);
                                 await WhatsappService.deleteSessionFromDb(sessionId);
                                 WhatsappService.sessions.delete(sessionId);
                                 
@@ -258,41 +283,54 @@ export const WhatsappService = {
 
                 sock.ev.on("creds.update", saveCreds);
 
-                // Logger de eventos genérico para diagnóstico (pode ser removido depois)
-                sock.ev.on("messages.upsert", ({ type, messages }) => {
-                    console.log(`🔍 [Baileys] Evento upsert: type=${type}, count=${messages.length}`);
-                });
 
-                // IA and History Handler
+                // IA and History Handler (Merged and Highly Logged)
                 sock.ev.on("messages.upsert", async ({ messages, type }) => {
-                    console.log(`🔍 [Baileys] Entrando handler upsert: type=${type}, count=${messages.length}`);
+                    console.log(`🔍 [Baileys] Entrando no Processamento de Upsert. Tipo: ${type}, Total de mensagens: ${messages.length}`);
                     
-                    // Respondemos apenas para notify (mensagens novas em tempo real)
-                    // Mas salvamos append (mensagens de sincronia) para histórico se necessário
-                    if (type !== "notify" && type !== "append") return;
+                    if (type !== "notify" && type !== "append") {
+                        console.log(`⏩ [Baileys] Ignorando upsert tipo ${type}`);
+                        return;
+                    }
 
-                    for (const msg of messages) {
+                    for (const [index, msg] of messages.entries()) {
+                        console.log(`📩 [Baileys] Analisando mensagem [${index+1}/${messages.length}]...`);
                         try {
                             if (!msg.message) {
-                                console.log(`⏩ [Baileys] Mensagem sem conteúdo (provavelmente evento de sistema).`);
+                                console.log(`⏩ [Baileys] Mensagem [${index+1}] SEM CONTEÚDO (msg.message is null).`);
                                 continue;
                             }
 
                             const jid = msg.key.remoteJid;
-                            if (!jid || !jid.endsWith("@s.whatsapp.net")) continue;
+                            if (!jid) {
+                                console.log(`⏩ [Baileys] Mensagem [${index+1}] SEM JID remoto.`);
+                                continue;
+                            }
 
+                            if (!jid.endsWith("@s.whatsapp.net")) {
+                                console.log(`⏩ [Baileys] Mensagem de grupo/status ignorado: ${jid}`);
+                                continue;
+                            }
+
+                            // Tentar capturar texto de várias formas possíveis
                             const text = msg.message.conversation || 
                                          msg.message.extendedTextMessage?.text || 
                                          msg.message.imageMessage?.caption ||
+                                         msg.message.videoMessage?.caption ||
+                                         msg.message.buttonsResponseMessage?.selectedButtonId ||
+                                         msg.message.listResponseMessage?.title ||
                                          "";
                             
-                            if (!text) continue;
+                            if (!text) {
+                                console.log(`⏩ [Baileys] Mensagem [${index+1}] sem texto útil. Chaves: ${Object.keys(msg.message).join(',')}`);
+                                continue;
+                            }
 
                             const phone = jid.split("@")[0];
                             const isFromMe = !!msg.key.fromMe;
                             const role = isFromMe ? "assistant" : "user";
 
-                            console.log(`📩 [Baileys] Processando mensagem (${role}) de ${phone}: ${text.substring(0, 50)}...`);
+                            console.log(`✨ [Baileys] MENSAGEM VÁLIDA: (${role}) de ${phone}. Texto: "${text.substring(0, 50)}..."`);
 
                             // 0. Get Organization
                             const org = await OrganizationRepository.getById(organizationId);
