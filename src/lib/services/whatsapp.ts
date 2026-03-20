@@ -288,7 +288,9 @@ export const WhatsappService = {
                                 continue;
                             }
 
-                            if (!jid.endsWith("@s.whatsapp.net")) {
+                            // Permitir tanto o formato clássico (@s.whatsapp.net) quanto o novo (@lid)
+                            const isIndividual = jid.endsWith("@s.whatsapp.net") || jid.endsWith("@lid");
+                            if (!isIndividual) {
                                 console.log(`⏩ [Baileys] Mensagem de grupo/status ignorado: ${jid}`);
                                 continue;
                             }
