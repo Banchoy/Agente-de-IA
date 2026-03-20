@@ -349,8 +349,14 @@ export const WhatsappService = {
 
                             // 3. Find Mapped Agent (or fallback)
                             console.log(`🤖 [Baileys] Buscando agente para a instância: ${sessionId}`);
-                            const agents = await AgentRepository.listByOrgIdSystem(org.id);
-                            console.log(`🤖 [Baileys] Agentes encontrados na org: ${agents.length}`);
+                            let agents = [];
+                            try {
+                                agents = await AgentRepository.listByOrgIdSystem(org.id);
+                                console.log(`🤖 [Baileys] Agentes encontrados na org: ${agents.length}`);
+                            } catch (err) {
+                                console.error(`❌ [Baileys] Erro ao buscar agentes no banco:`, err);
+                                continue;
+                            }
                             
                             // Log de mapeamento para depuração
                             agents.forEach(a => console.log(`   - Agente: ${a.name}, InstanceName no DB: ${(a as any).whatsappInstanceName}`));
