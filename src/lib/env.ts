@@ -18,6 +18,7 @@ const envSchema = z.object({
     META_APP_SECRET: z.string().optional(),
     NEXT_PUBLIC_META_APP_ID: z.string().optional(),
     NEXT_PUBLIC_APP_URL: z.string().optional(),
+    REDIS_URL: z.string().optional(),
 });
 
 console.log("🔍 [env.ts] Keys encontradas em process.env:", Object.keys(process.env).filter(k => k.includes("META") || k.includes("NEXT_PUBLIC_APP")));

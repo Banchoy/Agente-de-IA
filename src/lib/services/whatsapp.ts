@@ -9,7 +9,7 @@ import { Boom } from "@hapi/boom";
 import pino from "pino";
 import { db } from "@/lib/db";
 import { whatsappSessions, organizations } from "@/lib/db/schema";
-import { eq, and } from "drizzle-orm";
+import { eq, and, sql } from "drizzle-orm";
 import QRCode from "qrcode";
 import { OrganizationRepository } from "@/lib/repositories/organization";
 import { AgentRepository } from "@/lib/repositories/agent";
@@ -146,6 +146,16 @@ export const WhatsappService = {
                 }
 
                 console.log(`🔌 [Baileys] Iniciando nova conexão para: ${sessionId}`);
+                
+                // Otimização Render: Aguarda DB estar pronto
+                try {
+                    console.log("⏳ [Baileys] Verificando conexão com o banco...");
+                    await db.execute(sql`SELECT 1`);
+                } catch (e) {
+                    console.warn("⚠️ [Baileys] Banco ainda não respondeu, aguardando 5s...");
+                    await new Promise(r => setTimeout(r, 5000));
+                }
+
                 const { state, saveCreds } = await useDrizzleAuthState(sessionId, organizationId);
                 const { version } = await fetchLatestBaileysVersion();
 
