@@ -238,21 +238,37 @@ export const WhatsappService = {
 
                 sock.ev.on("creds.update", saveCreds);
 
-                // IA Handler
+                // Logger de eventos genérico para diagnóstico (pode ser removido depois)
+                sock.ev.on("messages.upsert", ({ type, messages }) => {
+                    console.log(`🔍 [Baileys] Evento upsert: type=${type}, count=${messages.length}`);
+                });
+
+                // IA and History Handler
                 sock.ev.on("messages.upsert", async ({ messages, type }) => {
-                    if (type !== "notify") return;
+                    // Permitimos notify e append para garantir que pegamos mensagens síncronas
+                    if (type !== "notify" && type !== "append") return;
+
                     for (const msg of messages) {
-                        if (!msg.message || msg.key.fromMe) continue;
-                        const jid = msg.key.remoteJid;
-                        if (!jid || !jid.endsWith("@s.whatsapp.net")) continue;
-
-                        const text = msg.message.conversation || msg.message.extendedTextMessage?.text;
-                        if (!text) continue;
-
-                        const phone = jid.split("@")[0];
-                        console.log(`📩 [Baileys] Mensagem recebida de ${phone}: ${text.substring(0, 50)}...`);
-
                         try {
+                            if (!msg.message) continue;
+
+                            const jid = msg.key.remoteJid;
+                            if (!jid || !jid.endsWith("@s.whatsapp.net")) continue;
+
+                            const text = msg.message.conversation || 
+                                         msg.message.extendedTextMessage?.text || 
+                                         msg.message.imageMessage?.caption ||
+                                         "";
+                            
+                            if (!text) continue;
+
+                            const phone = jid.split("@")[0];
+                            const isFromMe = !!msg.key.fromMe;
+                            const role = isFromMe ? "assistant" : "user";
+
+                            console.log(`📩 [Baileys] Processando mensagem (${role}) de ${phone}: ${text.substring(0, 50)}...`);
+
+                            // 0. Get Organization
                             const org = await OrganizationRepository.getById(organizationId);
                             if (!org) {
                                 console.warn(`⚠️ [Baileys] Organização ${organizationId} não encontrada.`);
@@ -272,14 +288,17 @@ export const WhatsappService = {
                                 });
                             }
 
-                            // 2. Save Incoming Message
+                            // 2. Save Message to DB (Sempre salvamos para histórico)
                             await (MessageRepository as any).createSystem({
                                 organizationId: org.id,
                                 leadId: lead.id,
-                                role: "user",
+                                role: role,
                                 content: text
                             });
-                            console.log(`✅ [Baileys] Mensagem salva no histórico (Lead ID: ${lead.id})`);
+                            console.log(`✅ [Baileys] Mensagem (${role}) salva no histórico.`);
+
+                            // 3. AI Respond Logic (APENAS para mensagens recebidas)
+                            if (isFromMe) continue; // Não responde a si mesmo
 
                             // 3. Find Mapped Agent (or fallback)
                             const agents = await AgentRepository.listByOrgIdSystem(org.id);
