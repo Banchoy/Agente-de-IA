@@ -132,6 +132,12 @@ export const WhatsappService = {
     },
 
     connect: async (organizationId: string, sessionId: string) => {
+        // Validação básica para evitar erros de sintaxe UUID no banco
+        if (!organizationId || organizationId.includes('wa_')) {
+            console.error(`❌ [Baileys] organizationId inválido detectado: ${organizationId}. Abortando conexão para ${sessionId}`);
+            return;
+        }
+
         if (WhatsappService.connectionPromises.has(sessionId)) {
             console.log(`ℹ️ [Baileys] Conexão já solicitada para ${sessionId}, aguardando promise...`);
             return WhatsappService.connectionPromises.get(sessionId);
@@ -369,8 +375,8 @@ export const WhatsappService = {
             for (const { sessionId, organizationId } of sessionsToResume) {
                 console.log(`🔌 [Baileys] Restaurando: ${sessionId}...`);
                 try {
-                    // Chamamos connect sem await para não travar o loop de boot
-                    WhatsappService.connect(sessionId, organizationId).catch(err => {
+                    // Chamamos connect na ordem correta: (organizationId, sessionId)
+                    WhatsappService.connect(organizationId, sessionId).catch(err => {
                         console.error(`❌ [Baileys] Falha ao restaurar ${sessionId}:`, err);
                     });
                 } catch (err) {
