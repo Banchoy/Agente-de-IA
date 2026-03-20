@@ -36,8 +36,14 @@ export async function connectWhatsApp() {
         if (!clerkOrgId) throw new Error("Não autorizado. Faça login novamente.");
 
         const org = await OrganizationRepository.getByClerkId(clerkOrgId);
-        if (!org || !org.evolutionApiUrl || !org.evolutionApiKey) {
-            throw new Error("Credenciais da Evolution API não configuradas corretamente.");
+        
+        // Use organization specific credentials if available, otherwise fallback to system defaults
+        const apiUrl = org?.evolutionApiUrl || process.env.EVOLUTION_API_URL;
+        const apiKey = org?.evolutionApiKey || process.env.EVOLUTION_API_KEY;
+
+        if (!org) throw new Error("Organização não encontrada.");
+        if (!apiUrl || !apiKey) {
+            throw new Error("Credenciais da Evolution API não configuradas corretamente no sistema.");
         }
 
         // Usamos um nome estável por organização para evitar a criação de múltiplas instâncias
@@ -48,8 +54,8 @@ export async function connectWhatsApp() {
 
         const result = await EvolutionService.connect(
             org.id,
-            org.evolutionApiUrl,
-            org.evolutionApiKey,
+            apiUrl,
+            apiKey,
             instanceName
         );
 
@@ -75,13 +81,18 @@ export async function disconnectWhatsApp() {
     if (!clerkOrgId) throw new Error("Unauthorized");
 
     const org = await OrganizationRepository.getByClerkId(clerkOrgId);
-    if (!org || !org.evolutionApiUrl || !org.evolutionApiKey || !org.evolutionInstanceName) {
+    
+    // Fallback to system defaults if organization specific ones are missing
+    const apiUrl = org?.evolutionApiUrl || process.env.EVOLUTION_API_URL;
+    const apiKey = org?.evolutionApiKey || process.env.EVOLUTION_API_KEY;
+
+    if (!org || !apiUrl || !apiKey || !org.evolutionInstanceName) {
         return;
     }
 
     await EvolutionService.logout(
-        org.evolutionApiUrl,
-        org.evolutionApiKey,
+        apiUrl,
+        apiKey,
         org.evolutionInstanceName
     );
 
