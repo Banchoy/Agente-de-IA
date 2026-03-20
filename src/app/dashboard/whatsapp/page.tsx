@@ -14,20 +14,9 @@ export default async function WhatsAppPage() {
     const org = await OrganizationRepository.getByClerkId(clerkOrgId);
     if (!org) redirect("/org-selection");
 
-    const defaultApiUrl = process.env.EVOLUTION_API_URL;
-    const defaultApiKey = process.env.EVOLUTION_API_KEY;
-    
-    const isConfigured = (!!org.evolutionApiUrl && !!org.evolutionApiKey) || (!!defaultApiUrl && !!defaultApiKey);
+    // Como estamos usando Baileys interno, o sistema está sempre "configurado" para tentar conexão
+    const isConfigured = true; 
     const isConnected = org.evolutionInstanceStatus === "connected";
-
-    console.log("🔍 [WhatsAppPage] State:", { 
-        orgId: org.id, 
-        isConfigured, 
-        isConnected, 
-        status: org.evolutionInstanceStatus,
-        hasApiUrl: !!org.evolutionApiUrl,
-        hasApiKey: !!org.evolutionApiKey
-    });
 
     return (
         <div className="space-y-6">
@@ -48,18 +37,7 @@ export default async function WhatsAppPage() {
             <div className="grid gap-8 lg:grid-cols-3">
                 {/* Instance Status & Connect (Main View) */}
                 <div className="lg:col-span-2 space-y-6">
-                    {!isConfigured ? (
-                        <div className="rounded-3xl border-2 border-dashed border-border bg-card p-12 text-center flex flex-col items-center">
-                            <div className="h-20 w-20 bg-accent rounded-full flex items-center justify-center text-muted-foreground mb-6">
-                                <WifiOff size={40} />
-                            </div>
-                            <h3 className="text-xl font-bold text-foreground">Aguardando Configuração</h3>
-                            <p className="text-muted-foreground max-w-sm mt-2 mb-8 lowercase">
-                                as credenciais da evolution api não foram encontradas. fale com o administrador.
-                            </p>
-                        </div>
-                    ) : (
-                        <div className="rounded-3xl border border-border bg-card shadow-xl overflow-hidden ring-1 ring-white/10">
+                    <div className="rounded-3xl border border-border bg-card shadow-xl overflow-hidden ring-1 ring-white/10">
                             <div className="bg-muted/30 p-8 border-b border-border flex flex-col md:flex-row md:items-center justify-between gap-6">
                                 <div className="flex items-center gap-5">
                                     <div className={`h-16 w-16 rounded-2xl flex items-center justify-center shadow-inner ${isConnected ? 'bg-green-500 text-white' : 'bg-primary text-primary-foreground'}`}>
@@ -135,7 +113,7 @@ export default async function WhatsAppPage() {
                                 )}
                             </div>
                         </div>
-                    )}
+                    </div>
                 </div>
 
                 {/* Right/Side: Instructions & Advanced Settings */}
