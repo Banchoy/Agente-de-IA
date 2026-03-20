@@ -20,6 +20,15 @@ export default async function WhatsAppPage() {
     const isConfigured = (!!org.evolutionApiUrl && !!org.evolutionApiKey) || (!!defaultApiUrl && !!defaultApiKey);
     const isConnected = org.evolutionInstanceStatus === "connected";
 
+    console.log("🔍 [WhatsAppPage] State:", { 
+        orgId: org.id, 
+        isConfigured, 
+        isConnected, 
+        status: org.evolutionInstanceStatus,
+        hasApiUrl: !!org.evolutionApiUrl,
+        hasApiKey: !!org.evolutionApiKey
+    });
+
     return (
         <div className="space-y-6">
             <div className="flex flex-col md:flex-row md:items-end justify-between gap-4">
