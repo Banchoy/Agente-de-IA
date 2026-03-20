@@ -117,6 +117,11 @@ export const EvolutionService = {
     },
 
     createInstance: async (apiUrl: string, apiKey: string, instanceName: string) => {
+        // Obtermos a URL do webhook (pode ser via env ou inferida)
+        // Se estivermos no Railway, a URL pública é necessária para a Evolution nos alcançar,
+        // mas a URL interna é mais estável se o Evolution estiver no mesmo cluster.
+        const webhookUrl = `${process.env.NEXT_PUBLIC_APP_URL || ''}/api/webhooks/evolution`;
+
         const response = await fetch(`${apiUrl}/instance/create`, {
             method: "POST",
             headers: {
@@ -125,16 +130,30 @@ export const EvolutionService = {
             },
             body: JSON.stringify({
                 instanceName,
-                token: apiKey, // Usamos a key global como token para simplificar a autenticação das chamadas
+                token: apiKey,
                 integration: "WHATSAPP-BAILEYS",
                 qrcode: true,
-                // Opções de estabilidade recomendadas pelo repositório oficial:
                 alwaysOnline: true,
                 readMessages: true,
                 readStatus: true,
-                syncFullHistory: false, // Evita sobrecarga inicial
+                syncFullHistory: false,
                 rejectCall: false,
-                groupsIgnore: false
+                groupsIgnore: false,
+                // Webhook configurado na criação para evitar perda de eventos iniciais
+                webhook: {
+                    url: webhookUrl,
+                    enabled: true,
+                    byEvents: false, // Envia todos por padrão ou filtramos? v2 prefere false para enviar básicos
+                    base64: true,
+                    events: [
+                        "QRCODE_UPDATED",
+                        "MESSAGES_UPSERT",
+                        "MESSAGES_UPDATE",
+                        "CONNECTION_UPDATE",
+                        "TYPEBOT_START",
+                        "TYPEBOT_UNKNOWN_MESSAGE"
+                    ]
+                }
             })
         });
 

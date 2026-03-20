@@ -52,14 +52,31 @@ export async function connectWhatsApp() {
         // Usamos um nome estável por organização para evitar a criação de múltiplas instâncias
         const instanceName = `inst_${org.id.split('-')[0]}`;
 
-        // 🚀 SOLUÇÃO DEFINITIVA: 
-        // Deletamos a instância existente antes de conectar para garantir um estado limpo 
-        // e evitar o erro de "instância já em uso" sem QR Code.
-        await EvolutionService.deleteInstance(apiUrl, apiKey, instanceName);
+        // 🚀 MELHORIA: Tentar verificar se a instância já existe e está funcional antes de deletar
+        try {
+            const instances = await EvolutionService.getInstances(apiUrl, apiKey);
+            const existing = instances.find((i: any) => i.instanceName === instanceName || i.name === instanceName);
+            
+            if (existing && (existing.status === 'open' || existing.connectionStatus === 'open')) {
+                console.log(`✅ Instância ${instanceName} já está ativa e conectada. Reutilizando.`);
+                await OrganizationRepository.update(org.id, {
+                    evolutionInstanceName: instanceName,
+                    evolutionInstanceStatus: "connected"
+                });
+                revalidatePath("/dashboard/whatsapp");
+                return { success: true, status: "connected" };
+            }
 
-        // Aguarda 3 segundos para o servidor processar a deleção
-        console.log("⏳ Aguardando limpeza do servidor...");
-        await new Promise(resolve => setTimeout(resolve, 3000));
+            // Se existe mas não está conectada, tentamos apenas dar o connect sem deletar primeiro
+            // Mas para garantir um QR fresco na v2, às vezes deletar é melhor se estiver em 'close'.
+            if (existing) {
+                console.log(`ℹ️ Instância ${instanceName} existe mas não está conectada (Status: ${existing.status}). Reiniciando...`);
+                await EvolutionService.deleteInstance(apiUrl, apiKey, instanceName);
+                await new Promise(resolve => setTimeout(resolve, 5000)); // 5s para limpeza v2
+            }
+        } catch (e) {
+            console.warn("⚠️ Falha ao verificar instâncias existentes, prosseguindo com fluxo padrão.");
+        }
 
         // Connect via service
         console.log(`🚀 Iniciando nova conexão para instância: ${instanceName}`);
