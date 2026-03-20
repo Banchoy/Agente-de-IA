@@ -36,32 +36,44 @@ export const AIService = {
         }
 
         const genAI = new GoogleGenerativeAI(apiKey);
-        const modelName = model || "gemini-1.5-flash";
-        const geminiModel = genAI.getGenerativeModel({
-            model: modelName,
-            systemInstruction: systemPrompt,
-            generationConfig: {
-                temperature: temperature
+        const primaryModel = model || "gemini-1.5-flash";
+        const fallbackModel = "gemini-1.5-pro";
+
+        const tryModel = async (modelName: string) => {
+            const geminiModel = genAI.getGenerativeModel({
+                model: modelName,
+                systemInstruction: systemPrompt,
+                generationConfig: {
+                    temperature: temperature
+                }
+            });
+
+            const history = messages
+                .filter(m => m.role !== "system")
+                .map(m => ({
+                    role: m.role === "model" ? "model" : "user" as any,
+                    parts: [{ text: m.content }]
+                }));
+
+            const chat = geminiModel.startChat({
+                history: history.slice(0, -1),
+            });
+
+            const lastMessage = history[history.length - 1];
+            const result = await chat.sendMessage(lastMessage.parts[0].text);
+            return result.response.text();
+        };
+
+        try {
+            return await tryModel(primaryModel);
+        } catch (err: any) {
+            console.warn(`⚠️ [AIService] Falha com ${primaryModel}: ${err.message}. Tentando fallback: ${fallbackModel}...`);
+            try {
+                return await tryModel(fallbackModel);
+            } catch (fallbackErr: any) {
+                console.error(`❌ [AIService] Todas as tentativas falharam:`, fallbackErr);
+                throw fallbackErr;
             }
-        });
-
-        // Convert messages to Gemini format
-        // Gemini expects roles 'user' and 'model'. 
-        // Our 'system' prompt is passed in systemInstruction above.
-        const history = messages
-            .filter(m => m.role !== "system")
-            .map(m => ({
-                role: m.role === "model" ? "model" : "user" as any,
-                parts: [{ text: m.content }]
-            }));
-
-        const chat = geminiModel.startChat({
-            history: history.slice(0, -1),
-        });
-
-        const lastMessage = history[history.length - 1];
-        const result = await chat.sendMessage(lastMessage.parts[0].text);
-
-        return result.response.text();
+        }
     }
 };

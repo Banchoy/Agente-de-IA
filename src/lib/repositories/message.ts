@@ -18,6 +18,7 @@ export const MessageRepository = {
             const organizationId = (tx as any).organizationId;
             
             // Usando SQL puro com DISTINCT ON para garantir uma linha por lead_id
+            // Removendo ::uuid para evitar erro de sintaxe com o placeholder do Drizzle
             const rawResults = await db.execute(sql`
                 SELECT DISTINCT ON (m.lead_id) 
                     m.id, 
@@ -29,7 +30,7 @@ export const MessageRepository = {
                     l.phone as lead_phone
                 FROM messages m
                 JOIN leads l ON m.lead_id = l.id
-                WHERE l.organization_id = ${organizationId}::uuid
+                WHERE l.organization_id = ${organizationId}
                 ORDER BY m.lead_id, m.created_at DESC
             `);
 
