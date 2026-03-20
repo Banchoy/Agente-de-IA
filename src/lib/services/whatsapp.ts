@@ -19,7 +19,6 @@ const logger = pino({ level: "silent" });
 
 /**
  * Função recursiva para converter objetos {type: 'Buffer', data: [...]} de volta para Buffer real.
- * Necessário para que o Baileys reconheça as chaves binárias salvas no banco.
  */
 function fixBuffers(data: any): any {
     if (Array.isArray(data)) {
@@ -117,128 +116,146 @@ async function useDrizzleAuthState(sessionId: string, organizationId: string) {
 
 export const WhatsappService = {
     sessions: new Map<string, any>(),
+    connectionPromises: new Map<string, Promise<any>>(),
 
     deleteSessionFromDb: async (sessionId: string) => {
-        console.log(`🧹 [Baileys] Limpando dados da sessão ${sessionId} do banco de dados...`);
-        await db.delete(whatsappSessions)
-            .where(eq(whatsappSessions.sessionId, sessionId));
+        console.log(`🧹 [Baileys] Iniciando limpeza profunda da sessão ${sessionId}...`);
+        try {
+            const result = await db.delete(whatsappSessions)
+                .where(eq(whatsappSessions.sessionId, sessionId));
+            console.log(`✅ [Baileys] Dados da sessão ${sessionId} removidos do banco.`);
+        } catch (err) {
+            console.error(`❌ [Baileys] Erro ao limpar banco de dados para ${sessionId}:`, err);
+        }
     },
 
     connect: async (organizationId: string, sessionId: string) => {
-        // Idempotência: Evitar múltiplas conexões simultâneas
-        if (WhatsappService.sessions.has(sessionId)) {
-            const existing = WhatsappService.sessions.get(sessionId);
-            if (existing.status === "open" || existing.status === "connecting") {
-                console.log(`ℹ️ [Baileys] Já existe uma conexão em andamento para ${sessionId} (${existing.status})`);
-                return existing.sock;
-            }
+        // Bloqueio de Concorrência (Promise Lock)
+        if (WhatsappService.connectionPromises.has(sessionId)) {
+            console.log(`ℹ️ [Baileys] Conexão já solicitada para ${sessionId}, aguardando promise...`);
+            return WhatsappService.connectionPromises.get(sessionId);
         }
 
-        console.log(`🔌 [Baileys] Solicitando conexão para: ${sessionId}`);
-        const { state, saveCreds } = await useDrizzleAuthState(sessionId, organizationId);
-        const { version } = await fetchLatestBaileysVersion();
-
-        const sock = makeWASocket({
-            version,
-            auth: state,
-            printQRInTerminal: false,
-            logger,
-            browser: ["Agente de IA", "Chrome", "1.0.0"],
-            generateHighQualityLinkPreview: true,
-        });
-
-        WhatsappService.sessions.set(sessionId, { sock, qr: null, status: "connecting" });
-
-        sock.ev.on("connection.update", async (update) => {
-            const { connection, lastDisconnect, qr } = update;
-
-            const session = WhatsappService.sessions.get(sessionId);
-            if (session) {
-                if (qr) {
-                    try {
-                        const qrBase64 = await QRCode.toDataURL(qr);
-                        session.qr = qrBase64;
-                    } catch (err) {
-                        console.error("❌ Erro ao gerar QR Base64:", err);
+        const connectionPromise = (async () => {
+            try {
+                // Verificar se já está aberto
+                if (WhatsappService.sessions.has(sessionId)) {
+                    const existing = WhatsappService.sessions.get(sessionId);
+                    if (existing.status === "open") {
+                        console.log(`✅ [Baileys] Sessão ${sessionId} já está ATIVA.`);
+                        return existing.sock;
                     }
                 }
-                if (connection) session.status = connection;
-            }
 
-            if (qr) {
-                console.log(`📡 [Baileys] Novo QR Code gerado para sessão: ${sessionId}`);
-            }
+                console.log(`🔌 [Baileys] Iniciando nova conexão para: ${sessionId}`);
+                const { state, saveCreds } = await useDrizzleAuthState(sessionId, organizationId);
+                const { version } = await fetchLatestBaileysVersion();
 
-            if (connection === "close") {
-                const statusCode = (lastDisconnect?.error as Boom)?.output?.statusCode;
-                // Reason 401 é Logout/Token inválido
-                const isLoggedOut = statusCode === DisconnectReason.loggedOut;
-                const shouldReconnect = !isLoggedOut;
-                
-                console.log(`❌ [Baileys] Conexão fechada (${sessionId}). Reason: ${statusCode}. Reconectando: ${shouldReconnect}`);
-                
-                if (shouldReconnect) {
-                    WhatsappService.sessions.delete(sessionId);
-                    setTimeout(() => WhatsappService.connect(organizationId, sessionId), 5000);
-                } else {
-                    console.log(`⚠️ [Baileys] Sessão ${sessionId} corrompida ou deslogada (401). Limpando...`);
-                    await WhatsappService.deleteSessionFromDb(sessionId);
-                    WhatsappService.sessions.delete(sessionId);
+                const sock = makeWASocket({
+                    version,
+                    auth: state,
+                    printQRInTerminal: false,
+                    logger,
+                    browser: ["Agente de IA", "Chrome", "1.0.0"],
+                    generateHighQualityLinkPreview: true,
+                });
+
+                WhatsappService.sessions.set(sessionId, { sock, qr: null, status: "connecting" });
+
+                sock.ev.on("connection.update", async (update) => {
+                    const { connection, lastDisconnect, qr } = update;
+                    const session = WhatsappService.sessions.get(sessionId);
                     
-                    await db.update(organizations)
-                        .set({ evolutionInstanceStatus: "disconnected" })
-                        .where(eq(organizations.id, organizationId));
-                }
-            } else if (connection === "open") {
-                console.log(`✅ [Baileys] Conexão ativa: ${sessionId}`);
-                await db.update(organizations)
-                    .set({ 
-                        evolutionInstanceStatus: "connected", 
-                        evolutionInstanceName: sessionId 
-                    })
-                    .where(eq(organizations.id, organizationId));
+                    if (session) {
+                        if (qr) {
+                            try {
+                                session.qr = await QRCode.toDataURL(qr);
+                            } catch (err) {
+                                console.error("❌ Erro ao gerar QR Base64:", err);
+                            }
+                        }
+                        if (connection) session.status = connection;
+                    }
+
+                    if (qr) console.log(`📡 [Baileys] QR Code gerado para ${sessionId}`);
+
+                    if (connection === "close") {
+                        const statusCode = (lastDisconnect?.error as Boom)?.output?.statusCode;
+                        const isLoggedOut = statusCode === DisconnectReason.loggedOut;
+                        const shouldReconnect = !isLoggedOut;
+                        
+                        console.log(`❌ [Baileys] Conexão fechada (${sessionId}). Reason: ${statusCode}. Reconectando: ${shouldReconnect}`);
+                        
+                        if (shouldReconnect) {
+                            WhatsappService.sessions.delete(sessionId);
+                            setTimeout(() => WhatsappService.connect(organizationId, sessionId), 5000);
+                        } else {
+                            console.log(`⚠️ [Baileys] Erro crítico (401/Logout). Limpando tudo para ${sessionId}...`);
+                            await WhatsappService.deleteSessionFromDb(sessionId);
+                            WhatsappService.sessions.delete(sessionId);
+                            
+                            await db.update(organizations)
+                                .set({ evolutionInstanceStatus: "disconnected" })
+                                .where(eq(organizations.id, organizationId));
+                        }
+                    } else if (connection === "open") {
+                        console.log(`✅ [Baileys] Conectado e autenticado: ${sessionId}`);
+                        await db.update(organizations)
+                            .set({ evolutionInstanceStatus: "connected", evolutionInstanceName: sessionId })
+                            .where(eq(organizations.id, organizationId));
+                    }
+                });
+
+                sock.ev.on("creds.update", saveCreds);
+
+                // IA Handler
+                sock.ev.on("messages.upsert", async ({ messages, type }) => {
+                    if (type !== "notify") return;
+                    for (const msg of messages) {
+                        if (!msg.message || msg.key.fromMe) continue;
+                        const jid = msg.key.remoteJid;
+                        if (!jid || !jid.endsWith("@s.whatsapp.net")) continue;
+
+                        const text = msg.message.conversation || msg.message.extendedTextMessage?.text;
+                        if (!text) continue;
+
+                        try {
+                            const org = await OrganizationRepository.getById(organizationId);
+                            if (!org) continue;
+                            const agents = await AgentRepository.listByOrgId(org.id);
+                            const agent = agents[0];
+                            if (!agent) continue;
+                            const config = (agent.config as any) || {};
+
+                            const aiResponse = await AIService.generateResponse(
+                                config.provider || "google",
+                                config.model || "gemini-1.5-flash",
+                                config.systemPrompt || "Você é um assistente virtual.",
+                                [{ role: "user", content: text }]
+                            );
+                            await sock.sendMessage(jid, { text: aiResponse });
+                        } catch (err) {
+                            console.error("❌ Erro no processamento de IA:", err);
+                        }
+                    }
+                });
+
+                return sock;
+            } catch (err) {
+                console.error(`❌ [Baileys] Erro no fluxo de conexão para ${sessionId}:`, err);
+                throw err;
+            } finally {
+                // Liberar lock após a tentativa inicial
+                setTimeout(() => {
+                    if (WhatsappService.connectionPromises.get(sessionId) === connectionPromise) {
+                        WhatsappService.connectionPromises.delete(sessionId);
+                    }
+                }, 2000);
             }
-        });
+        })();
 
-        sock.ev.on("creds.update", saveCreds);
-
-        // Handler de mensagens da IA
-        sock.ev.on("messages.upsert", async ({ messages, type }) => {
-            if (type !== "notify") return;
-            for (const msg of messages) {
-                if (!msg.message || msg.key.fromMe) continue;
-                const jid = msg.key.remoteJid;
-                if (!jid) continue;
-
-                const textContent = msg.message.conversation || msg.message.extendedTextMessage?.text;
-                if (!textContent) continue;
-
-                try {
-                    const org = await OrganizationRepository.getById(organizationId);
-                    if (!org) continue;
-
-                    const agents = await AgentRepository.listByOrgId(org.id);
-                    const agent = agents[0];
-                    if (!agent) continue;
-
-                    const config = (agent.config as any) || {};
-                    if (config.testMode && config.testNumber && jid.split('@')[0] !== config.testNumber) continue;
-
-                    const aiResponse = await AIService.generateResponse(
-                        config.provider || "google",
-                        config.model || "gemini-1.5-flash",
-                        config.systemPrompt || "Você é um assistente virtual.",
-                        [{ role: "user", content: textContent }]
-                    );
-
-                    await sock.sendMessage(jid, { text: aiResponse });
-                } catch (err) {
-                    console.error("❌ Error IA Response:", err);
-                }
-            }
-        });
-
-        return sock;
+        WhatsappService.connectionPromises.set(sessionId, connectionPromise);
+        return connectionPromise;
     },
 
     getSession: (sessionId: string) => {

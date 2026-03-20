@@ -71,7 +71,9 @@ export async function disconnectWhatsApp() {
         const session = WhatsappService.getSession(sessionId);
 
         if (session && session.sock) {
-            await session.sock.logout();
+            try {
+                await session.sock.logout();
+            } catch (e) {}
             WhatsappService.sessions.delete(sessionId);
         }
 
@@ -82,5 +84,41 @@ export async function disconnectWhatsApp() {
         revalidatePath("/dashboard/whatsapp");
     } catch (error: any) {
         console.error("❌ Erro ao desconectar:", error.message);
+    }
+}
+
+export async function resetWhatsApp() {
+    try {
+        const { orgId: clerkOrgId } = await auth();
+        if (!clerkOrgId) throw new Error("Unauthorized");
+
+        const org = await OrganizationRepository.getByClerkId(clerkOrgId);
+        if (!org) throw new Error("Organization not found");
+
+        const sessionId = `wa_${org.id.split('-')[0]}`;
+        
+        console.log(`🔌 [Baileys] Resetando totalmente a sessão: ${sessionId}`);
+        
+        // 1. Wipe DB (Baileys service handles the db logic)
+        await WhatsappService.deleteSessionFromDb(sessionId);
+        
+        // 2. Clear Memory
+        const session = WhatsappService.getSession(sessionId);
+        if (session && session.sock) {
+            try { await session.sock.logout(); } catch(e) {}
+        }
+        WhatsappService.sessions.delete(sessionId);
+
+        // 3. Update Org Status
+        await OrganizationRepository.update(org.id, {
+            evolutionInstanceStatus: "disconnected",
+            evolutionInstanceName: null
+        });
+
+        revalidatePath("/dashboard/whatsapp");
+        return { success: true };
+    } catch (error: any) {
+        console.error("❌ Erro ao resetar:", error.message);
+        return { success: false, error: error.message };
     }
 }
