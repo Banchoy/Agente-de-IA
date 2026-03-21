@@ -9,12 +9,13 @@ import { Boom } from "@hapi/boom";
 import pino from "pino";
 import { db } from "@/lib/db";
 import { whatsappSessions, organizations, messages as messagesTable, leads } from "@/lib/db/schema";
-import { eq, and, sql } from "drizzle-orm";
+import { eq, and, sql, ilike } from "drizzle-orm";
 import QRCode from "qrcode";
 import { OrganizationRepository } from "@/lib/repositories/organization";
 import { AgentRepository } from "@/lib/repositories/agent";
 import { LeadRepository } from "@/lib/repositories/lead";
 import { MessageRepository } from "@/lib/repositories/message";
+import { CRMRepository } from "@/lib/repositories/crm";
 import { AIService } from "@/lib/services/ai";
 
 const logger = pino({ level: "silent" });
@@ -477,11 +478,24 @@ export const WhatsappService = {
                                     
                                     // Detectar qualificação automática
                                     if (aiResponse.includes("[QUALIFICADO]")) {
-                                        console.log(`🚀 [Baileys] LEAD QUALIFICADO IDENTIFICADO: ${lead.name}. Movendo no CRM...`);
-                                        finalMessage = aiResponse.replace("[QUALIFICADO]", "").trim();
-                                        
-                                        // Mover para 'qualification' (estágio id fixo)
-                                        await (LeadRepository as any).updateSystem(lead.id, { stageId: "qualification" });
+                                        try {
+                                            console.log(`🚀 [Baileys] LEAD QUALIFICADO IDENTIFICADO: ${lead.name}. Buscando estágio no CRM...`);
+                                            finalMessage = aiResponse.replace("[QUALIFICADO]", "").trim();
+                                            
+                                            // Tenta encontrar o ID do estágio 'Qualificação' dinamicamente
+                                            const qualificationStageId = await CRMRepository.getStageByName(lead.organizationId, "Qualificação") || 
+                                                                        await CRMRepository.getStageByName(lead.organizationId, "Qualification");
+
+                                            if (qualificationStageId) {
+                                                console.log(`✅ [Baileys] Estágio encontrado: ${qualificationStageId}. Movendo lead...`);
+                                                await (LeadRepository as any).updateSystem(lead.id, { stageId: qualificationStageId });
+                                            } else {
+                                                console.warn(`⚠️ [Baileys] Estágio de Qualificação não encontrado para a org ${lead.organizationId}`);
+                                            }
+                                        } catch (crmErr) {
+                                            console.error("❌ [Baileys] Erro ao mover lead no CRM:", crmErr);
+                                            // O erro do CRM não deve impedir o envio da mensagem!
+                                        }
                                     }
 
                                     // 5. Send Message (O salvamento no DB será feito pelo evento 'upsert' do Baileys quando o sock enviar)
