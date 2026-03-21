@@ -411,6 +411,12 @@ export const WhatsappService = {
                                 continue;
                             }
 
+                            // HANDOVER: Se a IA estiver desativada para este lead, não responde
+                            if (lead.aiActive === "false") {
+                                console.log(`⏩ [Baileys] IA DESATIVADA para o lead ${lead.name} (Handover ativo).`);
+                                continue;
+                            }
+
                             if (config.testMode) {
                                 console.log(`🛡️ [Baileys] Modo de Teste ATIVO. Validando número: ${phone} vs Permitido: ${config.testNumber}`);
                                 if (config.testNumber !== phone) {
@@ -454,19 +460,33 @@ export const WhatsappService = {
                                     formattedHistory = [{ role: "user", content: text }];
                                 }
 
+                                // Instrução extra para identificar leads qualificados
+                                const qualificationInstruction = "\n\n[SISTEMA]: Se o cliente demonstrar interesse claro, perguntar preços ou aceitar uma reunião, adicione o marcador [QUALIFICADO] ao final da sua resposta.";
+
                                 const aiResponse = await AIService.generateResponse(
                                     config.provider || "google",
                                     config.model || "gemini-1.5-flash",
-                                    config.systemPrompt || "Você é um assistente virtual.",
+                                    (config.systemPrompt || "Você é um assistente virtual.") + qualificationInstruction,
                                     formattedHistory
                                 );
                                 
                                 console.log(`🤖 [Baileys] Resposta da IA recebida. Tamanho: ${aiResponse?.length || 0}`);
 
                                 if (aiResponse) {
+                                    let finalMessage = aiResponse;
+                                    
+                                    // Detectar qualificação automática
+                                    if (aiResponse.includes("[QUALIFICADO]")) {
+                                        console.log(`🚀 [Baileys] LEAD QUALIFICADO IDENTIFICADO: ${lead.name}. Movendo no CRM...`);
+                                        finalMessage = aiResponse.replace("[QUALIFICADO]", "").trim();
+                                        
+                                        // Mover para 'qualification' (estágio id fixo)
+                                        await (LeadRepository as any).updateSystem(lead.id, { stageId: "qualification" });
+                                    }
+
                                     // 5. Send Message (O salvamento no DB será feito pelo evento 'upsert' do Baileys quando o sock enviar)
                                     // Isso evita a duplicidade no dashboard!
-                                    await sock.sendMessage(jid, { text: aiResponse });
+                                    await sock.sendMessage(jid, { text: finalMessage });
                                     console.log(`📤 [Baileys] Resposta enviada para ${phone}`);
                                 }
                             } finally {

@@ -6,6 +6,7 @@ import { LeadRepository } from "@/lib/repositories/lead";
 import { Search, MessageSquare, User, Send, Bot, Clock } from "lucide-react";
 import { OrganizationRepository } from "@/lib/repositories/organization";
 import { ChatPolling } from "./ChatPolling";
+import { AIToggle } from "@/components/chat/AIToggle";
 
 export default async function ChatsPage({
     searchParams,
@@ -139,6 +140,10 @@ export default async function ChatsPage({
                                 </div>
                             </div>
                             <div className="flex items-center gap-4">
+                                <AIToggle 
+                                    leadId={activeLead!.id} 
+                                    initialStatus={activeLead!.aiActive} 
+                                />
                                 <div className="h-8 w-8 rounded-full bg-muted/50 flex items-center justify-center text-muted-foreground cursor-pointer hover:bg-muted transition-colors">
                                     <Search size={14} />
                                 </div>
