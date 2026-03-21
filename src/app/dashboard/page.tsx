@@ -6,7 +6,7 @@ import { count, eq } from "drizzle-orm";
 import { Bot, UserCheck, Activity, Globe, Sparkles, Settings, TrendingUp, Users } from "lucide-react";
 import { UserService } from "@/lib/services/user";
 import CRMKanban from "./CRMKanban";
-import { listLeads } from "./leads/actions";
+import { getKanbanData } from "./leads/actions";
 
 export default async function DashboardPage() {
     try {
@@ -31,7 +31,7 @@ export default async function DashboardPage() {
             .from(agents)
             .where(eq(agents.organizationId, dbUser.organizationId));
 
-        const leads = await listLeads();
+        const { leads, stages } = await getKanbanData();
 
         return (
             <div className="h-full flex flex-col space-y-6 overflow-hidden">
@@ -54,7 +54,7 @@ export default async function DashboardPage() {
                 </div>
 
                 {/* CRM Kanban View */}
-                <CRMKanban initialLeads={leads} />
+                <CRMKanban initialLeads={leads} initialStages={stages} />
             </div>
         );
     } catch (error: any) {

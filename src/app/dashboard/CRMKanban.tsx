@@ -30,13 +30,18 @@ import Papa from "papaparse";
 import * as XLSX from "xlsx";
 import { toast } from "sonner";
 
-// Stages requested by user
-const INITIAL_STAGES = [
-    { id: "prospecting", name: "Prospecção", color: "bg-slate-400" },
-    { id: "qualification", name: "Qualificação", color: "bg-amber-400" },
-    { id: "negotiation", name: "Negociação", color: "bg-blue-400" },
-    { id: "sold", name: "Vendido", color: "bg-emerald-500" },
-];
+const STAGE_COLORS: Record<string, string> = {
+    "Novo Lead": "bg-slate-400",
+    "Em Atendimento (IA)": "bg-yellow-400",
+    "Qualificação": "bg-amber-400",
+    "Negociação": "bg-blue-400",
+    "Vendido": "bg-emerald-500",
+    "Perdido": "bg-red-500"
+};
+
+function getStageColor(name: string) {
+    return STAGE_COLORS[name] || "bg-slate-400";
+}
 
 function SortableItem({ lead, onClick }: { lead: any; onClick: () => void }) {
     const {
@@ -151,8 +156,9 @@ function KanbanColumn({ stage, leads, onLeadClick }: { stage: any; leads: any[];
     );
 }
 
-export default function CRMKanban({ initialLeads = [] }: { initialLeads?: any[] }) {
+export default function CRMKanban({ initialLeads = [], initialStages = [] }: { initialLeads?: any[], initialStages?: any[] }) {
     const [leadsList, setLeadsList] = useState(initialLeads);
+    const [stagesList, setStagesList] = useState(initialStages);
     const [activeId, setActiveId] = useState<string | null>(null);
     const [selectedLead, setSelectedLead] = useState<any | null>(null);
     const [isModalOpen, setIsModalOpen] = useState(false);
@@ -175,7 +181,7 @@ export default function CRMKanban({ initialLeads = [] }: { initialLeads?: any[] 
         const activeLead = leadsList.find((l: any) => l.id === active.id);
         const overId = over.id;
 
-        const isOverAStage = INITIAL_STAGES.some((s) => s.id === overId);
+        const isOverAStage = stagesList.some((s: any) => s.id === overId);
         let newStageId = overId;
 
         if (!isOverAStage) {
@@ -365,11 +371,11 @@ export default function CRMKanban({ initialLeads = [] }: { initialLeads?: any[] 
                     onDragEnd={handleDragEnd}
                 >
                     <div className="flex gap-6 h-full min-w-max">
-                        {INITIAL_STAGES.map((stage) => (
+                        {stagesList.map((stage: any) => (
                             <KanbanColumn
                                 key={stage.id}
-                                stage={stage}
-                                leads={leadsList.filter((l) => l.stageId === stage.id)}
+                                stage={{ ...stage, color: getStageColor(stage.name) }}
+                                leads={leadsList.filter((l: any) => l.stageId === stage.id)}
                                 onLeadClick={handleLeadClick}
                             />
                         ))}

@@ -2,8 +2,8 @@
 "use server";
 
 import { db } from "@/lib/db";
-import { leads, organizations } from "@/lib/db/schema";
-import { eq, and } from "drizzle-orm";
+import { leads, organizations, stages, pipelines } from "@/lib/db/schema";
+import { eq, and, asc } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import { LeadRepository } from "@/lib/repositories/lead";
 import { AgentRepository } from "@/lib/repositories/agent";
@@ -17,6 +17,61 @@ export async function listLeads() {
     } catch (error) {
         console.error("Error listing leads:", error);
         return [];
+    }
+}
+
+export async function listStages() {
+    const { orgId: clerkOrgId } = await auth();
+    if (!clerkOrgId) return [];
+
+    try {
+        const org = await OrganizationRepository.getByClerkId(clerkOrgId);
+        if (!org) return [];
+
+        return await db.select({
+            id: stages.id,
+            name: stages.name,
+            order: stages.order
+        })
+        .from(stages)
+        .innerJoin(pipelines, eq(stages.pipelineId, pipelines.id))
+        .where(eq(pipelines.organizationId, org.id))
+        .orderBy(asc(stages.order));
+    } catch (error) {
+        console.error("Error listing stages:", error);
+        return [];
+    }
+}
+
+// Simplified version for the dashboard
+export async function getKanbanData() {
+    const { orgId: clerkOrgId } = await auth();
+    if (!clerkOrgId) return { leads: [], stages: [] };
+
+    try {
+        const org = await OrganizationRepository.getByClerkId(clerkOrgId);
+        if (!org) return { leads: [], stages: [] };
+
+        const kanbanLeads = await LeadRepository.listByOrg();
+        
+        // Ensure default structure exists
+        const { CRMRepository } = await import("@/lib/repositories/crm");
+        await CRMRepository.ensureDefaultPipeline(org.id);
+
+        const kanbanStages = await db.select({
+            id: stages.id,
+            name: stages.name,
+            order: stages.order
+        })
+        .from(stages)
+        .innerJoin(pipelines, eq(stages.pipelineId, pipelines.id))
+        .where(eq(pipelines.organizationId, org.id))
+        .orderBy(asc(stages.order));
+
+        return { leads: kanbanLeads, stages: kanbanStages };
+    } catch (error) {
+        console.error("Error getting kanban data:", error);
+        return { leads: [], stages: [] };
     }
 }
 
