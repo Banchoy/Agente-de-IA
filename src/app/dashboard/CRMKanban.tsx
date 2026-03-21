@@ -25,10 +25,28 @@ import { Button } from "@/components/ui/button";
 import { Plus, MoreHorizontal, User, Phone, MessageSquare, Calendar, CheckCircle, XCircle, Search, RefreshCw, Bot } from "lucide-react";
 import LeadDetailsModal from "./LeadDetailsModal";
 import AddLeadModal from "./AddLeadModal";
-import { updateLeadMetadata, updateLeadStage, importLeads, startOutreach, createLead } from "./leads/actions";
+import ProspectingModal from "./ProspectingModal";
+import { updateLeadMetadata, updateLeadStage, importLeads, startOutreach, createLead, deleteLead, updateLeadColor } from "./leads/actions";
 import Papa from "papaparse";
 import * as XLSX from "xlsx";
 import { toast } from "sonner";
+import { 
+    DropdownMenu, 
+    DropdownMenuContent, 
+    DropdownMenuItem, 
+    DropdownMenuTrigger,
+    DropdownMenuSeparator,
+    DropdownMenuLabel
+} from "@/components/ui/dropdown-menu";
+
+const CARD_COLORS = [
+    { name: "Padrão", value: "" },
+    { name: "Azul", value: "bg-blue-500/10 border-blue-500/20" },
+    { name: "Verde", value: "bg-emerald-500/10 border-emerald-500/20" },
+    { name: "Amarelo", value: "bg-yellow-500/10 border-yellow-500/20" },
+    { name: "Vermelho", value: "bg-red-500/10 border-red-500/20" },
+    { name: "Roxo", value: "bg-purple-500/10 border-purple-500/20" },
+];
 
 const STAGE_COLORS: Record<string, string> = {
     "Novo Lead": "bg-slate-400",
@@ -43,7 +61,12 @@ function getStageColor(name: string) {
     return STAGE_COLORS[name] || "bg-slate-400";
 }
 
-function SortableItem({ lead, onClick }: { lead: any; onClick: () => void }) {
+function SortableItem({ lead, onClick, onDelete, onColorChange }: { 
+    lead: any; 
+    onClick: () => void;
+    onDelete: (id: string) => void;
+    onColorChange: (id: string, color: string) => void;
+}) {
     const {
         attributes,
         listeners,
@@ -52,6 +75,10 @@ function SortableItem({ lead, onClick }: { lead: any; onClick: () => void }) {
         transition,
         isDragging,
     } = useSortable({ id: lead.id });
+
+    const meta = (lead.metaData as any) || {};
+    const cardColorClass = meta.cardColor || "";
+    const isAiActive = lead.aiActive === "true";
 
     const style = {
         transform: CSS.Transform.toString(transform),
@@ -66,7 +93,9 @@ function SortableItem({ lead, onClick }: { lead: any; onClick: () => void }) {
             {...attributes}
             {...listeners}
             onClick={onClick}
-            className="bg-card border border-border rounded-xl p-4 mb-3 shadow-sm cursor-grab active:cursor-grabbing hover:border-primary group transition-all"
+            className={`group relative border rounded-xl p-4 mb-3 shadow-sm cursor-grab active:cursor-grabbing transition-all ${
+                cardColorClass ? cardColorClass : "bg-card border-border hover:border-primary"
+            }`}
         >
             <div className="flex justify-between items-start mb-2">
                 <h4 className="font-bold text-foreground leading-tight">{lead.name}</h4>
@@ -102,31 +131,76 @@ function SortableItem({ lead, onClick }: { lead: any; onClick: () => void }) {
                     <Button
                         variant="ghost"
                         size="icon"
-                        className="h-7 w-7 rounded-lg hover:bg-accent"
-                        onClick={(e) => {
+                        className={`h-7 w-7 rounded-lg hover:bg-accent ${isAiActive ? 'text-emerald-500' : ''}`}
+                        onClick={(e: React.MouseEvent) => {
                             e.stopPropagation();
                             // Future: open chat directly
                         }}
-                        onPointerDown={(e) => e.stopPropagation()}
+                        onPointerDown={(e: React.PointerEvent) => e.stopPropagation()}
                     >
                         <MessageSquare className="w-3.5 h-3.5" />
                     </Button>
-                    <Button
-                        variant="ghost"
-                        size="icon"
-                        className="h-7 w-7 rounded-lg hover:bg-accent"
-                        onClick={(e) => e.stopPropagation()}
-                        onPointerDown={(e) => e.stopPropagation()}
-                    >
-                        <MoreHorizontal className="w-3.5 h-3.5" />
-                    </Button>
+                    
+                    <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                            <Button
+                                variant="ghost"
+                                size="icon"
+                                className="h-7 w-7 rounded-lg hover:bg-accent"
+                                onClick={(e: React.MouseEvent) => e.stopPropagation()}
+                                onPointerDown={(e: React.PointerEvent) => e.stopPropagation()}
+                            >
+                                <MoreHorizontal className="w-3.5 h-3.5" />
+                            </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end" className="w-48 rounded-xl border-border">
+                            <DropdownMenuLabel className="text-xs text-muted-foreground">Ações do Lead</DropdownMenuLabel>
+                            <DropdownMenuSeparator />
+                            
+                            <DropdownMenuLabel className="text-[10px] uppercase font-bold text-muted-foreground mt-2 px-2">Alterar Cor</DropdownMenuLabel>
+                            <div className="grid grid-cols-3 gap-1 p-2">
+                                {CARD_COLORS.map((c) => (
+                                    <button
+                                        key={c.name}
+                                        title={c.name}
+                                        className={`h-6 w-full rounded-md border border-border/50 ${c.value || "bg-card"} 
+                                            ${cardColorClass === c.value ? "ring-2 ring-primary" : ""}`}
+                                        onClick={(e: React.MouseEvent) => {
+                                            e.stopPropagation();
+                                            onColorChange(lead.id, c.value);
+                                        }}
+                                        onPointerDown={(e: React.PointerEvent) => e.stopPropagation()}
+                                    />
+                                ))}
+                            </div>
+                            
+                            <DropdownMenuSeparator />
+                            <DropdownMenuItem 
+                                className="text-red-500 focus:text-red-500 focus:bg-red-500/10 cursor-pointer"
+                                onClick={(e: React.MouseEvent) => {
+                                    e.stopPropagation();
+                                    onDelete(lead.id);
+                                }}
+                                onPointerDown={(e: React.PointerEvent) => e.stopPropagation()}
+                            >
+                                <XCircle className="w-4 h-4 mr-2" />
+                                Excluir Lead
+                            </DropdownMenuItem>
+                        </DropdownMenuContent>
+                    </DropdownMenu>
                 </div>
             </div>
         </div>
     );
 }
 
-function KanbanColumn({ stage, leads, onLeadClick }: { stage: any; leads: any[]; onLeadClick: (lead: any) => void }) {
+function KanbanColumn({ stage, leads, onLeadClick, onDeleteLead, onColorChange }: { 
+    stage: any; 
+    leads: any[]; 
+    onLeadClick: (lead: any) => void;
+    onDeleteLead: (id: string) => void;
+    onColorChange: (id: string, color: string) => void;
+}) {
     const { setNodeRef } = useSortable({ id: stage.id });
 
     return (
@@ -148,7 +222,13 @@ function KanbanColumn({ stage, leads, onLeadClick }: { stage: any; leads: any[];
                     strategy={verticalListSortingStrategy}
                 >
                     {leads.map((lead) => (
-                        <SortableItem key={lead.id} lead={lead} onClick={() => onLeadClick(lead)} />
+                        <SortableItem 
+                            key={lead.id} 
+                            lead={lead} 
+                            onClick={() => onLeadClick(lead)}
+                            onDelete={onDeleteLead}
+                            onColorChange={onColorChange}
+                        />
                     ))}
                 </SortableContext>
             </div>
@@ -163,6 +243,7 @@ export default function CRMKanban({ initialLeads = [], initialStages = [] }: { i
     const [selectedLead, setSelectedLead] = useState<any | null>(null);
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [isAddModalOpen, setIsAddModalOpen] = useState(false);
+    const [isProspectingModalOpen, setIsProspectingModalOpen] = useState(false);
     const [isExporting, setIsExporting] = useState(false);
 
     const sensors = useSensors(
@@ -238,6 +319,25 @@ export default function CRMKanban({ initialLeads = [], initialStages = [] }: { i
         } else {
             toast.error("Erro ao salvar lead no banco de dados.");
         }
+    };
+
+    const handleDeleteLead = async (leadId: string) => {
+        if (!confirm("Tem certeza que deseja excluir este lead?")) return;
+        
+        const res = await deleteLead(leadId);
+        if (res.success) {
+            setLeadsList((prev: any) => prev.filter((l: any) => l.id !== leadId));
+            toast.success("Lead excluído com sucesso.");
+        } else {
+            toast.error("Erro ao excluir lead.");
+        }
+    };
+
+    const handleColorChange = async (leadId: string, color: string) => {
+        setLeadsList((prev: any) => 
+            prev.map((l: any) => l.id === leadId ? { ...l, metaData: { ...l.metaData, cardColor: color } } : l)
+        );
+        await updateLeadColor(leadId, color);
     };
 
     const handleStartOutreach = async () => {
@@ -345,7 +445,7 @@ export default function CRMKanban({ initialLeads = [], initialStages = [] }: { i
                         <Button variant="outline" className="rounded-xl border-border">Importar</Button>
                     </div>
                     <Button
-                        onClick={handleStartOutreach}
+                        onClick={() => setIsProspectingModalOpen(true)}
                         disabled={isExporting}
                         variant="outline"
                         className="border-primary text-primary rounded-xl hover:bg-primary/5 gap-2"
@@ -377,6 +477,8 @@ export default function CRMKanban({ initialLeads = [], initialStages = [] }: { i
                                 stage={{ ...stage, color: getStageColor(stage.name) }}
                                 leads={leadsList.filter((l: any) => l.stageId === stage.id)}
                                 onLeadClick={handleLeadClick}
+                                onDeleteLead={handleDeleteLead}
+                                onColorChange={handleColorChange}
                             />
                         ))}
                     </div>
@@ -388,7 +490,14 @@ export default function CRMKanban({ initialLeads = [], initialStages = [] }: { i
                             }),
                         }}
                     >
-                        {activeLead ? <SortableItem lead={activeLead} onClick={() => { }} /> : null}
+                        {activeLead ? (
+                            <SortableItem 
+                                lead={activeLead} 
+                                onClick={() => { }} 
+                                onDelete={() => { }} 
+                                onColorChange={() => { }} 
+                            />
+                        ) : null}
                     </DragOverlay>
                 </DndContext>
             </div>
@@ -404,6 +513,11 @@ export default function CRMKanban({ initialLeads = [], initialStages = [] }: { i
                 isOpen={isAddModalOpen}
                 onClose={() => setIsAddModalOpen(false)}
                 onAdd={handleAddLead}
+            />
+
+            <ProspectingModal 
+                isOpen={isProspectingModalOpen}
+                onClose={() => setIsProspectingModalOpen(false)}
             />
         </div>
     );

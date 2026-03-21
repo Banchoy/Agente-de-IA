@@ -101,6 +101,34 @@ export async function updateLeadStage(leadId: string, stageId: string) {
     }
 }
 
+export async function deleteLead(leadId: string) {
+    try {
+        await LeadRepository.delete(leadId);
+        revalidatePath("/dashboard");
+        return { success: true };
+    } catch (error) {
+        console.error("Error deleting lead:", error);
+        return { success: false, error };
+    }
+}
+
+export async function updateLeadColor(leadId: string, color: string) {
+    try {
+        const lead = await LeadRepository.getById(leadId);
+        if (!lead) throw new Error("Lead not found");
+
+        const metaData = (lead.metaData as any) || {};
+        await LeadRepository.update(leadId, {
+            metaData: { ...metaData, cardColor: color }
+        });
+        revalidatePath("/dashboard");
+        return { success: true };
+    } catch (error) {
+        console.error("Error updating lead color:", error);
+        return { success: false, error };
+    }
+}
+
 export async function createLead(data: any) {
     const { orgId: clerkOrgId } = await auth();
     if (!clerkOrgId) throw new Error("Unauthorized");
@@ -209,6 +237,64 @@ export async function startOutreach(leadIds?: string[]) {
 
     } catch (error: any) {
         console.error("Error starting outreach:", error);
+        return { success: false, error: error.message };
+    }
+}
+
+export async function processProspecting(mapsUrl: string, config: { niche?: string; initialMessage?: string }) {
+    const { orgId: clerkOrgId } = await auth();
+    if (!clerkOrgId) throw new Error("Unauthorized");
+
+    try {
+        const org = await OrganizationRepository.getByClerkId(clerkOrgId);
+        if (!org) throw new Error("Organization not found");
+
+        const { ScraperService } = await import("@/lib/services/scraper");
+        const scrapedLeads = await ScraperService.scrapeMaps(mapsUrl);
+
+        if (scrapedLeads.length === 0) {
+            return { success: false, error: "Nenhum lead encontrado nesta URL." };
+        }
+
+        // Procura o ID do estágio de Qualificação
+        const stagesInOrg = await db.select({
+            id: stages.id,
+            name: stages.name
+        })
+        .from(stages)
+        .innerJoin(pipelines, eq(stages.pipelineId, pipelines.id))
+        .where(eq(pipelines.organizationId, org.id));
+
+        const qualificationStage = stagesInOrg.find(s => s.name.toLowerCase().includes("qualifica")) || stagesInOrg[0];
+
+        let successCount = 0;
+        for (const leadData of scrapedLeads) {
+            try {
+                await LeadRepository.create({
+                    organizationId: org.id,
+                    name: leadData.name,
+                    phone: leadData.phone || "",
+                    source: "Prospecção IA (Maps)",
+                    stageId: qualificationStage?.id,
+                    metaData: {
+                        ...leadData,
+                        niche: config.niche,
+                        initialMessage: config.initialMessage
+                    },
+                    outreachStatus: "pending", // Gatilho para o OutreachService
+                    aiActive: "true"
+                });
+                successCount++;
+            } catch (err) {
+                console.error(`Erro ao salvar lead prospectado ${leadData.name}:`, err);
+            }
+        }
+
+        revalidatePath("/dashboard");
+        return { success: true, count: successCount };
+
+    } catch (error: any) {
+        console.error("Error processing prospecting:", error);
         return { success: false, error: error.message };
     }
 }
