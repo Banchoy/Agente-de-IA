@@ -17,6 +17,7 @@ import { LeadRepository } from "@/lib/repositories/lead";
 import { MessageRepository } from "@/lib/repositories/message";
 import { CRMRepository } from "@/lib/repositories/crm";
 import { AIService } from "@/lib/services/ai";
+import { TTSService } from "@/lib/services/tts";
 
 const logger = pino({ level: "silent" });
 
@@ -498,10 +499,74 @@ export const WhatsappService = {
                                         }
                                     }
 
-                                    // 5. Send Message (O salvamento no DB será feito pelo evento 'upsert' do Baileys quando o sock enviar)
-                                    // Isso evita a duplicidade no dashboard!
-                                    await sock.sendMessage(jid, { text: finalMessage });
-                                    console.log(`📤 [Baileys] Resposta enviada para ${phone}`);
+                                    // 5. Split and Send Message (Text and/or Audio)
+                                    // Regex for [AUDIO] or [ÁUDIO] tags
+                                    const audioRegex = /\[(?:AUDIO|ÁUDIO)\]([\s\S]*?)\[\/(?:AUDIO|ÁUDIO)\]/gi;
+                                    
+                                    let lastIndex = 0;
+                                    let match;
+                                    const messagesToWait: { type: "text" | "audio", content: string }[] = [];
+
+                                    while ((match = audioRegex.exec(finalMessage)) !== null) {
+                                        // Text before the audio tag
+                                        const textBefore = finalMessage.substring(lastIndex, match.index).trim();
+                                        if (textBefore) {
+                                            messagesToWait.push({ type: "text", content: textBefore });
+                                        }
+                                        // Audio content
+                                        const audioContent = match[1].trim();
+                                        if (audioContent) {
+                                            messagesToWait.push({ type: "audio", content: audioContent });
+                                        }
+                                        lastIndex = audioRegex.lastIndex;
+                                    }
+
+                                    // Remaining text after last tag
+                                    const remainingText = finalMessage.substring(lastIndex).trim();
+                                    if (remainingText) {
+                                        messagesToWait.push({ type: "text", content: remainingText });
+                                    }
+
+                                    // If no tags were found, send entire body as determined by config
+                                    if (messagesToWait.length === 0) {
+                                        messagesToWait.push({ type: config.voiceEnabled ? "audio" : "text", content: finalMessage });
+                                    }
+
+                                    // Sequential sending
+                                    for (const msg of messagesToWait) {
+                                        if (msg.type === "audio" && config.voiceEnabled) {
+                                            try {
+                                                console.log(`🎙️ [Baileys] Gerando áudio para parte da resposta...`);
+                                                const audioData = await TTSService.generateAudio(
+                                                    msg.content,
+                                                    config.ttsProvider || "openai",
+                                                    config.ttsVoiceId,
+                                                    config.coquiUrl
+                                                );
+                                                
+                                                // Convert data URI to buffer for Baileys
+                                                const base64 = audioData.split(",")[1];
+                                                const buffer = Buffer.from(base64, "base64");
+                                                
+                                                await sock.sendMessage(jid, { 
+                                                    audio: buffer,
+                                                    mimetype: "audio/mp4",
+                                                    ptt: true
+                                                });
+                                                console.log(`📤 [Baileys] Áudio enviado para ${phone}`);
+                                            } catch (ttsErr) {
+                                                console.error("❌ [Baileys] TTS Error, falling back to text:", ttsErr);
+                                                await sock.sendMessage(jid, { text: msg.content });
+                                            }
+                                        } else {
+                                            // Remove any remaining tags just in case
+                                            const cleanText = msg.content.replace(/\[\/?(?:AUDIO|ÁUDIO)\]/gi, "").trim();
+                                            if (cleanText) {
+                                                await sock.sendMessage(jid, { text: cleanText });
+                                                console.log(`📤 [Baileys] Texto enviado para ${phone}`);
+                                            }
+                                        }
+                                    }
                                 }
                             } finally {
                                 // DESATIVAR DIGITANDO

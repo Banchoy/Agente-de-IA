@@ -117,9 +117,7 @@ export async function resetWhatsApp() {
         });
 
         revalidatePath("/dashboard/whatsapp");
-        return { success: true };
     } catch (error: any) {
         console.error("❌ Erro ao resetar:", error.message);
-        return { success: false, error: error.message };
     }
 }

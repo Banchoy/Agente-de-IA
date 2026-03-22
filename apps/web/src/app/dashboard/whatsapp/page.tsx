@@ -2,7 +2,7 @@ import { auth } from "@clerk/nextjs/server";
 import { redirect } from "next/navigation";
 import { OrganizationRepository } from "@/lib/repositories/organization";
 import { MessageSquare, LogOut, CheckCircle, Wifi } from "lucide-react";
-import { disconnectWhatsApp } from "./actions";
+import { disconnectWhatsApp, resetWhatsApp } from "./actions";
 import WhatsAppConnectButton from "./ConnectButton";
 
 export default async function WhatsAppPage() {
@@ -52,12 +52,19 @@ export default async function WhatsAppPage() {
 
                             <div className="flex items-center gap-3">
                                 {isConnected ? (
-                                    <form action={disconnectWhatsApp}>
-                                        <button className="flex items-center gap-2 rounded-xl bg-destructive/10 px-6 py-3 text-sm font-bold text-destructive hover:bg-destructive shadow-sm hover:text-white transition-all active:scale-95 group">
-                                            <LogOut size={18} className="group-hover:-translate-x-1 transition-transform" />
-                                            Desconectar
-                                        </button>
-                                    </form>
+                                    <div className="flex flex-col gap-2">
+                                        <form action={disconnectWhatsApp}>
+                                            <button className="w-full flex items-center justify-center gap-2 rounded-xl bg-destructive/10 px-6 py-3 text-sm font-bold text-destructive hover:bg-destructive shadow-sm hover:text-white transition-all active:scale-95 group">
+                                                <LogOut size={18} className="group-hover:-translate-x-1 transition-transform" />
+                                                Desconectar
+                                            </button>
+                                        </form>
+                                        <form action={resetWhatsApp}>
+                                            <button className="w-full text-[10px] font-bold text-muted-foreground hover:text-destructive transition-colors uppercase tracking-widest text-center mt-1">
+                                                Reiniciar Sessão (Forçar Reset)
+                                            </button>
+                                        </form>
+                                    </div>
                                 ) : (
                                     <WhatsAppConnectButton />
                                 )}
