@@ -3,6 +3,7 @@
 import { db } from "@/lib/db";
 import { leads, stages, pipelines } from "@saas/db";
 import { eq, and, asc } from "drizzle-orm";
+import { redis } from "@/lib/redis";
 import { revalidatePath } from "next/cache";
 import { LeadRepository } from "@/lib/repositories/lead";
 import { AgentRepository } from "@/lib/repositories/agent";
@@ -248,11 +249,10 @@ export async function processProspecting(mapsUrl: string, config: { niche?: stri
         const org = await OrganizationRepository.getByClerkId(clerkOrgId);
         if (!org) throw new Error("Organization not found");
 
-        const Redis = (await import("ioredis")).default;
-        const redisUrl = process.env.REDIS_URL || 
-            (process.env.REDISHOST ? `redis://:${process.env.REDISPASSWORD}@${process.env.REDISHOST}:${process.env.REDISPORT}` : "redis://localhost:6379");
-        
-        const redis = new Redis(redisUrl);
+        if (!redis) {
+            console.error("❌ [Redis] Não configurado");
+            throw new Error("Sistema de fila temporariamente indisponível.");
+        }
         
         const task = {
             url: mapsUrl,

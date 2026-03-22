@@ -21,6 +21,6 @@ export const redis = redisUrl
     : null;
 
 if (redis) {
-    redis.on("connect", () => console.log("✅ [Redis] Conectado ao Upstash"));
+    redis.on("connect", () => console.log("✅ [Redis] Conectado com sucesso"));
     redis.on("error", (err) => console.error("❌ [Redis] Erro de conexão:", err));
 }
