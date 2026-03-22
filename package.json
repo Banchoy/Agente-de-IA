@@ -2,13 +2,17 @@
   "name": "saas-enterprise",
   "version": "0.1.0",
   "private": true,
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
   "scripts": {
-    "dev": "next dev",
-    "build": "next build",
-    "start": "next start",
-    "lint": "eslint",
-    "db:push": "drizzle-kit push",
-    "db:studio": "drizzle-kit studio"
+    "dev": "npm run dev --workspace=@saas/web",
+    "build": "npm run build --workspaces --if-present",
+    "start": "npm run start --workspace=@saas/web",
+    "lint": "npm run lint --workspaces --if-present",
+    "db:push": "npm run db:push --workspace=@saas/db",
+    "db:studio": "npm run db:studio --workspace=@saas/db"
   },
   "dependencies": {
     "@clerk/nextjs": "^6.37.3",

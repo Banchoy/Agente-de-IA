@@ -1,8 +1,5 @@
-
-"use server";
-
-import { db } from "@/lib/db";
-import { leads, organizations, stages, pipelines } from "@/lib/db/schema";
+import { db } from "../../../lib/db";
+import { leads, stages, pipelines } from "../../../../../packages/db/src/schema";
 import { eq, and, asc } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import { LeadRepository } from "@/lib/repositories/lead";
@@ -249,49 +246,18 @@ export async function processProspecting(mapsUrl: string, config: { niche?: stri
         const org = await OrganizationRepository.getByClerkId(clerkOrgId);
         if (!org) throw new Error("Organization not found");
 
-        const { ScraperService } = await import("@/lib/services/scraper");
-        const scrapedLeads = await ScraperService.scrapeMaps(mapsUrl);
+        const Redis = (await import("ioredis")).default;
+        const redis = new Redis(process.env.REDIS_URL || "redis://localhost:6379");
+        
+        const task = {
+            url: mapsUrl,
+            config,
+            orgId: org.id
+        };
 
-        if (scrapedLeads.length === 0) {
-            return { success: false, error: "Nenhum lead encontrado nesta URL." };
-        }
+        await redis.rpush("scraper_tasks", JSON.stringify(task));
 
-        // Procura o ID do estágio de Qualificação
-        const stagesInOrg = await db.select({
-            id: stages.id,
-            name: stages.name
-        })
-        .from(stages)
-        .innerJoin(pipelines, eq(stages.pipelineId, pipelines.id))
-        .where(eq(pipelines.organizationId, org.id));
-
-        const qualificationStage = stagesInOrg.find(s => s.name.toLowerCase().includes("qualifica")) || stagesInOrg[0];
-
-        let successCount = 0;
-        for (const leadData of scrapedLeads) {
-            try {
-                await LeadRepository.create({
-                    organizationId: org.id,
-                    name: leadData.name,
-                    phone: leadData.phone || "",
-                    source: "Prospecção IA (Maps)",
-                    stageId: qualificationStage?.id,
-                    metaData: {
-                        ...leadData,
-                        niche: config.niche,
-                        initialMessage: config.initialMessage
-                    },
-                    outreachStatus: "pending", // Gatilho para o OutreachService
-                    aiActive: "true"
-                });
-                successCount++;
-            } catch (err) {
-                console.error(`Erro ao salvar lead prospectado ${leadData.name}:`, err);
-            }
-        }
-
-        revalidatePath("/dashboard");
-        return { success: true, count: successCount };
+        return { success: true, message: "Prospecção iniciada em segundo plano!" };
 
     } catch (error: any) {
         console.error("Error processing prospecting:", error);

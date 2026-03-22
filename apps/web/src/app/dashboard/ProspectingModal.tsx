@@ -32,9 +32,8 @@ export default function ProspectingModal({ isOpen, onClose }: ProspectingModalPr
             const res = await processProspecting(url, { niche, initialMessage });
             
             if (res.success) {
-                toast.success(`Sucesso! ${res.count} leads foram extraídos e adicionados à Qualificação.`);
+                toast.success(res.message || "Prospecção iniciada! Os leads aparecerão na Qualificação em breve.");
                 onClose();
-                window.location.reload(); // Atualiza para mostrar os novos leads
             } else {
                 toast.error(res.error || "Erro ao processar prospecção.");
             }
