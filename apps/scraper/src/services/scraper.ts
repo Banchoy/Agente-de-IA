@@ -94,9 +94,19 @@ export const ScraperService = {
      */
     findWhatsAppOnSite: async (url: string): Promise<string | undefined> => {
         try {
-            const response = await fetch(url, { signal: AbortSignal.timeout(10000) });
+            const response = await fetch(url, { signal: AbortSignal.timeout(15000) });
             const html = await response.text();
 
+            // Regex Fallback (Fast)
+            const whatsappRegex = /(https?:\/\/)?(api\.whatsapp\.com\/send\?phone=|wa\.me\/)([0-9]{10,13})/g;
+            const matches = html.match(whatsappRegex);
+            
+            if (matches && matches.length > 0) {
+                const phone = matches[0].replace(/\D/g, "");
+                if (phone.length >= 10) return `+${phone.startsWith("55") ? "" : "55"}${phone}`;
+            }
+
+            // AI Extraction (Smart)
             const prompt = `Encontre um WhatsApp (+55...) neste texto de site. Retorne APENAS o número formatado ou NADA. Texto:\n\n${html.substring(0, 20000)}`;
             const result = await model.generateContent(prompt);
             const phone = result.response.text().trim().replace(/\D/g, "");
