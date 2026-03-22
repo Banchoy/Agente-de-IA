@@ -24,7 +24,48 @@ export const AIService = {
             return await AIService.generateGeminiResponse(model, systemPrompt, messages, temperature);
         }
 
-        // Placeholder for other providers
+        throw new Error(`Provider ${provider} not implemented yet.`);
+    },
+
+    generateStructuredResponse: async (
+        provider: AIProvider,
+        model: string,
+        systemPrompt: string,
+        messages: ChatMessage[],
+        currentState: string,
+        leadData: any,
+        temperature: number = 0.7
+    ) => {
+        const structuredPrompt = `
+${systemPrompt}
+
+### CONVERSATION STATE MACHINE
+Current State: ${currentState}
+Lead Data: ${JSON.stringify(leadData)}
+
+### JSON OUTPUT FORMAT
+Your response MUST be a valid JSON object with the following keys:
+{
+  "body": "The message to send to the user",
+  "nextState": "The next state from: START, OPENING, CONTEXT, DIAGNOSIS, QUALIFICATION, PITCH, CTA, DECISION_MAKER, OBJECTION, FOLLOW_UP, MEETING",
+  "intent": "The detected intent (e.g., INTEREST, NO_INTEREST, PRICE, LATER, etc.)",
+  "action": "SCHEDULE_MEETING" | "NONE",
+  "extractedInfo": { "niche": "detected niche", "businessName": "..." }
+}
+`;
+
+        if (provider === "google") {
+            const response = await AIService.generateGeminiResponse(model, structuredPrompt, messages, temperature, true);
+            try {
+                // Clean markdown artifacts if any
+                const cleaned = response.replace(/```json|```/g, "").trim();
+                return JSON.parse(cleaned);
+            } catch (e) {
+                console.error("❌ Failed to parse structured response:", response);
+                throw new Error("Invalid AI JSON response");
+            }
+        }
+
         throw new Error(`Provider ${provider} not implemented yet.`);
     },
 
@@ -32,7 +73,8 @@ export const AIService = {
         model: string,
         systemPrompt: string,
         messages: ChatMessage[],
-        temperature: number = 0.7
+        temperature: number = 0.7,
+        jsonMode: boolean = false
     ) => {
         const apiKey = env.GOOGLE_GEMINI_API_KEY;
         if (!apiKey) {
@@ -82,7 +124,8 @@ export const AIService = {
                 model: modelName,
                 systemInstruction: systemPrompt,
                 generationConfig: {
-                    temperature: temperature
+                    temperature: temperature,
+                    responseMimeType: jsonMode ? "application/json" : "text/plain"
                 }
             });
 

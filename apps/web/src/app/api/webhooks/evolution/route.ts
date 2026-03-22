@@ -2,17 +2,19 @@
 import { NextRequest, NextResponse } from "next/server";
 import { OrganizationRepository } from "@/lib/repositories/organization";
 import { AgentRepository } from "@/lib/repositories/agent";
+import { LeadRepository } from "@/lib/repositories/lead";
+import { MessageRepository } from "@/lib/repositories/message";
+import { CRMRepository } from "@/lib/repositories/crm";
 import { AIService } from "@/lib/services/ai";
 import { EvolutionService } from "@/lib/services/evolution";
+import { TTSService } from "@/lib/services/tts";
 
 export async function POST(req: NextRequest) {
     try {
         const body = await req.json();
-        console.log("📩 Webhook Evolution recebido:", JSON.stringify(body, null, 2));
-
         const { event, instance, data } = body;
 
-        // Apenas processamos mensagens recebidas (não enviadas por nós)
+        // 1. Basic validation
         if (event !== "messages.upsert") {
             return NextResponse.json({ received: true });
         }
@@ -26,7 +28,6 @@ export async function POST(req: NextRequest) {
 
         const remoteJid = key.remoteJid;
         if (!remoteJid || !remoteJid.endsWith("@s.whatsapp.net")) {
-            // Ignorar grupos ou status
             return NextResponse.json({ received: true });
         }
 
@@ -35,58 +36,137 @@ export async function POST(req: NextRequest) {
             return NextResponse.json({ received: true });
         }
 
-        // 1. Identificar a Organização pela instância
+        // 2. Identify Organization
         const org = await OrganizationRepository.getByInstanceName(instance);
         if (!org) {
-            console.warn(`⚠️ Organização não encontrada para instância: ${instance}`);
+            console.warn(`⚠️ Organization not found for instance: ${instance}`);
             return NextResponse.json({ error: "Org not found" }, { status: 404 });
         }
 
-        // 2. Buscar Agente ativo para WhatsApp
+        // 3. Find or Create Lead
+        const phone = remoteJid.split("@")[0];
+        let lead = await LeadRepository.getByPhoneSystem(phone, org.id);
+        
+        if (!lead) {
+            console.log(`🆕 Creating new lead for phone: ${phone}`);
+            // Ensure default pipeline exists
+            await CRMRepository.ensureDefaultPipeline(org.id);
+            const initialStageId = await CRMRepository.getStageByName(org.id, "Novo Lead");
+            
+            lead = await LeadRepository.createSystem({
+                organizationId: org.id,
+                name: data.pushName || phone,
+                phone: phone,
+                source: "WhatsApp (Inbound)",
+                stageId: initialStageId,
+                conversationState: "START",
+                aiActive: "true"
+            });
+        }
+
+        // 4. Check if AI is active for this lead
+        if (lead.aiActive === "false") {
+            console.log(`🔇 AI inactive for lead: ${phone}`);
+            return NextResponse.json({ received: true });
+        }
+
+        // 5. Get Active Agent
         const agents = await AgentRepository.listByOrgId(org.id);
         const whatsappAgent = agents.find((a: any) => a.config?.whatsappResponse === true);
 
         if (!whatsappAgent) {
-            console.log(`ℹ️ Nenhum agente configurado para responder no WhatsApp na org: ${org.name}`);
             return NextResponse.json({ received: true });
         }
 
         const config = (whatsappAgent.config as any) || {};
 
-        // 3. Verificar Modo de Teste
-        if (config.testMode && config.testNumber) {
-            const cleanRemote = remoteJid.replace(/\D/g, "");
-            const cleanTest = config.testNumber.replace(/\D/g, "");
-            if (cleanRemote !== cleanTest) {
-                console.log(`🚫 Modo de Teste ativo. Ignorando mensagem de ${cleanRemote} (Esperado: ${cleanTest})`);
-                return NextResponse.json({ received: true });
-            }
-        }
+        // 6. Load History
+        const history = await MessageRepository.listByLeadSystem(lead.id, 10);
+        const formattedHistory = history.reverse().map(m => ({
+            role: m.role as "user" | "model",
+            content: m.content
+        }));
 
-        // 4. Gerar resposta com IA
-        console.log(`🤖 Agente "${whatsappAgent.name}" processando mensagem...`);
-        const aiResponse = await AIService.generateResponse(
+        // 7. Generate Structured AI Response
+        console.log(`🤖 Agent "${whatsappAgent.name}" processing logic for state: ${lead.conversationState}`);
+        const structuredResult = await AIService.generateStructuredResponse(
             config.provider || "google",
             config.model || "gemini-1.5-flash",
             config.systemPrompt || "Você é um assistente útil.",
-            [{ role: "user", content: text }],
+            [...formattedHistory, { role: "user", content: text }],
+            lead.conversationState || "START",
+            lead.metaData,
             config.temperature || 0.7
         );
 
-        // 5. Enviar resposta via Evolution API
-        console.log(`📤 Enviando resposta para ${remoteJid}`);
-        await EvolutionService.sendText(
-            org.evolutionApiUrl || process.env.EVOLUTION_API_URL || "",
-            org.evolutionApiKey || process.env.EVOLUTION_API_KEY || "",
-            instance,
-            remoteJid.split("@")[0], // Evolution espera apenas o número ou JID completo? Normalmente o número.
-            aiResponse
-        );
+        const { body: aiBody, nextState, intent, action, extractedInfo } = structuredResult;
+
+        // 8. Save User Message
+        await MessageRepository.createSystem({
+            organizationId: org.id,
+            leadId: lead.id,
+            role: "user",
+            content: text
+        });
+
+        // 9. Automated Actions (CRM Movement)
+        let stageToUpdate = lead.stageId;
+        if (action === "SCHEDULE_MEETING") {
+            console.log(`📅 Action: Moving lead ${phone} to Meeting stage.`);
+            const meetingStage = await CRMRepository.getStageByName(org.id, "Reunião");
+            if (meetingStage) {
+                stageToUpdate = meetingStage;
+            }
+        }
+
+        // 10. Update Lead
+        await LeadRepository.updateSystem(lead.id, {
+            conversationState: nextState,
+            lastIntent: intent,
+            stageId: stageToUpdate,
+            metaData: {
+                ...(lead.metaData as object),
+                ...extractedInfo,
+                updatedByAIAt: new Date().toISOString()
+            }
+        });
+
+        // 11. Save AI Response
+        await MessageRepository.createSystem({
+            organizationId: org.id,
+            leadId: lead.id,
+            role: "model",
+            content: aiBody
+        });
+
+        // 12. Send Response (Voice or Text)
+        console.log(`📤 Sending funnel response (${nextState}) to ${remoteJid}`);
+        
+        const apiUrl = org.evolutionApiUrl || process.env.EVOLUTION_API_URL || "";
+        const apiKey = org.evolutionApiKey || process.env.EVOLUTION_API_KEY || "";
+
+        if (config.voiceEnabled) {
+            try {
+                const audioData = await TTSService.generateAudio(
+                    aiBody,
+                    config.ttsProvider || "openai",
+                    config.ttsVoiceId,
+                    config.coquiUrl
+                );
+
+                await EvolutionService.sendAudio(apiUrl, apiKey, instance, phone, audioData);
+            } catch (ttsErr) {
+                console.error("❌ TTS Error, falling back to text:", ttsErr);
+                await EvolutionService.sendText(apiUrl, apiKey, instance, phone, aiBody);
+            }
+        } else {
+            await EvolutionService.sendText(apiUrl, apiKey, instance, phone, aiBody);
+        }
 
         return NextResponse.json({ success: true });
 
     } catch (error: any) {
-        console.error("❌ Erro no Webhook Evolution:", error);
+        console.error("❌ Error in Evolution Webhook:", error);
         return NextResponse.json({ error: error.message }, { status: 500 });
     }
 }

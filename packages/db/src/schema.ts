@@ -140,6 +140,8 @@ export const leads = pgTable("leads", {
     isTyping: text("is_typing").default("false").notNull(),
     outreachStatus: text("outreach_status").default("idle").notNull(),
     lastOutreachAt: timestamp("last_outreach_at"),
+    conversationState: text("conversation_state").default("START").notNull(),
+    lastIntent: text("last_intent"),
     createdAt: timestamp("created_at").defaultNow().notNull(),
     updatedAt: timestamp("updated_at").defaultNow().notNull(),
 }, (table) => {

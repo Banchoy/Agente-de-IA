@@ -178,6 +178,23 @@ export const EvolutionService = {
         return await response.json();
     },
 
+    sendAudio: async (apiUrl: string, apiKey: string, instanceName: string, number: string, audioUrl: string) => {
+        const response = await fetch(`${apiUrl}/message/sendWhatsAppAudio/${instanceName}`, {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json",
+                "apikey": apiKey
+            },
+            body: JSON.stringify({
+                number,
+                audio: audioUrl,
+                delay: 1200,
+                ptt: true
+            })
+        });
+        return await response.json();
+    },
+
     setWebhook: async (apiUrl: string, apiKey: string, instanceName: string, webhookUrl: string) => {
         const response = await fetch(`${apiUrl}/webhook/instance/${instanceName}`, {
             method: "POST",
