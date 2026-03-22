@@ -1,6 +1,5 @@
-# Estágio 1: Instalação de dependências
 FROM node:20-alpine AS deps
-RUN apk add --no-cache libc6-compat
+RUN apk add --no-cache libc6-compat wget tar
 WORKDIR /app
 
 # Copy package configurations for all workspaces
@@ -11,6 +10,17 @@ COPY packages/db/package.json ./packages/db/
 
 # Install dependencies for all workspaces
 RUN npm install
+
+# Install Piper TTS
+RUN wget -q https://github.com/rhasspy/piper/releases/download/v1.2.0/piper_amd64.tar.gz && \
+    tar -xzf piper_amd64.tar.gz && \
+    mv piper/piper /usr/local/bin/piper && \
+    rm -rf piper piper_amd64.tar.gz
+
+# Download Portuguese Voice Model
+RUN mkdir -p /app/models && \
+    wget -q https://huggingface.co/rhasspy/piper-voices/resolve/main/pt/pt_BR/faber/medium/pt_BR-faber-medium.onnx -O /app/models/pt_BR-faber-medium.onnx && \
+    wget -q https://huggingface.co/rhasspy/piper-voices/resolve/main/pt/pt_BR/faber/medium/pt_BR-faber-medium.onnx.json -O /app/models/pt_BR-faber-medium.onnx.json
 
 # Estágio 2: Build da aplicação
 FROM node:20-alpine AS builder
@@ -34,7 +44,12 @@ RUN npm run build
 
 # Estágio 3: Execução
 FROM node:20-alpine AS runner
+# Install runtime dependencies for Piper
+RUN apk add --no-cache libstdc++
+
 WORKDIR /app
+COPY --from=deps /usr/local/bin/piper /usr/local/bin/piper
+COPY --from=deps /app/models /app/models
 
 ENV NODE_ENV production
 

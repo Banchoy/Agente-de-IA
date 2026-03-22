@@ -1,7 +1,7 @@
 
 import { env } from "../env";
 
-export type TTSProvider = "openai" | "elevenlabs" | "coqui";
+export type TTSProvider = "openai" | "elevenlabs" | "piper";
 
 export const TTSService = {
     /**
@@ -17,9 +17,8 @@ export const TTSService = {
     ): Promise<string> => {
         console.log(`🎙️ Generating audio with ${provider} for text: ${text.substring(0, 30)}...`);
 
-        if (provider === "coqui") {
-            if (!coquiUrl) throw new Error("Coqui URL not provided.");
-            return await TTSService.generateCoquiAudio(text, coquiUrl);
+        if (provider === "piper") {
+            return await TTSService.generatePiperAudio(text);
         }
 
         if (provider === "openai") {
@@ -56,18 +55,36 @@ export const TTSService = {
         return `data:audio/mp3;base64,${base64}`;
     },
 
-    generateCoquiAudio: async (text: string, url: string) => {
-        // Implementation for local Coqui TTS API
-        const response = await fetch(`${url}/api/tts`, {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ text })
-        });
-
-        if (!response.ok) throw new Error("Coqui TTS offline.");
+    generatePiperAudio: async (text: string): Promise<string> => {
+        const { execSync } = require("child_process");
+        const fs = require("fs");
+        const path = require("path");
         
-        const buffer = await response.arrayBuffer();
-        const base64 = Buffer.from(buffer).toString("base64");
-        return `data:audio/wav;base64,${base64}`;
+        const modelPath = "/app/models/pt_BR-faber-medium.onnx";
+        const outputPath = path.join("/tmp", `piper_${Date.now()}.wav`);
+
+        try {
+            console.log(`🎙️ Running Piper for: ${text.substring(0, 30)}...`);
+            
+            // execSync Piper command
+            // Note: In some environments, we might need the full path to piper
+            const cleanText = text.replace(/"/g, '\\"');
+            execSync(`echo "${cleanText}" | piper --model ${modelPath} --output_file ${outputPath}`, {
+                stdio: 'inherit'
+            });
+
+            const buffer = fs.readFileSync(outputPath);
+            const base64 = buffer.toString("base64");
+            
+            // Clean up
+            if (fs.existsSync(outputPath)) {
+                fs.unlinkSync(outputPath);
+            }
+
+            return `data:audio/wav;base64,${base64}`;
+        } catch (e: any) {
+            console.error("❌ Piper TTS Error:", e.message);
+            throw new Error("Piper TTS failed.");
+        }
     }
 };
