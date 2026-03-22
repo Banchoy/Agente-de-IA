@@ -6,7 +6,7 @@ import { sql, relations } from "drizzle-orm";
 // -----------------------------------------------------------------------------
 export const organizations = pgTable("organizations", {
     id: uuid("id").defaultRandom().primaryKey(),
-    clerkOrgId: text("clerk_org_id").notNull().unique(), // Maps to Clerk Organization ID
+    clerkOrgId: text("clerk_org_id").notNull().unique(),
     name: text("name").notNull(),
     evolutionApiUrl: text("evolution_api_url"),
     evolutionApiKey: text("evolution_api_key"),
@@ -21,15 +21,70 @@ export const organizations = pgTable("organizations", {
 // -----------------------------------------------------------------------------
 export const users = pgTable("users", {
     id: uuid("id").defaultRandom().primaryKey(),
-    clerkUserId: text("clerk_user_id").notNull(), // Maps to Clerk User ID
+    clerkUserId: text("clerk_user_id").notNull(),
     organizationId: uuid("organization_id")
-        .references(() => organizations.id, { onDelete: "cascade" }), 
+        .references(() => organizations.id, { onDelete: "cascade" }),
     role: text("role"),
     createdAt: timestamp("created_at").defaultNow().notNull(),
 }, (table) => {
     return {
         organizationIdIdx: index("users_organization_id_idx").on(table.organizationId),
         clerkUserIdOrgIdUnique: uniqueIndex("users_clerk_user_id_org_id_unique").on(table.clerkUserId, table.organizationId),
+    }
+});
+
+// -----------------------------------------------------------------------------
+// Audit Logs Table
+// -----------------------------------------------------------------------------
+export const auditLogs = pgTable("audit_logs", {
+    id: uuid("id").defaultRandom().primaryKey(),
+    organizationId: uuid("organization_id")
+        .notNull()
+        .references(() => organizations.id, { onDelete: "cascade" }),
+    action: text("action").notNull(),
+    metadata: jsonb("metadata"),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+// -----------------------------------------------------------------------------
+// Agents Table
+// -----------------------------------------------------------------------------
+export const agents = pgTable("agents", {
+    id: uuid("id").defaultRandom().primaryKey(),
+    organizationId: uuid("organization_id")
+        .notNull()
+        .references(() => organizations.id, { onDelete: "cascade" }),
+    name: text("name").notNull(),
+    description: text("description"),
+    status: text("status").default("active").notNull(),
+    config: jsonb("config").default({}),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+    updatedAt: timestamp("updated_at").defaultNow().notNull(),
+    whatsappInstanceName: text("whatsapp_instance_name"),
+}, (table) => {
+    return {
+        organizationIdIdx: index("agents_organization_id_idx").on(table.organizationId),
+    }
+});
+
+// -----------------------------------------------------------------------------
+// Workflows Table
+// -----------------------------------------------------------------------------
+export const workflows = pgTable("workflows", {
+    id: uuid("id").defaultRandom().primaryKey(),
+    organizationId: uuid("organization_id")
+        .notNull()
+        .references(() => organizations.id, { onDelete: "cascade" }),
+    name: text("name").notNull(),
+    description: text("description"),
+    nodes: jsonb("nodes").default([]),
+    edges: jsonb("edges").default([]),
+    status: text("status").default("draft").notNull(),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+    updatedAt: timestamp("updated_at").defaultNow().notNull(),
+}, (table) => {
+    return {
+        organizationIdIdx: index("workflows_organization_id_idx").on(table.organizationId),
     }
 });
 
@@ -60,7 +115,7 @@ export const stages = pgTable("stages", {
         .notNull()
         .references(() => pipelines.id, { onDelete: "cascade" }),
     name: text("name").notNull(),
-    order: text("order").notNull().default("0"), 
+    order: text("order").notNull().default("0"),
     createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 
@@ -76,14 +131,14 @@ export const leads = pgTable("leads", {
         .references(() => stages.id, { onDelete: "set null" }),
     name: text("name").notNull(),
     email: text("email"),
-    phone: text("phone"), 
-    status: text("status").default("active").notNull(), 
-    source: text("source"), 
-    metaData: jsonb("metadata").default({}), 
-    aiActive: text("ai_active").default("true").notNull(), 
+    phone: text("phone"),
+    status: text("status").default("active").notNull(),
+    source: text("source"),
+    metaData: jsonb("metadata").default({}),
+    aiActive: text("ai_active").default("true").notNull(),
     lastReadAt: timestamp("last_read_at"),
-    isTyping: text("is_typing").default("false").notNull(), 
-    outreachStatus: text("outreach_status").default("idle").notNull(), 
+    isTyping: text("is_typing").default("false").notNull(),
+    outreachStatus: text("outreach_status").default("idle").notNull(),
     lastOutreachAt: timestamp("last_outreach_at"),
     createdAt: timestamp("created_at").defaultNow().notNull(),
     updatedAt: timestamp("updated_at").defaultNow().notNull(),
@@ -99,7 +154,41 @@ export const leadsRelations = relations(leads, ({ many }) => ({
 }));
 
 // -----------------------------------------------------------------------------
-// Messages Table
+// CRM: Meta Integrations Table
+// -----------------------------------------------------------------------------
+export const metaIntegrations = pgTable("meta_integrations", {
+    id: uuid("id").defaultRandom().primaryKey(),
+    organizationId: uuid("organization_id")
+        .notNull()
+        .references(() => organizations.id, { onDelete: "cascade" }),
+    accessToken: text("access_token"),
+    pixelId: text("pixel_id"),
+    webhookVerifyToken: text("webhook_verify_token"),
+    fieldMapping: jsonb("field_mapping").default({}),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+// -----------------------------------------------------------------------------
+// WhatsApp Sessions Table (Baileys)
+// -----------------------------------------------------------------------------
+export const whatsappSessions = pgTable("whatsapp_sessions", {
+    id: uuid("id").defaultRandom().primaryKey(),
+    organizationId: uuid("organization_id")
+        .notNull()
+        .references(() => organizations.id, { onDelete: "cascade" }),
+    sessionId: text("session_id").notNull(),
+    key: text("key").notNull(),
+    data: text("data").notNull(),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+    updatedAt: timestamp("updated_at").defaultNow().notNull(),
+}, (table) => {
+    return {
+        sessionKeyUnique: uniqueIndex("whatsapp_session_key_unique").on(table.sessionId, table.key),
+    }
+});
+
+// -----------------------------------------------------------------------------
+// Messages Table (Chat History)
 // -----------------------------------------------------------------------------
 export const messages = pgTable("messages", {
     id: uuid("id").defaultRandom().primaryKey(),
@@ -108,7 +197,7 @@ export const messages = pgTable("messages", {
         .references(() => organizations.id, { onDelete: "cascade" }),
     leadId: uuid("lead_id")
         .references(() => leads.id, { onDelete: "cascade" }),
-    role: text("role").notNull(), 
+    role: text("role").notNull(),
     content: text("content").notNull(),
     createdAt: timestamp("created_at").defaultNow().notNull(),
 }, (table) => {
@@ -117,3 +206,10 @@ export const messages = pgTable("messages", {
         leadIdIdx: index("messages_lead_id_idx").on(table.leadId),
     }
 });
+
+export const messagesRelations = relations(messages, ({ one }) => ({
+    lead: one(leads, {
+        fields: [messages.leadId],
+        references: [leads.id],
+    }),
+}));
