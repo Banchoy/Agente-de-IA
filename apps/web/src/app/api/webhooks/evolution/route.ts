@@ -139,28 +139,66 @@ export async function POST(req: NextRequest) {
             content: aiBody
         });
 
-        // 12. Send Response (Voice or Text)
+        // 12. Send Response (Split Voice and Text)
         console.log(`📤 Sending funnel response (${nextState}) to ${remoteJid}`);
         
         const apiUrl = org.evolutionApiUrl || process.env.EVOLUTION_API_URL || "";
         const apiKey = org.evolutionApiKey || process.env.EVOLUTION_API_KEY || "";
 
-        if (config.voiceEnabled) {
-            try {
-                const audioData = await TTSService.generateAudio(
-                    aiBody,
-                    config.ttsProvider || "openai",
-                    config.ttsVoiceId,
-                    config.coquiUrl
-                );
+        // Regex for [AUDIO] or [ÁUDIO] tags
+        const audioRegex = /\[(?:AUDIO|ÁUDIO)\]([\s\S]*?)\[\/(?:AUDIO|ÁUDIO)\]/gi;
+        
+        let lastIndex = 0;
+        let match;
+        const messages: { type: "text" | "audio", content: string }[] = [];
 
-                await EvolutionService.sendAudio(apiUrl, apiKey, instance, phone, audioData);
-            } catch (ttsErr) {
-                console.error("❌ TTS Error, falling back to text:", ttsErr);
-                await EvolutionService.sendText(apiUrl, apiKey, instance, phone, aiBody);
+        while ((match = audioRegex.exec(aiBody)) !== null) {
+            // Text before the audio tag
+            const textBefore = aiBody.substring(lastIndex, match.index).trim();
+            if (textBefore) {
+                messages.push({ type: "text", content: textBefore });
             }
-        } else {
-            await EvolutionService.sendText(apiUrl, apiKey, instance, phone, aiBody);
+            // Audio content
+            const audioContent = match[1].trim();
+            if (audioContent) {
+                messages.push({ type: "audio", content: audioContent });
+            }
+            lastIndex = audioRegex.lastIndex;
+        }
+
+        // Remaining text after last tag
+        const remainingText = aiBody.substring(lastIndex).trim();
+        if (remainingText) {
+            messages.push({ type: "text", content: remainingText });
+        }
+
+        // If no tags were found, send entire body as text (or audio if enabled)
+        if (messages.length === 0) {
+            messages.push({ type: config.voiceEnabled ? "audio" : "text", content: aiBody });
+        }
+
+        // Sequential sending
+        for (const msg of messages) {
+            if (msg.type === "audio" && config.voiceEnabled) {
+                try {
+                    const audioData = await TTSService.generateAudio(
+                        msg.content,
+                        config.ttsProvider || "openai",
+                        config.ttsVoiceId,
+                        config.coquiUrl
+                    );
+                    await EvolutionService.sendAudio(apiUrl, apiKey, instance, phone, audioData);
+                } catch (ttsErr) {
+                    console.error("❌ TTS Error, falling back to text:", ttsErr);
+                    await EvolutionService.sendText(apiUrl, apiKey, instance, phone, msg.content);
+                }
+            } else {
+                // Remove any remaining tags just in case
+                const cleanText = msg.content.replace(/\[\/?(?:AUDIO|ÁUDIO)\]/gi, "").trim();
+                if (cleanText) {
+                    await EvolutionService.sendText(apiUrl, apiKey, instance, phone, cleanText);
+                }
+            }
         }
 
         return NextResponse.json({ success: true });
