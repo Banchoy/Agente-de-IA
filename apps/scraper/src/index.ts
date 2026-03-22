@@ -3,7 +3,11 @@ import Redis from "ioredis";
 import { createDb, leads, stages, pipelines } from "@saas/db";
 import { eq, and } from "drizzle-orm";
 
-const redis = new Redis(process.env.REDIS_URL || "redis://localhost:6379");
+const redisUrl = process.env.REDIS_URL || "redis://localhost:6379";
+const redis = new Redis(redisUrl, {
+    maxRetriesPerRequest: null, // Essential for blpop
+    tls: redisUrl.startsWith("rediss://") ? {} : undefined,
+});
 const db = createDb(process.env.DATABASE_URL || "");
 const QUEUE_NAME = "scraper_tasks";
 
