@@ -1,5 +1,6 @@
 import puppeteer, { Browser, Page } from "puppeteer-core";
 import { GoogleGenerativeAI } from "@google/generative-ai";
+import { leads } from "@saas/db";
 
 export interface ScrapedLead {
     name: string;

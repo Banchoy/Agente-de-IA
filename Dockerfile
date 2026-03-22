@@ -3,8 +3,14 @@ FROM node:20-alpine AS deps
 RUN apk add --no-cache libc6-compat
 WORKDIR /app
 
+# Copy package configurations for all workspaces
 COPY package.json package-lock.json* ./
-RUN npm install --frozen-lockfile
+COPY apps/web/package.json ./apps/web/
+COPY apps/scraper/package.json ./apps/scraper/
+COPY packages/db/package.json ./packages/db/
+
+# Install dependencies for all workspaces
+RUN npm install
 
 # Estágio 2: Build da aplicação
 FROM node:20-alpine AS builder

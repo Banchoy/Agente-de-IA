@@ -1,5 +1,7 @@
-import { db } from "../../../lib/db";
-import { leads, stages, pipelines } from "../../../../../packages/db/src/schema";
+"use server";
+
+import { db } from "@/lib/db";
+import { leads, stages, pipelines } from "@saas/db";
 import { eq, and, asc } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import { LeadRepository } from "@/lib/repositories/lead";
@@ -247,7 +249,10 @@ export async function processProspecting(mapsUrl: string, config: { niche?: stri
         if (!org) throw new Error("Organization not found");
 
         const Redis = (await import("ioredis")).default;
-        const redis = new Redis(process.env.REDIS_URL || "redis://localhost:6379");
+        const redisUrl = process.env.REDIS_URL || 
+            (process.env.REDISHOST ? `redis://:${process.env.REDISPASSWORD}@${process.env.REDISHOST}:${process.env.REDISPORT}` : "redis://localhost:6379");
+        
+        const redis = new Redis(redisUrl);
         
         const task = {
             url: mapsUrl,

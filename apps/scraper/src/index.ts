@@ -1,7 +1,6 @@
 import { ScraperService } from "./services/scraper";
 import Redis from "ioredis";
-import { createDb } from "../../../packages/db/src/client";
-import { leads, stages, pipelines } from "../../../packages/db/src/schema";
+import { createDb, leads, stages, pipelines } from "@saas/db";
 import { eq, and } from "drizzle-orm";
 
 const redis = new Redis(process.env.REDIS_URL || "redis://localhost:6379");

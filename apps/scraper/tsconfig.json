@@ -3,6 +3,8 @@
   "compilerOptions": {
     "baseUrl": ".",
     "paths": {
+      "@/*": ["./src/*"],
+      "@saas/db": ["../../packages/db/src/index.ts"],
       "@saas/db/*": ["../../packages/db/src/*"]
     }
   },
