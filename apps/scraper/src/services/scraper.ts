@@ -22,7 +22,7 @@ export const ScraperService = {
         let browser: Browser | null = null;
         
         try {
-            const wsEndpoint = process.env.BROWSER_WS_ENDPOINT; // For Browserless
+            const wsEndpoint = process.env.BROWSERLESS_URL; // For Browserless
             
             if (wsEndpoint) {
                 browser = await puppeteer.connect({ browserWSEndpoint: wsEndpoint });
