@@ -537,10 +537,10 @@ export const WhatsappService = {
                                         // SIMULAR DIGITANDO/GRAVANDO (Vários segundos para ser visível)
                                         if (msg.type === "audio" && config.voiceEnabled) {
                                             await sock.sendPresenceUpdate('recording', jid);
-                                            await new Promise(resolve => setTimeout(resolve, 3000));
+                                            await new Promise(resolve => setTimeout(resolve, 12000));
                                         } else {
                                             await sock.sendPresenceUpdate('composing', jid);
-                                            await new Promise(resolve => setTimeout(resolve, 2500));
+                                            await new Promise(resolve => setTimeout(resolve, 10000));
                                         }
 
                                         if (msg.type === "audio" && config.voiceEnabled) {

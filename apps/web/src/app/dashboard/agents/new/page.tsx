@@ -7,6 +7,7 @@ import Link from "next/link";
 import { db } from "@/lib/db";
 import { organizations, whatsappSessions } from "@/lib/db/schema";
 import { eq } from "drizzle-orm";
+import { AIService } from "@/lib/services/ai";
 
 export default async function NewAgentPage() {
     const { userId, orgId: clerkOrgId } = await auth();
@@ -32,6 +33,9 @@ export default async function NewAgentPage() {
     .groupBy(whatsappSessions.sessionId);
 
     const availableSessions = sessions.map(s => s.sessionId);
+
+    // Get dynamic free models from OpenRouter
+    const freeModels = await AIService.getOpenRouterFreeModels();
 
     // Action to create the agent
     async function handleSubmit(formData: FormData) {
@@ -135,8 +139,8 @@ export default async function NewAgentPage() {
                                 className="w-full rounded-2xl border border-border bg-background px-5 py-4 text-sm font-bold text-foreground focus:border-primary focus:outline-none transition-all shadow-inner appearance-none cursor-pointer"
                             >
                                 <option value="google">Google Gemini</option>
-                                <option value="openai">OpenAI (Proximamente)</option>
-                                <option value="anthropic">Anthropic (Proximamente)</option>
+                                <option value="openrouter">OpenRouter (Grátis Dinâmico)</option>
+                                <option value="groq">Groq (Llama)</option>
                             </select>
                         </div>
                         <div className="space-y-3">
@@ -147,8 +151,16 @@ export default async function NewAgentPage() {
                                 required
                                 className="w-full rounded-2xl border border-border bg-background px-5 py-4 text-sm font-bold text-foreground focus:border-primary focus:outline-none transition-all shadow-inner appearance-none cursor-pointer"
                             >
-                                <option value="gemini-1.5-flash">Gemini 1.5 Flash (Rápido)</option>
-                                <option value="gemini-1.5-pro">Gemini 1.5 Pro (Inteligente)</option>
+                                <optgroup label="Google / Locais">
+                                    <option value="gemini-1.5-flash">Gemini 1.5 Flash (Rápido)</option>
+                                    <option value="gemini-1.5-pro">Gemini 1.5 Pro (Inteligente)</option>
+                                    <option value="llama-3.3-70b-versatile">Llama 3.3 70B (Groq)</option>
+                                </optgroup>
+                                <optgroup label="OpenRouter (Gratuitos)">
+                                    {freeModels.map(m => (
+                                        <option key={m} value={m}>{m.split('/').pop() || m}</option>
+                                    ))}
+                                </optgroup>
                             </select>
                         </div>
                     </div>
