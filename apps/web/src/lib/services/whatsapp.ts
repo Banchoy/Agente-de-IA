@@ -534,6 +534,16 @@ export const WhatsappService = {
 
                                     // Sequential sending
                                     for (const msg of messagesToWait) {
+                                        // SIMULAR DIGITANDO/GRAVANDO
+                                        if (msg.type === "audio" && config.voiceEnabled) {
+                                            await sock.sendPresenceUpdate('recording', jid);
+                                        } else {
+                                            await sock.sendPresenceUpdate('composing', jid);
+                                        }
+
+                                        // Pequeno delay para simular pensamento/produção
+                                        await new Promise(resolve => setTimeout(resolve, 2000));
+
                                         if (msg.type === "audio" && config.voiceEnabled) {
                                             try {
                                                 console.log(`🎙️ [Baileys] Gerando áudio para parte da resposta...`);

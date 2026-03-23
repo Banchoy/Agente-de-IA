@@ -269,3 +269,87 @@ export async function processProspecting(mapsUrl: string, config: { niche?: stri
         return { success: false, error: error.message };
     }
 }
+
+export async function createStage(name: string) {
+    const { orgId: clerkOrgId } = await auth();
+    if (!clerkOrgId) throw new Error("Unauthorized");
+
+    try {
+        const org = await OrganizationRepository.getByClerkId(clerkOrgId);
+        if (!org) throw new Error("Organization not found");
+
+        const { CRMRepository } = await import("@/lib/repositories/crm");
+        const pipeline = await CRMRepository.ensureDefaultPipeline(org.id);
+
+        if (!pipeline) throw new Error("Pipeline not found");
+
+        // Get max order
+        const currentStages = await db.select({ order: stages.order })
+            .from(stages)
+            .where(eq(stages.pipelineId, pipeline as string));
+        
+        const maxOrder = currentStages.reduce((max, s) => {
+            const val = parseInt(s.order) || 0;
+            return val > max ? val : max;
+        }, 0);
+
+        await db.insert(stages).values({
+            pipelineId: pipeline as string,
+            name: name,
+            order: (maxOrder + 1).toString()
+        });
+
+        revalidatePath("/dashboard");
+        return { success: true };
+    } catch (error) {
+        console.error("Error creating stage:", error);
+        return { success: false, error };
+    }
+}
+
+export async function deleteStage(stageId: string) {
+    const { orgId: clerkOrgId } = await auth();
+    if (!clerkOrgId) throw new Error("Unauthorized");
+
+    try {
+        const org = await OrganizationRepository.getByClerkId(clerkOrgId);
+        if (!org) throw new Error("Organization not found");
+
+        // Mover leads deste estágio para o primeiro estágio disponível (Novo Lead) para não deletar os leads
+        const allStages = await db.select({ id: stages.id, name: stages.name })
+            .from(stages)
+            .innerJoin(pipelines, eq(stages.pipelineId, pipelines.id))
+            .where(eq(pipelines.organizationId, org.id))
+            .orderBy(asc(stages.order));
+
+        const firstStage = allStages.find(s => s.id !== stageId);
+        
+        if (firstStage) {
+            await db.update(leads)
+                .set({ stageId: firstStage.id })
+                .where(eq(leads.stageId, stageId));
+        }
+
+        await db.delete(stages).where(eq(stages.id, stageId));
+        
+        revalidatePath("/dashboard");
+        return { success: true };
+    } catch (error) {
+        console.error("Error deleting stage:", error);
+        return { success: false, error };
+    }
+}
+
+export async function updateStageOrder(stageId: string, newOrder: string) {
+    try {
+        await db.update(stages)
+            .set({ order: newOrder })
+            .where(eq(stages.id, stageId));
+        
+        revalidatePath("/dashboard");
+        return { success: true };
+    } catch (error) {
+        console.error("Error updating stage order:", error);
+        return { success: false, error };
+    }
+}

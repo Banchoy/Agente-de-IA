@@ -22,11 +22,11 @@ import { CSS } from "@dnd-kit/utilities";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Plus, MoreHorizontal, User, Phone, MessageSquare, Calendar, CheckCircle, XCircle, Search, RefreshCw, Bot } from "lucide-react";
+import { Plus, MoreHorizontal, User, Phone, MessageSquare, Calendar, CheckCircle, XCircle, Search, RefreshCw, Bot, Trash2, ArrowLeftRight } from "lucide-react";
 import LeadDetailsModal from "./LeadDetailsModal";
 import AddLeadModal from "./AddLeadModal";
 import ProspectingModal from "./ProspectingModal";
-import { updateLeadMetadata, updateLeadStage, importLeads, startOutreach, createLead, deleteLead, updateLeadColor } from "./leads/actions";
+import { updateLeadMetadata, updateLeadStage, importLeads, startOutreach, createLead, deleteLead, updateLeadColor, createStage, deleteStage, updateStageOrder } from "./leads/actions";
 import Papa from "papaparse";
 import * as XLSX from "xlsx";
 import { toast } from "sonner";
@@ -194,18 +194,35 @@ function SortableItem({ lead, onClick, onDelete, onColorChange }: {
     );
 }
 
-function KanbanColumn({ stage, leads, onLeadClick, onDeleteLead, onColorChange }: { 
+function KanbanColumn({ stage, leads, onLeadClick, onDeleteLead, onColorChange, onDeleteStage }: { 
     stage: any; 
     leads: any[]; 
     onLeadClick: (lead: any) => void;
     onDeleteLead: (id: string) => void;
     onColorChange: (id: string, color: string) => void;
+    onDeleteStage: (id: string) => void;
 }) {
-    const { setNodeRef } = useSortable({ id: stage.id });
+    const { setNodeRef, attributes, listeners, transform, transition, isDragging } = useSortable({ 
+        id: stage.id,
+        data: {
+            type: "column",
+            stage
+        }
+    });
+
+    const style = {
+        transform: CSS.Translate.toString(transform),
+        transition,
+        opacity: isDragging ? 0.5 : 1,
+    };
 
     return (
-        <div className="flex-shrink-0 w-80 bg-muted/30 rounded-2xl p-4 flex flex-col max-h-full border border-border/50">
-            <div className="flex items-center justify-between mb-4 px-1">
+        <div 
+            ref={setNodeRef} 
+            style={style}
+            className="flex-shrink-0 w-80 bg-muted/30 rounded-2xl p-4 flex flex-col max-h-full border border-border/50 group/column"
+        >
+            <div className="flex items-center justify-between mb-4 px-1" {...attributes} {...listeners}>
                 <div className="flex items-center gap-2">
                     <div className={`w-2.5 h-2.5 rounded-full ${stage.color} shadow-sm`} />
                     <h3 className="font-black text-xs uppercase tracking-widest text-muted-foreground">{stage.name}</h3>
@@ -213,7 +230,42 @@ function KanbanColumn({ stage, leads, onLeadClick, onDeleteLead, onColorChange }
                         {leads.length}
                     </span>
                 </div>
-                <Plus className="w-4 h-4 text-muted-foreground cursor-pointer hover:text-foreground transition-colors" />
+                <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                        <Button variant="ghost" size="icon" className="h-7 w-7 rounded-lg text-muted-foreground hover:text-foreground">
+                            <MoreHorizontal className="w-4 h-4" />
+                        </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end" className="w-48 rounded-xl border-border">
+                        <DropdownMenuLabel className="text-[10px] uppercase font-bold text-muted-foreground">Opções da Coluna</DropdownMenuLabel>
+                        <DropdownMenuSeparator />
+                        <DropdownMenuItem 
+                            className="cursor-pointer"
+                            onClick={() => {
+                                const name = prompt("Novo nome da coluna:", stage.name);
+                                if (name && name !== stage.name) {
+                                    // Future: updateStageName
+                                }
+                            }}
+                        >
+                            <Plus className="w-4 h-4 mr-2" />
+                            Adicionar Lead
+                        </DropdownMenuItem>
+                        <DropdownMenuSeparator />
+                        <DropdownMenuItem 
+                            className="text-red-500 focus:text-red-500 focus:bg-red-500/10 cursor-pointer"
+                            onClick={() => {
+                                if (confirm(`Deseja excluir a coluna "${stage.name}"? Os leads serão movidos para a primeira coluna.`)) {
+                                    // onDeleteStage is passed via props
+                                    (stage as any).onDelete();
+                                }
+                            }}
+                        >
+                            <Trash2 className="w-4 h-4 mr-2" />
+                            Excluir Coluna
+                        </DropdownMenuItem>
+                    </DropdownMenuContent>
+                </DropdownMenu>
             </div>
 
             <div ref={setNodeRef} className="flex-1 overflow-y-auto min-h-[150px] custom-scrollbar pr-1">
@@ -285,6 +337,22 @@ export default function CRMKanban({ initialLeads = [], initialStages = [] }: { i
         }
 
         if (active.id !== over.id) {
+            const activeData = active.data.current;
+            const overData = over.data.current;
+
+            if (activeData?.type === "column" && overData?.type === "column") {
+                const oldIndex = stagesList.findIndex((s: any) => s.id === active.id);
+                const newIndex = stagesList.findIndex((s: any) => s.id === over.id);
+                const newStages = arrayMove(stagesList, oldIndex, newIndex);
+                setStagesList(newStages);
+                
+                // Update order in DB for all shifted stages
+                newStages.forEach(async (s: any, index: number) => {
+                    await updateStageOrder(s.id, index.toString());
+                });
+                return;
+            }
+
             const oldIndex = leadsList.findIndex((l: any) => l.id === active.id);
             const newIndex = leadsList.findIndex((l: any) => l.id === over.id);
 
@@ -299,6 +367,29 @@ export default function CRMKanban({ initialLeads = [], initialStages = [] }: { i
         }
 
         setActiveId(null);
+    };
+
+    const handleAddStage = async () => {
+        const name = prompt("Nome da nova coluna:");
+        if (!name) return;
+
+        const res = await createStage(name);
+        if (res.success) {
+            toast.success("Coluna adicionada!");
+            window.location.reload();
+        } else {
+            toast.error("Erro ao adicionar coluna.");
+        }
+    };
+
+    const handleDeleteStage = async (stageId: string) => {
+        const res = await deleteStage(stageId);
+        if (res.success) {
+            toast.success("Coluna excluída.");
+            window.location.reload();
+        } else {
+            toast.error("Erro ao excluir coluna.");
+        }
     };
 
     const handleLeadClick = (lead: any) => {
@@ -471,16 +562,32 @@ export default function CRMKanban({ initialLeads = [], initialStages = [] }: { i
                     onDragEnd={handleDragEnd}
                 >
                     <div className="flex gap-6 h-full min-w-max">
-                        {stagesList.map((stage: any) => (
-                            <KanbanColumn
-                                key={stage.id}
-                                stage={{ ...stage, color: getStageColor(stage.name) }}
-                                leads={leadsList.filter((l: any) => l.stageId === stage.id)}
-                                onLeadClick={handleLeadClick}
-                                onDeleteLead={handleDeleteLead}
-                                onColorChange={handleColorChange}
-                            />
-                        ))}
+                        <SortableContext 
+                            items={stagesList.map(s => s.id)} 
+                            strategy={verticalListSortingStrategy} // Can use horizontal but columns are usually fine with vertical for IDs
+                        >
+                            {stagesList.map((stage: any) => (
+                                <KanbanColumn
+                                    key={stage.id}
+                                    stage={{ ...stage, color: getStageColor(stage.name), onDelete: () => handleDeleteStage(stage.id) }}
+                                    leads={leadsList.filter((l: any) => l.stageId === stage.id)}
+                                    onLeadClick={handleLeadClick}
+                                    onDeleteLead={handleDeleteLead}
+                                    onColorChange={handleColorChange}
+                                    onDeleteStage={handleDeleteStage}
+                                />
+                            ))}
+                        </SortableContext>
+
+                        {/* Add Column Button */}
+                        <div className="flex-shrink-0 w-80 bg-muted/10 rounded-2xl p-4 flex flex-col items-center justify-center border-2 border-dashed border-border/50 hover:bg-muted/20 transition-all group cursor-pointer"
+                            onClick={handleAddStage}
+                        >
+                            <div className="h-12 w-12 rounded-full bg-muted flex items-center justify-center mb-3 group-hover:scale-110 transition-transform">
+                                <Plus className="w-6 h-6 text-muted-foreground" />
+                            </div>
+                            <span className="text-sm font-bold text-muted-foreground uppercase tracking-widest">Nova Coluna</span>
+                        </div>
                     </div>
 
                     <DragOverlay
