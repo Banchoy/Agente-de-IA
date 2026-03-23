@@ -49,7 +49,7 @@ RUN apk add --no-cache libstdc++
 
 WORKDIR /app
 COPY --from=deps /usr/local/bin/piper /usr/local/bin/piper
-COPY --from=deps /app/models /app/models
+COPY --from=deps --chown=nextjs:nodejs /app/models /app/models
 
 ENV NODE_ENV production
 

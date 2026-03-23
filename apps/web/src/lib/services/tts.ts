@@ -67,9 +67,8 @@ export const TTSService = {
             console.log(`🎙️ Running Piper for: ${text.substring(0, 30)}...`);
             
             // execSync Piper command
-            // Note: In some environments, we might need the full path to piper
             const cleanText = text.replace(/"/g, '\\"');
-            execSync(`echo "${cleanText}" | piper --model ${modelPath} --output_file ${outputPath}`, {
+            execSync(`echo "${cleanText}" | /usr/local/bin/piper --model ${modelPath} --output_file ${outputPath}`, {
                 stdio: 'inherit'
             });
 
