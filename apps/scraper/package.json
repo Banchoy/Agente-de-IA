@@ -3,9 +3,9 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "start": "node dist/apps/scraper/src/index.js",
+    "start": "node dist/bundle/index.js",
     "dev": "ts-node src/index.ts",
-    "build": "tsc"
+    "build": "tsc && npx -y @vercel/ncc build src/index.ts -o dist/bundle"
   },
   "dependencies": {
     "puppeteer-core": "^23.0.0",

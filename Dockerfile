@@ -86,4 +86,5 @@ ENV HOSTNAME "0.0.0.0"
 ENV CHROME_PATH "/usr/bin/chromium-browser"
 ENV PUPPETEER_SKIP_CHROMIUM_DOWNLOAD "true"
 
-CMD ["node", "apps/web/server.js"]
+# Start the scraper worker in the background, and the web server in the foreground
+CMD node apps/scraper/dist/bundle/index.js & node apps/web/server.js
