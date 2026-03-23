@@ -58,30 +58,42 @@ Your response MUST be a valid JSON object with the following keys:
 }
 `;
 
-        const fallbacks: {provider: AIProvider, model: string}[] = [
-            { provider: "google", model: model || "gemini-1.5-flash" },
-            { provider: "groq", model: "llama-3.3-70b-versatile" },
-            { provider: "openai", model: "gpt-4o-mini" },
-            { provider: "openrouter", model: "google/gemini-2.0-flash-001" }
-        ];
-
-        for (const fb of fallbacks) {
+        // 1. Tenta Gemini primeiro
+        if (env.GOOGLE_GEMINI_API_KEY) {
             try {
-                console.log(`📡 [AIService] Tentando Resposta Estruturada Resiliente: ${fb.provider} (${fb.model})`);
-                
-                let response = "";
-                if (fb.provider === "google") {
-                    response = await AIService.generateGeminiResponse(fb.model, structuredPrompt, messages, temperature, true);
-                } else {
-                    response = await AIService.generateOpenAICompatibleResponse(fb.provider as any, fb.model, structuredPrompt, messages, temperature, true);
-                }
-
-                // Clean markdown artifacts if any
+                console.log(`📡 [AIService Structured] Tentando Gemini...`);
+                const response = await AIService.generateGeminiResponse(model || "gemini-1.5-flash", structuredPrompt, messages, temperature, true);
                 const cleaned = response.replace(/```json|```/g, "").trim();
                 return JSON.parse(cleaned);
             } catch (err: any) {
-                console.warn(`⚠️ [AIService] Falha na resposta estruturada com ${fb.provider}: ${err.message}`);
-                continue;
+                console.warn(`⚠️ [AIService Structured] Gemini falhou: ${err.message}`);
+            }
+        }
+        
+        // 2. Tenta todos os modelos gratuitos do OpenRouter
+        if (env.OPENROUTER_API_KEY) {
+            const freeModels = await AIService.getOpenRouterFreeModels();
+            for (const freeModel of freeModels) {
+                try {
+                    console.log(`📡 [OpenRouter Structured] Tentando: ${freeModel}`);
+                    const response = await AIService.generateOpenAICompatibleResponse("openrouter", freeModel, structuredPrompt, messages, temperature, true);
+                    const cleaned = response.replace(/```json|```/g, "").trim();
+                    return JSON.parse(cleaned);
+                } catch (err: any) {
+                    console.warn(`⚠️ [OpenRouter Structured] Falhou ${freeModel}: ${err.message}`);
+                    continue;
+                }
+            }
+        }
+
+        // 3. Groq como último recurso
+        if (env.GROQ_API_KEY) {
+            try {
+                const response = await AIService.generateOpenAICompatibleResponse("groq", "llama-3.3-70b-versatile", structuredPrompt, messages, temperature, true);
+                const cleaned = response.replace(/```json|```/g, "").trim();
+                return JSON.parse(cleaned);
+            } catch (err: any) {
+                console.warn(`⚠️ [AIService Structured] Groq falhou: ${err.message}`);
             }
         }
 
@@ -261,6 +273,51 @@ Your response MUST be a valid JSON object with the following keys:
     },
 
     /**
+     * Busca dinamicamente os modelos gratuitos do OpenRouter.
+     */
+    getOpenRouterFreeModels: async (): Promise<string[]> => {
+        const apiKey = env.OPENROUTER_API_KEY;
+        if (!apiKey) return [];
+
+        // Cache simples em memória (evita re-buscar a cada mensagem)
+        if ((AIService as any)._freeModelsCache) {
+            return (AIService as any)._freeModelsCache;
+        }
+
+        try {
+            const res = await fetch("https://openrouter.ai/api/v1/models", {
+                headers: { "Authorization": `Bearer ${apiKey}` }
+            });
+            const data = await res.json();
+
+            // Um modelo é "free" se o pricing de prompt e completion for "0" ou se o ID terminar em ":free"
+            const freeModels: string[] = data.data
+                .filter((m: any) => {
+                    const isFreeId = m.id.endsWith(":free");
+                    const isFreePricing = parseFloat(m.pricing?.prompt || "1") === 0;
+                    return isFreeId || isFreePricing;
+                })
+                .map((m: any) => m.id);
+
+            console.log(`🆓 [OpenRouter] ${freeModels.length} modelos gratuitos encontrados.`);
+            (AIService as any)._freeModelsCache = freeModels;
+            return freeModels;
+        } catch (err: any) {
+            console.warn("⚠️ [OpenRouter] Falha ao buscar modelos gratuitos:", err.message);
+            // Fallback curado: modelos que são conhecidamente gratuitos
+            return [
+                "google/gemini-2.0-flash-exp:free",
+                "google/gemma-3-27b-it:free",
+                "meta-llama/llama-4-maverick:free",
+                "meta-llama/llama-3.3-70b-instruct:free",
+                "mistralai/mistral-7b-instruct:free",
+                "deepseek/deepseek-chat:free",
+                "qwen/qwen2.5-vl-72b-instruct:free",
+            ];
+        }
+    },
+
+    /**
      * Tenta gerar uma resposta usando diferentes provedores em sequência caso ocorra erro.
      */
     generateResilientResponse: async (
@@ -268,21 +325,39 @@ Your response MUST be a valid JSON object with the following keys:
         messages: ChatMessage[],
         temperature: number = 0.7
     ) => {
-        // Sequência de fallback: Gemini -> Groq (Llama) -> OpenRouter (Gemini) -> OpenAI
-        const fallbacks: {provider: AIProvider, model: string}[] = [
-            { provider: "google", model: "gemini-1.5-flash" },
-            { provider: "groq", model: "llama-3.3-70b-versatile" },
-            { provider: "openrouter", model: "google/gemini-2.0-flash-001" },
-            { provider: "openai", model: "gpt-4o-mini" }
-        ];
-
-        for (const fb of fallbacks) {
+        // 1. Tenta Gemini primeiro (provider principal)
+        if (env.GOOGLE_GEMINI_API_KEY) {
             try {
-                console.log(`📡 [AIService] Tentando Fallback: ${fb.provider} (${fb.model})`);
-                return await AIService.generateResponse(fb.provider, fb.model, systemPrompt, messages, temperature);
+                console.log(`📡 [AIService] Tentando Gemini (principal)...`);
+                return await AIService.generateGeminiResponse("gemini-1.5-flash", systemPrompt, messages, temperature);
             } catch (err: any) {
-                console.warn(`⚠️ [AIService] Falha no fallback ${fb.provider}: ${err.message}`);
-                continue;
+                console.warn(`⚠️ [AIService] Gemini falhou: ${err.message}. Tentando OpenRouter...`);
+            }
+        }
+
+        // 2. Tenta todos os modelos gratuitos do OpenRouter
+        if (env.OPENROUTER_API_KEY) {
+            const freeModels = await AIService.getOpenRouterFreeModels();
+            for (const model of freeModels) {
+                try {
+                    console.log(`📡 [OpenRouter Free] Tentando modelo: ${model}`);
+                    const result = await AIService.generateOpenAICompatibleResponse("openrouter", model, systemPrompt, messages, temperature);
+                    console.log(`✅ [OpenRouter Free] Sucesso com: ${model}`);
+                    return result;
+                } catch (err: any) {
+                    console.warn(`⚠️ [OpenRouter Free] Falhou ${model}: ${err.message}`);
+                    continue;
+                }
+            }
+        }
+
+        // 3. Tenta Groq como último recurso
+        if (env.GROQ_API_KEY) {
+            try {
+                console.log(`📡 [AIService] Tentando Groq como último recurso...`);
+                return await AIService.generateOpenAICompatibleResponse("groq", "llama-3.3-70b-versatile", systemPrompt, messages, temperature);
+            } catch (err: any) {
+                console.warn(`⚠️ [AIService] Groq falhou: ${err.message}`);
             }
         }
 
