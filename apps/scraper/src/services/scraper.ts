@@ -65,10 +65,11 @@ export const ScraperService = {
             Retorne APENAS um JSON array de objetos: [{"name": string, "phone": string, "website": string, "category": string, "address": string}]`;
 
             const modelsToTry = [
-                { provider: "google", model: "gemini-1.5-flash" },
-                { provider: "google", model: "gemini-2.0-flash" },
+                { provider: "openrouter", model: "google/gemini-2.0-flash-lite-preview-02-05:free" },
+                { provider: "openrouter", model: "nvidia/llama-3.1-nemotron-70b-instruct:free" },
                 { provider: "groq", model: "llama-3.3-70b-versatile" },
-                { provider: "google", model: "gemini-1.5-pro" }
+                { provider: "google", model: "gemini-2.0-flash" },
+                { provider: "google", model: "gemini-1.5-flash-latest" }
             ];
             let aiResponse = "";
 
@@ -77,13 +78,37 @@ export const ScraperService = {
                     console.log(`🚀 [Ghost Scraper] Tentando extração com: ${fb.provider} (${fb.model})`);
                     
                     if (fb.provider === "google") {
+                        if (!process.env.GOOGLE_GEMINI_API_KEY) throw new Error("GOOGLE_GEMINI_API_KEY não configurada.");
                         const currentModel = genAI.getGenerativeModel({ model: fb.model });
                         const result = await currentModel.generateContent([
                             systemPrompt,
                             { text: `Extraia os leads desta lista:\n\n${resultsText.substring(0, 50000)}` }
                         ]);
                         aiResponse = result.response.text();
+                    } else if (fb.provider === "openrouter") {
+                        if (!process.env.OPENROUTER_API_KEY) throw new Error("OPENROUTER_API_KEY não configurada.");
+                        const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
+                            method: "POST",
+                            headers: {
+                                "Content-Type": "application/json",
+                                "Authorization": `Bearer ${process.env.OPENROUTER_API_KEY}`
+                            },
+                            body: JSON.stringify({
+                                model: fb.model,
+                                messages: [
+                                    { role: "system", content: systemPrompt },
+                                    { role: "user", content: `Extraia os leads desta lista:\n\n${resultsText.substring(0, 30000)}` }
+                                ]
+                            })
+                        });
+                        if (response.ok) {
+                            const data = await response.json();
+                            aiResponse = data.choices[0].message.content;
+                        } else {
+                            throw new Error(`OpenRouter error: ${response.status} - ${await response.text()}`);
+                        }
                     } else if (fb.provider === "groq") {
+                        if (!process.env.GROQ_API_KEY) throw new Error("GROQ_API_KEY não configurada.");
                         const response = await fetch("https://api.groq.com/openai/v1/chat/completions", {
                             method: "POST",
                             headers: {
@@ -103,7 +128,7 @@ export const ScraperService = {
                             const data = await response.json();
                             aiResponse = data.choices[0].message.content;
                         } else {
-                            throw new Error(`Groq error: ${response.status}`);
+                            throw new Error(`Groq error: ${response.status} - ${await response.text()}`);
                         }
                     }
                     
