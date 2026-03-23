@@ -18,7 +18,7 @@ export const ScraperService = {
     /**
      * Scrapes Google Maps results using Puppeteer.
      */
-    scrapeMaps: async (url: string): Promise<ScrapedLead[]> => {
+    scrapeMaps: async (url: string, onLeadExtracted?: (lead: ScrapedLead) => Promise<void>): Promise<ScrapedLead[]> => {
         console.log(`🔍 [Ghost Scraper] Abrindo: ${url}`);
         let browser: Browser | null = null;
         
@@ -115,8 +115,14 @@ export const ScraperService = {
 
             if (!aiResponse) throw new Error("Falha na extração de IA com todos os modelos.");
 
-            const cleanedResponse = aiResponse.replace(/```json|```/g, "").trim();
-            const leads: ScrapedLead[] = JSON.parse(cleanedResponse);
+            let leads: ScrapedLead[] = [];
+            try {
+                const cleanedResponse = aiResponse.replace(/```json|```/g, "").trim();
+                leads = JSON.parse(cleanedResponse);
+            } catch (err) {
+                console.error("❌ [Ghost Scraper] Erro ao parsear JSON da IA:", err);
+                leads = [];
+            }
 
             console.log(`✅ [Ghost Scraper] ${leads.length} leads encontrados.`);
 
@@ -124,21 +130,32 @@ export const ScraperService = {
             await browser!.close();
             browser = null;
 
-            // Enrichment (Fetch websites for WhatsApp if missing)
-            const enrichedLeads = await Promise.all(leads.map(async (lead) => {
+            // Enrichment & Incremental Callback
+            const enrichedLeads: ScrapedLead[] = [];
+            for (const lead of leads) {
+                if (!lead.name) continue;
+
                 if (!lead.phone && lead.website && lead.website.startsWith("http")) {
                     console.log(`🌐 [Enrichment] Buscando WhatsApp no site: ${lead.website}`);
                     lead.phone = await ScraperService.findWhatsAppOnSite(lead.website);
                 }
-                return lead;
-            }));
+                
+                enrichedLeads.push(lead);
+                if (onLeadExtracted) {
+                    try {
+                        await onLeadExtracted(lead);
+                    } catch (err) {
+                        console.error(`❌ [Ghost Scraper] Erro no callback onLeadExtracted para ${lead.name}:`, err);
+                    }
+                }
+            }
 
-            return enrichedLeads.filter(l => l.name);
+            return enrichedLeads;
 
         } catch (error) {
             console.error("❌ [Ghost Scraper] Erro fatal:", error);
             if (browser) await browser.close();
-            throw error;
+            return [];
         }
     },
 

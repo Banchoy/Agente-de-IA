@@ -22,19 +22,22 @@ async function worker() {
                 continue;
             const { url, config, orgId } = JSON.parse(task[1]);
             console.log(`⏳ [Scraper Worker] Processando tarefa para Org: ${orgId}`);
-            const scrapedLeads = await scraper_1.ScraperService.scrapeMaps(url);
-            // Find Qualification Stage for this Org
-            const qualificationStage = await db.select({ id: db_1.stages.id })
+            // Find a valid stage for this Org
+            const allStages = await db.select({ id: db_1.stages.id, name: db_1.stages.name })
                 .from(db_1.stages)
                 .innerJoin(db_1.pipelines, (0, drizzle_orm_1.eq)(db_1.stages.pipelineId, db_1.pipelines.id))
-                .where((0, drizzle_orm_1.and)((0, drizzle_orm_1.eq)(db_1.pipelines.organizationId, orgId), (0, drizzle_orm_1.eq)(db_1.stages.name, "Qualificação")))
-                .limit(1);
-            const stageId = qualificationStage[0]?.id;
-            // Save to DB
-            for (const leadData of scrapedLeads) {
+                .where((0, drizzle_orm_1.eq)(db_1.pipelines.organizationId, orgId));
+            // Default to "Qualificação" or the first available stage
+            const defaultStage = allStages.find(s => s.name.toLowerCase() === "qualificação") ||
+                allStages.find(s => s.name.toLowerCase().includes("prospect")) ||
+                allStages.find(s => s.name.toLowerCase().includes("novo")) ||
+                allStages[0];
+            const stageId = defaultStage?.id;
+            let savedCount = 0;
+            const onLeadExtracted = async (leadData) => {
                 await db.insert(db_1.leads).values({
                     organizationId: orgId,
-                    stageId: stageId,
+                    stageId: stageId || null,
                     name: leadData.name,
                     phone: leadData.phone || "",
                     source: "Prospecção IA (Maps)",
@@ -46,8 +49,11 @@ async function worker() {
                     outreachStatus: "pending",
                     aiActive: "true"
                 });
-            }
-            console.log(`✅ [Scraper Worker] ${scrapedLeads.length} leads salvos no banco.`);
+                savedCount++;
+                console.log(`✅ [Scraper Worker] Lead salvo: ${leadData.name} (${leadData.phone || 'Sem número'})`);
+            };
+            const scrapedLeads = await scraper_1.ScraperService.scrapeMaps(url, onLeadExtracted);
+            console.log(`✅ [Scraper Worker] Tarefa concluída. ${savedCount} leads salvos no banco.`);
         }
         catch (error) {
             console.error("❌ [Scraper Worker] Erro no loop do worker:", error);
