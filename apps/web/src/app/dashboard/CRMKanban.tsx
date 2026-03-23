@@ -16,6 +16,7 @@ import {
     SortableContext,
     sortableKeyboardCoordinates,
     verticalListSortingStrategy,
+    horizontalListSortingStrategy,
     useSortable,
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
@@ -224,6 +225,7 @@ function KanbanColumn({ stage, leads, onLeadClick, onDeleteLead, onColorChange, 
         >
             <div className="flex items-center justify-between mb-4 px-1" {...attributes} {...listeners}>
                 <div className="flex items-center gap-2">
+                    <ArrowLeftRight className="w-3.5 h-3.5 text-muted-foreground/50 opacity-0 group-hover/column:opacity-100 transition-opacity" />
                     <div className={`w-2.5 h-2.5 rounded-full ${stage.color} shadow-sm`} />
                     <h3 className="font-black text-xs uppercase tracking-widest text-muted-foreground">{stage.name}</h3>
                     <span className="text-[10px] font-bold bg-muted text-muted-foreground px-1.5 py-0.5 rounded-full">
@@ -564,7 +566,7 @@ export default function CRMKanban({ initialLeads = [], initialStages = [] }: { i
                     <div className="flex gap-6 h-full min-w-max">
                         <SortableContext 
                             items={stagesList.map(s => s.id)} 
-                            strategy={verticalListSortingStrategy} // Can use horizontal but columns are usually fine with vertical for IDs
+                            strategy={horizontalListSortingStrategy}
                         >
                             {stagesList.map((stage: any) => (
                                 <KanbanColumn
@@ -604,6 +606,17 @@ export default function CRMKanban({ initialLeads = [], initialStages = [] }: { i
                                 onDelete={() => { }} 
                                 onColorChange={() => { }} 
                             />
+                        ) : activeId && stagesList.find((s: any) => s.id === activeId) ? (
+                            <div className="opacity-80 scale-105 rotate-2 transition-transform">
+                                <KanbanColumn
+                                    stage={stagesList.find((s: any) => s.id === activeId)}
+                                    leads={leadsList.filter((l: any) => l.stageId === activeId)}
+                                    onLeadClick={() => { }}
+                                    onDeleteLead={() => { }}
+                                    onColorChange={() => { }}
+                                    onDeleteStage={() => { }}
+                                />
+                            </div>
                         ) : null}
                     </DragOverlay>
                 </DndContext>

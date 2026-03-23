@@ -53,16 +53,30 @@ export const ScraperService = {
 
             const html = await page.content();
             
-            // AI Extraction
+            // AI Extraction with Resilience
             const systemPrompt = `Você é um extrator de dados especialista. Analise o HTML de uma página do Google Maps e extraia os leads.
             Retorne APENAS um JSON array de objetos: [{"name": string, "phone": string, "website": string, "category": string, "address": string}]`;
 
-            const result = await model.generateContent([
-                systemPrompt,
-                { text: `Extraia os leads deste HTML:\n\n${html.substring(0, 50000)}` }
-            ]);
+            const modelsToTry = ["gemini-1.5-flash", "gemini-2.0-flash", "gemini-2.0-flash-lite", "gemini-1.5-pro"];
+            let aiResponse = "";
 
-            const aiResponse = result.response.text();
+            for (const modelName of modelsToTry) {
+                try {
+                    console.log(`🚀 [Ghost Scraper] Tentando extração com: ${modelName}`);
+                    const currentModel = genAI.getGenerativeModel({ model: modelName });
+                    const result = await currentModel.generateContent([
+                        systemPrompt,
+                        { text: `Extraia os leads deste HTML:\n\n${html.substring(0, 50000)}` }
+                    ]);
+                    aiResponse = result.response.text();
+                    break; 
+                } catch (err: any) {
+                    console.warn(`⚠️ [Ghost Scraper] Erro com ${modelName}: ${err.message}. Tentando próximo...`);
+                }
+            }
+
+            if (!aiResponse) throw new Error("Falha na extração de IA com todos os modelos.");
+
             const cleanedResponse = aiResponse.replace(/```json|```/g, "").trim();
             const leads: ScrapedLead[] = JSON.parse(cleanedResponse);
 

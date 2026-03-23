@@ -44,8 +44,16 @@ RUN npm run build
 
 # Estágio 3: Execução
 FROM node:20-alpine AS runner
-# Install runtime dependencies for Piper
-RUN apk add --no-cache libstdc++
+# Install runtime dependencies for Piper and Chromium (for Scraper)
+RUN apk add --no-cache \
+    libstdc++ \
+    gcompat \
+    chromium \
+    nss \
+    freetype \
+    harfbuzz \
+    ca-certificates \
+    ttf-freefont
 
 WORKDIR /app
 COPY --from=deps /usr/local/bin/piper /usr/local/bin/piper
@@ -66,6 +74,7 @@ RUN chown nextjs:nodejs .next
 # https://nextjs.org/docs/advanced-features/output-file-tracing
 COPY --from=builder --chown=nextjs:nodejs /app/apps/web/.next/standalone ./
 COPY --from=builder --chown=nextjs:nodejs /app/apps/web/.next/static ./apps/web/.next/static
+COPY --from=builder --chown=nextjs:nodejs /app/apps/scraper/dist ./apps/scraper/dist
 
 USER nextjs
 
@@ -74,5 +83,7 @@ EXPOSE 3000
 ENV PORT 3000
 # set hostname to localhost
 ENV HOSTNAME "0.0.0.0"
+ENV CHROME_PATH "/usr/bin/chromium-browser"
+ENV PUPPETEER_SKIP_CHROMIUM_DOWNLOAD "true"
 
 CMD ["node", "apps/web/server.js"]
