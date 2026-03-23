@@ -1,7 +1,7 @@
 import { GoogleGenerativeAI } from "@google/generative-ai";
 import { env } from "../env";
 
-export type AIProvider = "google" | "openai" | "anthropic";
+export type AIProvider = "google" | "openai" | "anthropic" | "groq" | "openrouter";
 
 export interface ChatMessage {
     role: "user" | "model" | "system";
@@ -22,6 +22,10 @@ export const AIService = {
     ) => {
         if (provider === "google") {
             return await AIService.generateGeminiResponse(model, systemPrompt, messages, temperature);
+        }
+        
+        if (provider === "openai" || provider === "groq" || provider === "openrouter") {
+            return await AIService.generateOpenAICompatibleResponse(provider, model, systemPrompt, messages, temperature);
         }
 
         throw new Error(`Provider ${provider} not implemented yet.`);
@@ -54,19 +58,34 @@ Your response MUST be a valid JSON object with the following keys:
 }
 `;
 
-        if (provider === "google") {
-            const response = await AIService.generateGeminiResponse(model, structuredPrompt, messages, temperature, true);
+        const fallbacks: {provider: AIProvider, model: string}[] = [
+            { provider: "google", model: model || "gemini-1.5-flash" },
+            { provider: "groq", model: "llama-3.3-70b-versatile" },
+            { provider: "openai", model: "gpt-4o-mini" },
+            { provider: "openrouter", model: "google/gemini-2.0-flash-001" }
+        ];
+
+        for (const fb of fallbacks) {
             try {
+                console.log(`📡 [AIService] Tentando Resposta Estruturada Resiliente: ${fb.provider} (${fb.model})`);
+                
+                let response = "";
+                if (fb.provider === "google") {
+                    response = await AIService.generateGeminiResponse(fb.model, structuredPrompt, messages, temperature, true);
+                } else {
+                    response = await AIService.generateOpenAICompatibleResponse(fb.provider as any, fb.model, structuredPrompt, messages, temperature, true);
+                }
+
                 // Clean markdown artifacts if any
                 const cleaned = response.replace(/```json|```/g, "").trim();
                 return JSON.parse(cleaned);
-            } catch (e) {
-                console.error("❌ Failed to parse structured response:", response);
-                throw new Error("Invalid AI JSON response");
+            } catch (err: any) {
+                console.warn(`⚠️ [AIService] Falha na resposta estruturada com ${fb.provider}: ${err.message}`);
+                continue;
             }
         }
 
-        throw new Error(`Provider ${provider} not implemented yet.`);
+        throw new Error("Todos os provedores de IA falharam na resposta estruturada.");
     },
 
     generateGeminiResponse: async (
@@ -179,5 +198,94 @@ Your response MUST be a valid JSON object with the following keys:
         }
 
         throw new Error("Não foi possível gerar resposta com nenhum dos modelos disponíveis para esta chave.");
+    },
+
+    generateOpenAICompatibleResponse: async (
+        provider: "openai" | "groq" | "openrouter",
+        model: string,
+        systemPrompt: string,
+        messages: ChatMessage[],
+        temperature: number = 0.7,
+        jsonMode: boolean = false
+    ) => {
+        let apiKey = "";
+        let baseUrl = "";
+        let modelName = model;
+
+        if (provider === "openai") {
+            apiKey = env.OPENAI_API_KEY || "";
+            baseUrl = "https://api.openai.com/v1";
+            modelName = model || "gpt-4o-mini";
+        } else if (provider === "groq") {
+            apiKey = env.GROQ_API_KEY || "";
+            baseUrl = "https://api.groq.com/openai/v1";
+            modelName = model || "llama-3.3-70b-versatile";
+        } else if (provider === "openrouter") {
+            apiKey = env.OPENROUTER_API_KEY || "";
+            baseUrl = "https://openrouter.ai/api/v1";
+            modelName = model || "google/gemini-2.0-flash-001";
+        }
+
+        if (!apiKey) throw new Error(`API Key for ${provider} not configured.`);
+
+        const formattedMessages = [
+            { role: "system", content: systemPrompt },
+            ...messages.map(m => ({
+                role: m.role === "model" ? "assistant" : m.role,
+                content: m.content
+            }))
+        ];
+
+        const response = await fetch(`${baseUrl}/chat/completions`, {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json",
+                "Authorization": `Bearer ${apiKey}`,
+                ...(provider === "openrouter" ? { "HTTP-Referer": env.NEXT_PUBLIC_APP_URL || "https://localhost:3000" } : {})
+            },
+            body: JSON.stringify({
+                model: modelName,
+                messages: formattedMessages,
+                temperature: temperature,
+                response_format: jsonMode ? { type: "json_object" } : undefined
+            })
+        });
+
+        if (!response.ok) {
+            const error = await response.json();
+            throw new Error(`[${provider}] API Error: ${JSON.stringify(error)}`);
+        }
+
+        const data = await response.json();
+        return data.choices[0].message.content;
+    },
+
+    /**
+     * Tenta gerar uma resposta usando diferentes provedores em sequência caso ocorra erro.
+     */
+    generateResilientResponse: async (
+        systemPrompt: string,
+        messages: ChatMessage[],
+        temperature: number = 0.7
+    ) => {
+        // Sequência de fallback: Gemini -> Groq (Llama) -> OpenRouter (Gemini) -> OpenAI
+        const fallbacks: {provider: AIProvider, model: string}[] = [
+            { provider: "google", model: "gemini-1.5-flash" },
+            { provider: "groq", model: "llama-3.3-70b-versatile" },
+            { provider: "openrouter", model: "google/gemini-2.0-flash-001" },
+            { provider: "openai", model: "gpt-4o-mini" }
+        ];
+
+        for (const fb of fallbacks) {
+            try {
+                console.log(`📡 [AIService] Tentando Fallback: ${fb.provider} (${fb.model})`);
+                return await AIService.generateResponse(fb.provider, fb.model, systemPrompt, messages, temperature);
+            } catch (err: any) {
+                console.warn(`⚠️ [AIService] Falha no fallback ${fb.provider}: ${err.message}`);
+                continue;
+            }
+        }
+
+        throw new Error("Todos os provedores de IA falharam.");
     }
 }
