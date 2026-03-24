@@ -38,7 +38,26 @@ export const ScraperService = {
             const page = await browser!.newPage();
             await page.setUserAgent("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/110.0.0.0 Safari/537.36");
             
-            await page.goto(url, { waitUntil: "networkidle2", timeout: 60000 });
+            // Otimização: Bloquear imagens, fontes e estilos para evitar travamentos e reduzir uso de memória
+            await page.setRequestInterception(true);
+            page.on('request', (req) => {
+                const resourceType = req.resourceType();
+                if (['image', 'stylesheet', 'font', 'media', 'other'].includes(resourceType)) {
+                    req.abort();
+                } else {
+                    req.continue();
+                }
+            });
+
+            // networkidle2 no Google Maps causa timeout devido aos milhares de requests de telemetria/tiles.
+            await page.goto(url, { waitUntil: "domcontentloaded", timeout: 60000 });
+            
+            // Aguardar o carregamento inicial da UI de resultados
+            try {
+                await page.waitForSelector('div[role="feed"]', { timeout: 15000 });
+            } catch (err) {
+                console.warn("⚠️ [Ghost Scraper] Selector 'div[role=\"feed\"]' não encontrado a tempo. Tentando prosseguir.");
+            }
 
             // Scroll to load results (Google Maps typical behavior)
             console.log("📜 [Ghost Scraper] Rolando para carregar mais resultados...");
