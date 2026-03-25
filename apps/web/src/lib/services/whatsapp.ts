@@ -25,14 +25,17 @@ const logger = pino({ level: "silent" });
 declare global {
     var __baileys_sessions: Map<string, any> | undefined;
     var __baileys_promises: Map<string, Promise<any>> | undefined;
+    var __lead_locks: Set<string> | undefined;
 }
-
+ 
 const sessions = globalThis.__baileys_sessions || new Map<string, any>();
 const connectionPromises = globalThis.__baileys_promises || new Map<string, Promise<any>>();
-
+const leadLocks = globalThis.__lead_locks || new Set<string>();
+ 
 if (process.env.NODE_ENV !== 'production') {
     globalThis.__baileys_sessions = sessions;
     globalThis.__baileys_promises = connectionPromises;
+    globalThis.__lead_locks = leadLocks;
 }
 
 /**
@@ -398,7 +401,13 @@ export const WhatsappService = {
                             console.log(`✅ [Baileys] Mensagem (${role}) salva no histórico.`);
 
                             // 3. AI Respond Logic (APENAS para mensagens recebidas)
-                            if (isFromMe) continue; // Não responde a si mesmo
+                            if (isFromMe) continue; 
+ 
+                            if (leadLocks.has(lead.id)) {
+                                console.log(`⏩ [Baileys] Lead ${lead.id} já está sendo processado. Ignorando.`);
+                                continue;
+                            }
+                            leadLocks.add(lead.id);
 
                             // 3. Find Mapped Agent (or fallback)
                             console.log(`🤖 [Baileys] Buscando agente para a instância: ${sessionId}`);
@@ -548,100 +557,92 @@ export const WhatsappService = {
                                             if (qualificationStageId) {
                                                 console.log(`✅ [Baileys] Estágio encontrado: ${qualificationStageId}. Movendo lead...`);
                                                 await (LeadRepository as any).updateSystem(lead.id, { stageId: qualificationStageId });
-                                            } else {
-                                                console.warn(`⚠️ [Baileys] Estágio de Qualificação não encontrado para a org ${lead.organizationId}`);
                                             }
                                         } catch (crmErr) {
                                             console.error("❌ [Baileys] Erro ao mover lead no CRM:", crmErr);
-                                            // O erro do CRM não deve impedir o envio da mensagem!
                                         }
                                     }
 
                                     // 5. Split and Send Message (Text and/or Audio)
-                                    // Regex for [AUDIO] or [ÁUDIO] tags
                                     const audioRegex = /\[(?:AUDIO|ÁUDIO)\]([\s\S]*?)\[\/(?:AUDIO|ÁUDIO)\]/gi;
-                                    
                                     let lastIndex = 0;
                                     let match;
                                     const messagesToWait: { type: "text" | "audio", content: string }[] = [];
 
                                     while ((match = audioRegex.exec(finalMessage)) !== null) {
-                                        // Text before the audio tag
                                         const textBefore = finalMessage.substring(lastIndex, match.index).trim();
-                                        if (textBefore) {
-                                            messagesToWait.push({ type: "text", content: textBefore });
-                                        }
-                                        // Audio content
+                                        if (textBefore) messagesToWait.push({ type: "text", content: textBefore });
                                         const audioContent = match[1].trim();
-                                        if (audioContent) {
-                                            messagesToWait.push({ type: "audio", content: audioContent });
-                                        }
+                                        if (audioContent) messagesToWait.push({ type: "audio", content: audioContent });
                                         lastIndex = audioRegex.lastIndex;
                                     }
 
-                                    // Remaining text after last tag
                                     const remainingText = finalMessage.substring(lastIndex).trim();
-                                    if (remainingText) {
-                                        messagesToWait.push({ type: "text", content: remainingText });
-                                    }
+                                    if (remainingText) messagesToWait.push({ type: "text", content: remainingText });
 
-                                    // If no tags were found, send entire body as determined by config
                                     if (messagesToWait.length === 0) {
                                         messagesToWait.push({ type: config.voiceEnabled ? "audio" : "text", content: finalMessage });
                                     }
 
                                     // Sequential sending
                                     for (const msg of messagesToWait) {
-                                        // SIMULAR DIGITANDO/GRAVANDO (Vários segundos para ser visível)
                                         if (msg.type === "audio" && config.voiceEnabled) {
                                             await sock.sendPresenceUpdate('recording', jid);
                                             await new Promise(resolve => setTimeout(resolve, 12000));
-                                        } else {
-                                            await sock.sendPresenceUpdate('composing', jid);
-                                            await new Promise(resolve => setTimeout(resolve, 10000));
-                                        }
-
-                                        if (msg.type === "audio" && config.voiceEnabled) {
+                                            
                                             try {
-                                                console.log(`🎙️ [Baileys] Gerando áudio para parte da resposta...`);
-                                                const audioData = await TTSService.generateAudio(
-                                                    msg.content,
-                                                    config.ttsProvider || "openai",
-                                                    config.ttsVoiceId,
-                                                    config.coquiUrl
-                                                );
-                                                
-                                                // Convert data URI to buffer for Baileys
+                                                const audioData = await TTSService.generateAudio(msg.content, config.ttsProvider || "openai", config.ttsVoiceId, config.coquiUrl);
                                                 const base64 = audioData.split(",")[1];
                                                 const buffer = Buffer.from(base64, "base64");
+                                                await sock.sendMessage(jid, { audio: buffer, mimetype: "audio/mp4", ptt: true });
                                                 
-                                                await sock.sendMessage(jid, { 
-                                                    audio: buffer,
-                                                    mimetype: "audio/mp4",
-                                                    ptt: true
+                                                // SALVAR NO HISTÓRICO
+                                                await (MessageRepository as any).saveSystem({
+                                                    leadId: lead.id,
+                                                    organizationId: lead.organizationId,
+                                                    role: "assistant",
+                                                    content: msg.content,
+                                                    type: "audio"
                                                 });
-                                                console.log(`📤 [Baileys] Áudio enviado para ${phone}`);
                                             } catch (ttsErr) {
-                                                console.error("❌ [Baileys] TTS Error, falling back to text:", ttsErr);
                                                 await sock.sendMessage(jid, { text: msg.content });
+                                                await (MessageRepository as any).saveSystem({
+                                                    leadId: lead.id,
+                                                    organizationId: lead.organizationId,
+                                                    role: "assistant",
+                                                    content: msg.content,
+                                                    type: "text"
+                                                });
                                             }
                                         } else {
-                                            // Remove any remaining tags just in case
+                                            await sock.sendPresenceUpdate('composing', jid);
+                                            await new Promise(resolve => setTimeout(resolve, 8000));
                                             const cleanText = msg.content.replace(/\[\/?(?:AUDIO|ÁUDIO)\]/gi, "").trim();
                                             if (cleanText) {
                                                 await sock.sendMessage(jid, { text: cleanText });
-                                                console.log(`📤 [Baileys] Texto enviado para ${phone}`);
+                                                // SALVAR NO HISTÓRICO
+                                                await (MessageRepository as any).saveSystem({
+                                                    leadId: lead.id,
+                                                    organizationId: lead.organizationId,
+                                                    role: "assistant",
+                                                    content: cleanText,
+                                                    type: "text"
+                                                });
                                             }
                                         }
                                     }
                                 }
                             } finally {
-                                // DESATIVAR DIGITANDO
-                                await (LeadRepository as any).updateSystem(lead.id, { isTyping: "false" });
+                                // DESATIVAR DIGITANDO E REMOVER TRAVA
+                                if (lead?.id) {
+                                    await (LeadRepository as any).updateSystem(lead.id, { isTyping: "false" });
+                                    leadLocks.delete(lead.id);
+                                }
                             }
 
                         } catch (err) {
-                            console.error("❌ Erro IA/Message Logging Response:", err);
+                            console.error("❌ Erro IA/Response:", err);
+                            if (lead?.id) leadLocks.delete(lead.id);
                         }
                     }
                 });

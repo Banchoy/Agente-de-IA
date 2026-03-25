@@ -510,7 +510,7 @@ export async function getOutreachStatus() {
     }
 }
 
-export async function stopOutreach() {
+export async function stopOutreach(formData?: FormData) {
     const { orgId: clerkOrgId } = await auth();
     if (!clerkOrgId) throw new Error("Unauthorized");
 
