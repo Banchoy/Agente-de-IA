@@ -468,8 +468,9 @@ export const WhatsappService = {
                                 // ATIVAR DIGITANDO
                                 await (LeadRepository as any).updateSystem(lead.id, { isTyping: "true" });
 
-                                // BUSCAR HISTÓRICO PARA MEMÓRIA (Últimas 10 mensagens)
-                                const history = await (MessageRepository as any).listByLeadSystem(lead.id, 10);
+                                // BUSCAR HISTÓRICO PARA MEMÓRIA (Últimas 30 mensagens)
+                                const history = await (MessageRepository as any).listByLeadSystem(lead.id, 30);
+                                console.log(`💾 [Baileys] Histórico carregado (${history.length} mensagens).`);
                                 let formattedHistory = history.reverse().map((m: any) => ({
                                     role: m.role === "assistant" ? "model" : "user",
                                     content: m.content,

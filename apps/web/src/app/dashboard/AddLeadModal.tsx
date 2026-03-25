@@ -37,7 +37,8 @@ export default function AddLeadModal({ isOpen, onClose, onAdd }: AddLeadModalPro
         credit: "",
         income: "",
         source: "Manual",
-        stageId: "prospecting"
+        stageId: "prospecting",
+        niche: ""
     });
 
     const handleChange = (key: string, value: string) => {
@@ -56,6 +57,7 @@ export default function AddLeadModal({ isOpen, onClose, onAdd }: AddLeadModalPro
                 credit: formData.credit,
                 income: formData.income,
                 source: formData.source,
+                niche: formData.niche,
                 manual_entry: "true"
             }
         };
@@ -70,7 +72,8 @@ export default function AddLeadModal({ isOpen, onClose, onAdd }: AddLeadModalPro
             credit: "",
             income: "",
             source: "Manual",
-            stageId: "prospecting"
+            stageId: "prospecting",
+            niche: ""
         });
         onClose();
     };
@@ -144,6 +147,17 @@ export default function AddLeadModal({ isOpen, onClose, onAdd }: AddLeadModalPro
                                         placeholder="Ex: Imóvel Prime"
                                     />
                                 </div>
+                            </div>
+
+                            <div className="space-y-2">
+                                <Label className="text-[10px] font-black uppercase text-zinc-400 tracking-widest px-1">Nicho (Para IA)</Label>
+                                <Input
+                                    required
+                                    value={formData.niche}
+                                    onChange={(e) => handleChange("niche", e.target.value)}
+                                    className="h-11 rounded-xl border-zinc-200 focus-visible:ring-primary"
+                                    placeholder="Ex: Consórcio, Imobiliária"
+                                />
                             </div>
 
                             <div className="space-y-2">

@@ -52,7 +52,10 @@ export default async function DashboardPage() {
                             <span className="text-xs font-bold text-muted-foreground uppercase tracking-wider">Leads Hoje: {leads.length}</span>
                         </div>
 
-                        <form action={stopOutreach}>
+                        <form action={async () => {
+                            "use server";
+                            await stopOutreach();
+                        }}>
                             <button 
                                 type="submit"
                                 className="flex items-center gap-2 rounded-xl bg-red-600/10 px-5 py-2.5 text-xs font-black uppercase tracking-widest text-red-600 hover:bg-red-600 hover:text-white transition-all active:scale-95 border border-red-600/20"
