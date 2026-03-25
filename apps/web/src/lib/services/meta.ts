@@ -48,10 +48,9 @@ export class MetaService {
                 limit: String(limit),
             });
 
-        // Loop de paginação  
         while (url) {
-            const res = await fetch(url, { next: { revalidate: 0 } });
-            const data = await res.json();
+            const res: Response = await fetch(url, { next: { revalidate: 0 } });
+            const data: any = await res.json();
 
             if (data.error) {
                 console.error("Erro ao buscar leads:", data.error);

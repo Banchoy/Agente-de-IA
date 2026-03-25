@@ -5,7 +5,7 @@ import { OrganizationRepository } from "@/lib/repositories/organization";
 import WorkflowBuilder from "../WorkflowBuilder";
 import { AgentRepository } from "@/lib/repositories/agent";
 
-export default async function WorkflowEditorPage({ params }: { params: { id: string } }) {
+export default async function WorkflowEditorPage({ params }: { params: Promise<{ id: string }> }) {
     const { id } = await params;
     const { orgId: clerkOrgId } = await auth();
     if (!clerkOrgId) redirect("/sign-in");

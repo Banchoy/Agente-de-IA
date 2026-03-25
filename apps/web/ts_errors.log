@@ -1,0 +1,13 @@
+.next/types/app/dashboard/agents/[id]/page.ts(34,29): error TS2344: Type '{ params: { id: string; }; }' does not satisfy the constraint 'PageProps'.
+  Types of property 'params' are incompatible.
+    Type '{ id: string; }' is missing the following properties from type 'Promise<any>': then, catch, finally, [Symbol.toStringTag]
+.next/types/app/dashboard/chats/page.ts(34,29): error TS2344: Type '{ searchParams: { leadId?: string | undefined; }; }' does not satisfy the constraint 'PageProps'.
+  Types of property 'searchParams' are incompatible.
+    Type '{ leadId?: string | undefined; }' is missing the following properties from type 'Promise<any>': then, catch, finally, [Symbol.toStringTag]
+.next/types/app/dashboard/workflows/[id]/page.ts(34,29): error TS2344: Type '{ params: { id: string; }; }' does not satisfy the constraint 'PageProps'.
+  Types of property 'params' are incompatible.
+    Type '{ id: string; }' is missing the following properties from type 'Promise<any>': then, catch, finally, [Symbol.toStringTag]
+src/app/dashboard/whatsapp/ConnectButton.tsx(70,24): error TS2339: Property 'success' does not exist on type 'void'.
+src/app/dashboard/whatsapp/ConnectButton.tsx(74,50): error TS2339: Property 'error' does not exist on type 'void'.
+src/lib/services/meta.ts(53,19): error TS7022: 'res' implicitly has type 'any' because it does not have a type annotation and is referenced directly or indirectly in its own initializer.
+src/lib/services/meta.ts(54,19): error TS7022: 'data' implicitly has type 'any' because it does not have a type annotation and is referenced directly or indirectly in its own initializer.

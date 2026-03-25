@@ -11,7 +11,7 @@ import { AIToggle } from "@/components/chat/AIToggle";
 export default async function ChatsPage({
     searchParams,
 }: {
-    searchParams: { leadId?: string };
+    searchParams: Promise<{ leadId?: string }>;
 }) {
     const { userId, orgId: clerkOrgId } = await auth();
 

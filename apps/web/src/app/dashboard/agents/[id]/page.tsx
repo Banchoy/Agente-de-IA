@@ -10,7 +10,7 @@ import { eq, sql } from "drizzle-orm";
 import { TemperatureSlider } from "@/components/agents/TemperatureSlider";
 import { AIService } from "@/lib/services/ai";
 
-export default async function AgentDetailsPage({ params }: { params: { id: string } }) {
+export default async function AgentDetailsPage({ params }: { params: Promise<{ id: string }> }) {
     const { userId, orgId } = await auth();
     const { id } = await params;
 

@@ -66,13 +66,9 @@ export default function WhatsAppConnectButton() {
         setIsResetting(true);
         setQrCode(null);
         try {
-            const result = await resetWhatsApp();
-            if (result.success) {
-                alert("Sessão resetada com sucesso! Tente conectar novamente.");
-                setShowModal(false);
-            } else {
-                alert(`Erro ao resetar: ${result.error}`);
-            }
+            await resetWhatsApp();
+            alert("Sessão resetada com sucesso! Tente conectar novamente.");
+            setShowModal(false);
         } catch (error: any) {
             alert(`Erro: ${error.message}`);
         } finally {

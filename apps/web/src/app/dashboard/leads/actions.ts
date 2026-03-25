@@ -8,7 +8,7 @@ import { revalidatePath } from "next/cache";
 import { LeadRepository } from "@/lib/repositories/lead";
 import { AgentRepository } from "@/lib/repositories/agent";
 import { OrganizationRepository } from "@/lib/repositories/organization";
-import { EvolutionService } from "@/lib/services/evolution";
+import { ApifyService } from "@/lib/services/apify";
 import { auth } from "@clerk/nextjs/server";
 
 export async function listLeads() {
@@ -241,6 +241,60 @@ export async function startOutreach(leadIds?: string[]) {
     }
 }
 
+export async function startMassOutreach(stageId: string) {
+    const { orgId: clerkOrgId } = await auth();
+    if (!clerkOrgId) throw new Error("Unauthorized");
+
+    try {
+        const org = await OrganizationRepository.getByClerkId(clerkOrgId);
+        if (!org) throw new Error("Organization not found");
+
+        if (!org.evolutionInstanceName || org.evolutionInstanceStatus !== "connected") {
+            return { success: false, error: "WhatsApp não conectado. Conecte primeiro." };
+        }
+
+        const agents = await AgentRepository.listByOrgId(org.id);
+        const agent = agents.find((a: any) => a.config?.whatsappResponse === true) || agents[0];
+        if (!agent) {
+            return { success: false, error: "Nenhum agente configurado para prospecção." };
+        }
+
+        // Buscar leads deste stage específico que estão 'idle', 'failed' (tentar denovo) ou null. 
+        // Não pegamos 'completed' (já contatado).
+        const allLeads = await LeadRepository.listByOrg();
+        const leadsToContact = allLeads.filter((l: any) => 
+            l.stageId === stageId && 
+            l.phone && 
+            l.outreachStatus !== "completed" && 
+            l.outreachStatus !== "pending"
+        );
+
+        if (leadsToContact.length === 0) {
+            return { success: false, error: "Nenhum lead elegível com telefone nesta coluna." };
+        }
+
+        let successCount = 0;
+        for (const lead of leadsToContact) {
+            try {
+                await LeadRepository.update(lead.id, {
+                    outreachStatus: "pending",
+                    lastOutreachAt: null // Agenda para disparar agora
+                });
+                successCount++;
+            } catch (err: any) {
+                console.error(`Erro ao agendar fallback prospecção para ${lead.name}:`, err);
+            }
+        }
+
+        revalidatePath("/dashboard");
+        return { success: true, count: successCount };
+
+    } catch (error: any) {
+        console.error("Error mass outreach:", error);
+        return { success: false, error: error.message };
+    }
+}
+
 export async function processProspecting(mapsUrl: string, config: { niche?: string; initialMessage?: string }) {
     const { orgId: clerkOrgId } = await auth();
     if (!clerkOrgId) throw new Error("Unauthorized");
@@ -249,20 +303,17 @@ export async function processProspecting(mapsUrl: string, config: { niche?: stri
         const org = await OrganizationRepository.getByClerkId(clerkOrgId);
         if (!org) throw new Error("Organization not found");
 
-        if (!redis) {
-            console.error("❌ [Redis] Não configurado");
-            throw new Error("Sistema de fila temporariamente indisponível.");
+        if (!process.env.APIFY_API_TOKEN) {
+            console.warn("⚠️ [Apify] API Token não configurado no painel da Railway.");
+            return { success: false, error: "Chave da API do Apify não configurada no servidor." };
         }
         
-        const task = {
-            url: mapsUrl,
-            config,
-            orgId: org.id
-        };
+        // Disparar o Google Maps Extractor do Apify assincronamente (ele responderá no Webhook)
+        ApifyService.startGoogleMapsExtractor(mapsUrl, config, org.id).catch((err: any) => {
+            console.error("❌ Erro ao iniciar Apify em background:", err);
+        });
 
-        await redis.rpush("scraper_tasks", JSON.stringify(task));
-
-        return { success: true, message: "Prospecção iniciada em segundo plano!" };
+        return { success: true, message: "Prospecção iniciada no Apify! Os leads aparecerão em breve no Kanban." };
 
     } catch (error: any) {
         console.error("Error processing prospecting:", error);

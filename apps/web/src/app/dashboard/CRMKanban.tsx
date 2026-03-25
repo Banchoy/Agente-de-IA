@@ -39,6 +39,7 @@ import {
     DropdownMenuSeparator,
     DropdownMenuLabel
 } from "@/components/ui/dropdown-menu";
+import { Send } from "lucide-react";
 
 const CARD_COLORS = [
     { name: "Padrão", value: "" },
@@ -211,6 +212,29 @@ function KanbanColumn({ stage, leads, onLeadClick, onDeleteLead, onColorChange, 
         }
     });
 
+    const [isSending, setIsSending] = useState(false);
+
+    const handleMassSending = async () => {
+        if (!confirm(`Deseja iniciar o disparo em massa para todos os leads aguardando envio na coluna "${stage.name}"? As mensagens serão enviadas aos poucos para evitar bloqueios.`)) {
+            return;
+        }
+        setIsSending(true);
+        try {
+            const { startMassOutreach } = await import("./leads/actions");
+            const res = await startMassOutreach(stage.id);
+            if (res.success) {
+                toast.success(`Disparo iniciado! ${res.count} leads foram agendados para contato.`);
+                window.location.reload();
+            } else {
+                toast.error(res.error || "Erro ao iniciar disparo em massa.");
+            }
+        } catch (err) {
+            toast.error("Erro técnico ao iniciar disparos.");
+        } finally {
+            setIsSending(false);
+        }
+    };
+
     const style = {
         transform: CSS.Translate.toString(transform),
         transition,
@@ -252,6 +276,14 @@ function KanbanColumn({ stage, leads, onLeadClick, onDeleteLead, onColorChange, 
                         >
                             <Plus className="w-4 h-4 mr-2" />
                             Adicionar Lead
+                        </DropdownMenuItem>
+                        <DropdownMenuItem 
+                            className="cursor-pointer text-emerald-600 focus:text-emerald-700"
+                            disabled={isSending}
+                            onClick={handleMassSending}
+                        >
+                            <Send className={`w-4 h-4 mr-2 ${isSending ? 'animate-pulse' : ''}`} />
+                            {isSending ? 'Iniciando...' : 'Disparar WhatsApp'}
                         </DropdownMenuItem>
                         <DropdownMenuSeparator />
                         <DropdownMenuItem 

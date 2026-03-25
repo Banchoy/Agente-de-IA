@@ -5,7 +5,6 @@ WORKDIR /app
 # Copy package configurations for all workspaces
 COPY package.json package-lock.json* ./
 COPY apps/web/package.json ./apps/web/
-COPY apps/scraper/package.json ./apps/scraper/
 COPY packages/db/package.json ./packages/db/
 
 # Install dependencies for all workspaces
@@ -44,16 +43,11 @@ RUN npm run build
 
 # Estágio 3: Execução
 FROM node:20-alpine AS runner
-# Install runtime dependencies for Piper and Chromium (for Scraper)
+# Install runtime dependencies for Piper
 RUN apk add --no-cache \
     libstdc++ \
     gcompat \
-    chromium \
-    nss \
-    freetype \
-    harfbuzz \
-    ca-certificates \
-    ttf-freefont
+    ca-certificates
 
 WORKDIR /app
 COPY --from=deps /usr/local/bin/piper /usr/local/bin/piper
@@ -74,7 +68,6 @@ RUN chown nextjs:nodejs .next
 # https://nextjs.org/docs/advanced-features/output-file-tracing
 COPY --from=builder --chown=nextjs:nodejs /app/apps/web/.next/standalone ./
 COPY --from=builder --chown=nextjs:nodejs /app/apps/web/.next/static ./apps/web/.next/static
-COPY --from=builder --chown=nextjs:nodejs /app/apps/scraper/dist ./apps/scraper/dist
 
 USER nextjs
 
@@ -83,8 +76,6 @@ EXPOSE 3000
 ENV PORT 3000
 # set hostname to localhost
 ENV HOSTNAME "0.0.0.0"
-ENV CHROME_PATH "/usr/bin/chromium-browser"
-ENV PUPPETEER_SKIP_CHROMIUM_DOWNLOAD "true"
 
-# Start the scraper worker in the background, and the web server in the foreground
-CMD node apps/scraper/dist/bundle/index.js & node apps/web/server.js
+# Start the web server
+CMD node apps/web/server.js
