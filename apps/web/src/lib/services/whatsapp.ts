@@ -506,14 +506,16 @@ export const WhatsappService = {
                                 // Update Lead Profile with Learned Info
                                 const nextState = ScriptService.advanceState(lead.conversationState);
 
-                                if (adaptiveResult.detectedNiche || adaptiveResult.interestLevel || nextState !== lead.conversationState) {
+                                if (adaptiveResult.detectedNiche || adaptiveResult.interestLevel || adaptiveResult.detectedName || nextState !== lead.conversationState) {
                                     const updatedMeta = {
                                         ...leadMeta,
                                         niche: adaptiveResult.detectedNiche || leadMeta.niche,
                                         interestLevel: adaptiveResult.interestLevel || leadMeta.interestLevel,
-                                        isDecisor: adaptiveResult.isDecisor !== "unknown" ? adaptiveResult.isDecisor : leadMeta.isDecisor
+                                        isDecisor: adaptiveResult.isDecisor !== "unknown" ? adaptiveResult.isDecisor : leadMeta.isDecisor,
+                                        detectedName: adaptiveResult.detectedName || leadMeta.detectedName
                                     };
                                     await (LeadRepository as any).updateSystem(lead.id, { 
+                                        name: adaptiveResult.detectedName || lead.name,
                                         metaData: updatedMeta,
                                         conversationState: nextState
                                     });

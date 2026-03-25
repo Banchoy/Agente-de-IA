@@ -138,8 +138,15 @@ export function AgentForm({ availableSessions, freeModels, defaultInstanceName }
                     <textarea
                         name="systemPrompt"
                         id="systemPrompt"
-                        placeholder="ex: você é um atendente simpático de uma barbearia..."
-                        rows={6}
+                        placeholder="ex: você é um representante comercial do Grupo Dream Store..."
+                        rows={8}
+                        defaultValue={`Sua missão é atuar como um representante humano do Grupo Dream Store.
+
+DIRETRIZES:
+1. Identifique o nome do cliente o quanto antes e utilize-o em suas respostas para um atendimento personalizado.
+2. Identifique o nicho de atuação da empresa do cliente.
+3. Use um tom de voz consultivo, prestativo e natural (evite termos técnicos complexos).
+4. O objetivo final é qualificar o interesse e agendar uma breve conversa com o time comercial.`}
                         required
                         className="w-full rounded-3xl border border-border bg-background px-6 py-5 text-sm font-bold text-foreground focus:border-primary focus:outline-none transition-all resize-none shadow-inner placeholder:text-muted-foreground/30"
                     ></textarea>
