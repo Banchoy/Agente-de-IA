@@ -136,28 +136,33 @@ export const WhatsappService = {
         }
     },
 
-    connect: async (organizationId: string, sessionId: string) => {
-        // Validação básica para evitar erros de sintaxe UUID no banco
-        if (!organizationId || organizationId.includes('wa_')) {
-            console.error(`❌ [Baileys] organizationId inválido detectado: ${organizationId}. Abortando conexão para ${sessionId}`);
-            return;
-        }
-
+    connect: (organizationId: string, sessionId: string) => {
         if (WhatsappService.connectionPromises.has(sessionId)) {
             console.log(`ℹ️ [Baileys] Conexão já solicitada para ${sessionId}, aguardando promise...`);
-            return WhatsappService.connectionPromises.get(sessionId);
+            return WhatsappService.connectionPromises.get(sessionId)!;
         }
 
         const session = WhatsappService.sessions.get(sessionId);
         if (session && (session.status === "open" || session.status === "connecting")) {
             console.log(`ℹ️ [Baileys] Sessão ${sessionId} já está em estado: ${session.status}. Ignorando nova tentativa.`);
-            return session.sock;
+            return Promise.resolve(session.sock);
         }
 
+        console.log(`🔌 [Baileys] Iniciando nova conexão para: ${sessionId}`);
+        
         const connectionPromise = (async () => {
+            // Validação básica para evitar erros de sintaxe UUID no banco
+            if (!organizationId || organizationId.includes('wa_')) {
+                console.error(`❌ [Baileys] organizationId inválido detectado: ${organizationId}. Abortando conexão para ${sessionId}`);
+                return; // Or throw an error, depending on desired behavior
+            }
+
             try {
                 if (WhatsappService.sessions.has(sessionId)) {
                     const existing = WhatsappService.sessions.get(sessionId);
+                    if (existing?.sock) {
+                        try { existing.sock.logout(); } catch (e) {} // Attempt to log out existing socket
+                    }
                     if (existing.status === "open") {
                         console.log(`✅ [Baileys] Sessão ${sessionId} já está ATIVA.`);
                         return existing.sock;

@@ -8,11 +8,15 @@ export async function POST(req: Request) {
         const url = new URL(req.url);
         const orgId = url.searchParams.get("orgId");
         
+        console.log(`📡 [Apify Webhook] Recebendo chamada para Org ${orgId}...`);
+        
         if (!orgId) {
+            console.error("❌ [Apify Webhook] Chamada sem orgId!");
             return NextResponse.json({ error: "Missing orgId in webhook" }, { status: 400 });
         }
 
         const payload = await req.json();
+        console.log(`📦 [Apify Webhook] Payload bruto:`, JSON.stringify(payload));
         const datasetId = payload.resource?.defaultDatasetId || payload.datasetId;
 
         if (!datasetId) {
