@@ -7,13 +7,13 @@ export const ApifyService = {
      * Inicia o ator de Google Maps Extractor do Apify.
      * Como o scraper pode demorar minutos ou horas, isso usa Webhooks para retornar o resultado via rota API.
      */
-    startGoogleMapsExtractor: async (url: string, config: any, orgId: string) => {
+    startGoogleMapsExtractor: async (url: string, config: any, orgId: string, baseUrl?: string) => {
         const token = process.env.APIFY_API_TOKEN;
         if (!token) throw new Error("Missing APIFY_API_TOKEN");
 
-        const baseUrl = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
+        const finalBaseUrl = baseUrl || process.env.NEXT_PUBLIC_APP_URL || "https://agente-de-ia-production-1081.up.railway.app";
         // Webhook que o Apify vai chamar quando terminar a extração com sucesso:
-        const webhookUrl = `${baseUrl}/api/webhooks/apify?orgId=${orgId}`;
+        const webhookUrl = `${finalBaseUrl}/api/webhooks/apify?orgId=${orgId}`;
         
         // Passar os metadados na query do webhook ou na payload, optamos pela payload do webhook e query no actor
         // Actor default de Gmaps muito usado: compass/google-maps-extractor

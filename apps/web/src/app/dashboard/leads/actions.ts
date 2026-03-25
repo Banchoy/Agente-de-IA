@@ -10,6 +10,7 @@ import { AgentRepository } from "@/lib/repositories/agent";
 import { OrganizationRepository } from "@/lib/repositories/organization";
 import { ApifyService } from "@/lib/services/apify";
 import { auth } from "@clerk/nextjs/server";
+import { headers } from "next/headers";
 
 export async function listLeads() {
     try {
@@ -308,8 +309,13 @@ export async function processProspecting(mapsUrl: string, config: { niche?: stri
             return { success: false, error: "Chave da API do Apify não configurada no servidor." };
         }
         
+        // Determinar URL base dinâmica
+        const host = (await headers()).get("host");
+        const protocol = host?.includes("localhost") ? "http" : "https";
+        const baseUrl = `${protocol}://${host}`;
+
         // Disparar o Google Maps Extractor do Apify assincronamente (ele responderá no Webhook)
-        ApifyService.startGoogleMapsExtractor(mapsUrl, config, org.id).catch((err: any) => {
+        ApifyService.startGoogleMapsExtractor(mapsUrl, config, org.id, baseUrl).catch((err: any) => {
             console.error("❌ Erro ao iniciar Apify em background:", err);
         });
 
