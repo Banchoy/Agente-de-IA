@@ -17,7 +17,9 @@ export const ApifyService = {
         
         // Passar os metadados na query do webhook ou na payload, optamos pela payload do webhook e query no actor
         // Actor default de Gmaps muito usado: compass/google-maps-extractor
-        const actorId = process.env.APIFY_ACTOR_ID || "compass~google-maps-extractor";
+        let actorId = process.env.APIFY_ACTOR_ID || "compass~google-maps-extractor";
+        // Normalizar actorId: o Apify v2 espera ~ no lugar de / para nomes de Store Actors na URL
+        actorId = actorId.replace("/", "~");
 
         const startUrl = `https://api.apify.com/v2/acts/${actorId}/runs?token=${token}`;
 
