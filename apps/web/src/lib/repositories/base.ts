@@ -16,7 +16,7 @@ import { auth } from "@clerk/nextjs/server";
 // We can achieve this by wrapping our DB calls in a transaction that first sets the local config.
 
 export async function withOrgContext<T>(
-    callback: (tx: any) => Promise<T>
+    callback: (tx: any, org: any) => Promise<T>
 ): Promise<T> {
     const { orgId: clerkOrgId } = await auth();
 
@@ -40,8 +40,8 @@ export async function withOrgContext<T>(
         // Set the configuration parameter for the current transaction using the DB UUID
         await tx.execute(sql`SELECT set_config('app.current_org_id', ${dbOrg.id}, true)`);
 
-        // Execute the callback with the transaction object
-        return await callback(tx);
+        // Execute the callback with the transaction object and the org object
+        return await callback(tx, dbOrg);
     });
 }
 

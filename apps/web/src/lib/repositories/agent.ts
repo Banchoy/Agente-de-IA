@@ -29,8 +29,11 @@ export const AgentRepository = {
     },
 
     create: async (data: typeof agents.$inferInsert) => {
-        return await withOrgContext(async (tx) => {
-            const [newAgent] = await tx.insert(agents).values(data).returning();
+        return await withOrgContext(async (tx, org) => {
+            const [newAgent] = await tx.insert(agents).values({
+                ...data,
+                organizationId: org.id
+            }).returning();
             return newAgent;
         });
     },
