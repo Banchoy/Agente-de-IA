@@ -5,6 +5,7 @@ import { EvolutionService } from "./evolution";
 import { MessageRepository } from "../repositories/message";
 import { AgentRepository } from "../repositories/agent";
 import { LeadRepository } from "../repositories/lead";
+import { WhatsappService } from "./whatsapp";
 
 export const OutreachService = {
     /**
@@ -67,10 +68,8 @@ export const OutreachService = {
             const { ScriptService } = await import("./script");
             const messageBody = ScriptService.getInitialMessage();
 
-            // 5. Enviar via Evolution
-            await EvolutionService.sendText(
-                org.evolutionApiUrl || process.env.EVOLUTION_API_URL || "",
-                org.evolutionApiKey || process.env.EVOLUTION_API_KEY || "",
+            // 5. Enviar via WhatsappService (Baileys Interno)
+            await WhatsappService.sendText(
                 org.evolutionInstanceName,
                 pendingLead.phone!.replace(/\D/g, ""),
                 messageBody

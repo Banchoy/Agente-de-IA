@@ -148,6 +148,12 @@ export const WhatsappService = {
             return WhatsappService.connectionPromises.get(sessionId);
         }
 
+        const session = WhatsappService.sessions.get(sessionId);
+        if (session && (session.status === "open" || session.status === "connecting")) {
+            console.log(`ℹ️ [Baileys] Sessão ${sessionId} já está em estado: ${session.status}. Ignorando nova tentativa.`);
+            return session.sock;
+        }
+
         const connectionPromise = (async () => {
             try {
                 if (WhatsappService.sessions.has(sessionId)) {
@@ -627,14 +633,9 @@ export const WhatsappService = {
         return connectionPromise;
     },
 
-    getSession: (sessionId: string) => {
-        return WhatsappService.sessions.get(sessionId);
-    },
-
     resumeSessions: async () => {
         console.log("🔄 [Baileys] Resumindo sessões ativas...");
         try {
-            // Get all unique session/org pairs that have credentials
             const sessionsToResume = await db
                 .select({
                     sessionId: whatsappSessions.sessionId,
@@ -649,7 +650,6 @@ export const WhatsappService = {
             for (const { sessionId, organizationId } of sessionsToResume) {
                 console.log(`🔌 [Baileys] Restaurando: ${sessionId}...`);
                 try {
-                    // Chamamos connect na ordem correta: (organizationId, sessionId)
                     WhatsappService.connect(organizationId, sessionId).catch(err => {
                         console.error(`❌ [Baileys] Falha ao restaurar ${sessionId}:`, err);
                     });
@@ -659,6 +659,31 @@ export const WhatsappService = {
             }
         } catch (err) {
             console.error("❌ [Baileys] Erro ao buscar sessões para resumir:", err);
+        }
+    },
+
+    sendText: async (sessionId: string, number: string, text: string) => {
+        console.log(`📤 [Baileys] Tentando enviar mensagem para ${number} via sessão ${sessionId}`);
+        
+        const session = WhatsappService.sessions.get(sessionId);
+        if (!session) {
+            console.error(`❌ [Baileys] Sessão ${sessionId} não encontrada na memória.`);
+            throw new Error(`Sessão ${sessionId} não encontrada.`);
+        }
+
+        if (session.status !== "open" || !session.sock) {
+            console.warn(`⚠️ [Baileys] Sessão ${sessionId} não está aberta (Status: ${session.status}). Tentando reconectar...`);
+            throw new Error(`Sessão ${sessionId} não está pronta para envio.`);
+        }
+
+        try {
+            const jid = number.includes("@s.whatsapp.net") ? number : `${number}@s.whatsapp.net`;
+            await session.sock.sendMessage(jid, { text });
+            console.log(`✅ [Baileys] Mensagem enviada com sucesso para ${number}`);
+            return { success: true };
+        } catch (err) {
+            console.error(`❌ [Baileys] Erro ao enviar mensagem para ${number}:`, err);
+            throw err;
         }
     }
 };

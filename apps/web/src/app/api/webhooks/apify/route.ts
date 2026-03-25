@@ -60,24 +60,38 @@ export async function POST(req: Request) {
             if (phone.length === 10 || phone.length === 11) {
                 if (!phone.startsWith("55")) phone = "55" + phone;
             }
-            if (phone) phone = "+" + phone;
+            if (phone && !phone.startsWith("+")) phone = "+" + phone;
 
-            await db.insert(leads).values({
-                organizationId: orgId,
-                stageId: stageId,
-                name: leadName,
-                phone: phone,
-                email: item.email || item.emails?.[0] || "",
-                source: "Apify Maps",
-                metaData: {
-                    ...item,
-                    website: item.website || item.url || ""
-                },
-                // Em vez de auto-enviar (pending) como no passado, deixamos parado aguardando o Botão Mágico
-                outreachStatus: "idle",
-                aiActive: "true"
-            });
-            savedCount++;
+            if (!phone) continue;
+
+            try {
+                // UPSERT: Evitar duplicidade por telefone na mesma organização
+                await db.insert(leads)
+                    .values({
+                        organizationId: orgId,
+                        stageId: stageId,
+                        name: leadName,
+                        phone: phone,
+                        email: item.email || item.emails?.[0] || "",
+                        source: "Apify Maps",
+                        metaData: {
+                            ...item,
+                            website: item.website || item.url || ""
+                        },
+                        outreachStatus: "idle",
+                        aiActive: "true"
+                    })
+                    .onConflictDoUpdate({
+                        target: [leads.phone, leads.organizationId],
+                        set: {
+                            updatedAt: new Date(),
+                            metaData: { ...item }
+                        }
+                    });
+                savedCount++;
+            } catch (err) {
+                console.error(`❌ Erro ao inserir/atualizar lead ${phone}:`, err);
+            }
         }
 
         console.log(`✅ [Apify Webhook] Processo de extração salvo! ${savedCount} leads inseridos na fase Qualificação.`);
