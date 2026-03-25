@@ -315,14 +315,70 @@ export async function processProspecting(mapsUrl: string, config: { niche?: stri
         const baseUrl = `${protocol}://${host}`;
 
         // Disparar o Google Maps Extractor do Apify assincronamente (ele responderá no Webhook)
-        ApifyService.startGoogleMapsExtractor(mapsUrl, config, org.id, baseUrl).catch((err: any) => {
-            console.error("❌ Erro ao iniciar Apify em background:", err);
-        });
+        const run = await ApifyService.startGoogleMapsExtractor(mapsUrl, config, org.id, baseUrl);
 
-        return { success: true, message: "Prospecção iniciada no Apify! Os leads aparecerão em breve no Kanban." };
+        return { 
+            success: true, 
+            runId: run.id,
+            message: "Prospecção iniciada no Apify! Acompanhando progresso..." 
+        };
 
     } catch (error: any) {
         console.error("Error processing prospecting:", error);
+        return { success: false, error: error.message };
+    }
+}
+
+/**
+ * Busca o progresso da prospecção e sincroniza itens parciais no banco.
+ */
+export async function getProspectingProgress(runId: string) {
+    const { orgId: clerkOrgId } = await auth();
+    if (!clerkOrgId) return { success: false, error: "Unauthorized" };
+
+    try {
+        const org = await OrganizationRepository.getByClerkId(clerkOrgId);
+        if (!org) return { success: false, error: "Organization not found" };
+
+        const run = await ApifyService.getRunStatus(runId);
+        if (!run) return { success: false, error: "Run not found" };
+
+        const items = await ApifyService.getDatasetItems(run.defaultDatasetId);
+        
+        // Garantir estrutura de CRM
+        const { CRMRepository } = await import("@/lib/repositories/crm");
+        const qualificationStageId = await CRMRepository.ensureDefaultPipeline(org.id);
+
+        // Sincronizar itens parciais (Idempotente)
+        for (const item of items) {
+            const phone = item.phone || item.phoneNumber || item.phoneNumberStandardized;
+            if (!phone) continue;
+
+            const cleanPhone = phone.toString().replace(/\D/g, "");
+            
+            // Verifica se o lead existe
+            const existing = await (LeadRepository as any).getByPhoneSystem(cleanPhone, org.id);
+            if (!existing) {
+                await (LeadRepository as any).createSystem({
+                    organizationId: org.id,
+                    name: item.title || item.name || "Lead Maps",
+                    phone: cleanPhone,
+                    source: "Google Maps",
+                    stageId: qualificationStageId,
+                    metaData: item,
+                    aiActive: "true"
+                });
+            }
+        }
+
+        return { 
+            success: true, 
+            status: run.status, 
+            itemCount: items.length,
+            leads: items.slice(-3).map((it: any) => ({ name: it.title || it.name, phone: it.phone }))
+        };
+    } catch (error: any) {
+        console.error("Error getting progress:", error);
         return { success: false, error: error.message };
     }
 }

@@ -67,5 +67,26 @@ export const ApifyService = {
         console.log(`✅ [Apify] Run ${data.data.id} iniciado. Webhook aguardando em: ${webhookUrl}`);
         
         return data.data;
+    },
+
+    /**
+     * Busca o status atual de uma run no Apify.
+     */
+    getRunStatus: async (runId: string) => {
+        const token = process.env.APIFY_API_TOKEN;
+        const response = await fetch(`https://api.apify.com/v2/actor-runs/${runId}?token=${token}`);
+        if (!response.ok) return null;
+        const data = await response.json();
+        return data.data; // Retorna status, defaultDatasetId, etc.
+    },
+
+    /**
+     * Busca os itens de um dataset específico.
+     */
+    getDatasetItems: async (datasetId: string) => {
+        const token = process.env.APIFY_API_TOKEN;
+        const response = await fetch(`https://api.apify.com/v2/datasets/${datasetId}/items?token=${token}`);
+        if (!response.ok) return [];
+        return await response.json();
     }
 };
