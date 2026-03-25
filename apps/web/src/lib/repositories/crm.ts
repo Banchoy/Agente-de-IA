@@ -13,7 +13,14 @@ export const CRMRepository = {
             .where(eq(pipelines.organizationId, organizationId))
             .limit(1);
         
-        if (existing.length > 0) return existing[0].id;
+        if (existing.length > 0) {
+            // Retorna o primeiro estágio deste pipeline
+            const [firstStage] = await db.select({ id: stages.id })
+                .from(stages)
+                .where(eq(stages.pipelineId, existing[0].id))
+                .limit(1);
+            return firstStage?.id || null;
+        }
 
         // Se não houver, cria um padrão
         console.log(`🏗️ [CRM] Criando pipeline padrão para a org ${organizationId}...`);
@@ -30,15 +37,15 @@ export const CRMRepository = {
             { name: "Perdido", order: "3" }
         ];
 
-        await db.insert(stages).values(
+        const insertedStages = await db.insert(stages).values(
             defaultStages.map(s => ({
                 pipelineId: newPipeline.id,
                 name: s.name,
                 order: s.order
             }))
-        );
+        ).returning();
 
-        return newPipeline.id;
+        return insertedStages[0]?.id || null;
     },
 
     getStageByName: async (organizationId: string, stageName: string) => {

@@ -359,12 +359,13 @@ export async function getProspectingProgress(runId: string) {
             // Verifica se o lead existe
             const existing = await (LeadRepository as any).getByPhoneSystem(cleanPhone, org.id);
             if (!existing) {
+                // Só cria se tivermos um estágio válido (opcional, mas recomendado pela constraint)
                 await (LeadRepository as any).createSystem({
                     organizationId: org.id,
                     name: item.title || item.name || "Lead Maps",
                     phone: cleanPhone,
                     source: "Google Maps",
-                    stageId: qualificationStageId,
+                    stageId: qualificationStageId || null,
                     metaData: item,
                     aiActive: "true"
                 });
