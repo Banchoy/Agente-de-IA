@@ -63,18 +63,9 @@ export const OutreachService = {
                 return;
             }
 
-            // 4. Montar mensagem inicial personalizada
-            // O usuário quer: nicho, nome, endereço, site... (estão no metaData)
-            const meta = (pendingLead.metaData as any) || {};
-            const firstName = pendingLead.name.split(' ')[0];
-            const niche = meta.niche || meta.category || 'seu setor';
-            
-            // Exemplo de template solicitado: "Olá [nome], vi que você trabalha com [nicho]..."
-            let messageBody = `Olá ${firstName}! Tudo bem? 
-
-Vi aqui que você trabalha com ${niche} e gostaria de saber se vocês têm interesse em automatizar o atendimento dos seus leads pelo WhatsApp. 
-
-Vi seu site (${meta.website || meta.url || 'não informado'}) e achei muito interessante o trabalho de vocês. Como está a demanda de atendimento hoje?`;
+            // 4. Montar mensagem inicial personalizada com ScriptService (Bruno)
+            const { ScriptService } = await import("./script");
+            const messageBody = ScriptService.getInitialMessage();
 
             // 5. Enviar via Evolution
             await EvolutionService.sendText(
@@ -85,10 +76,11 @@ Vi seu site (${meta.website || meta.url || 'não informado'}) e achei muito inte
                 messageBody
             );
 
-            // 6. Atualizar status e salvar no histórico
-            await LeadRepository.update(pendingLead.id, {
-                outreachStatus: "completed", // Marca como concluído para este lead
+            // 6. Atualizar status, estado da conversa e salvar no histórico
+            await LeadRepository.updateSystem(pendingLead.id, {
+                outreachStatus: "completed",
                 lastOutreachAt: new Date(),
+                conversationState: "WAITING_REPLY", // Próximo passo quando o cliente responder
             });
 
             await MessageRepository.create({

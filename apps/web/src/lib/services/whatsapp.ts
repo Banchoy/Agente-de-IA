@@ -462,17 +462,39 @@ export const WhatsappService = {
                                     formattedHistory = [{ role: "user", content: text }];
                                 }
 
-                                // Instrução extra para identificar leads qualificados
-                                const qualificationInstruction = "\n\n[SISTEMA]: Se o cliente demonstrar interesse claro, perguntar preços ou aceitar uma reunião, adicione o marcador [QUALIFICADO] ao final da sua resposta.";
-
-                                const aiResponse = await AIService.generateResponse(
-                                    config.provider || "google",
-                                    config.model || "gemini-1.5-flash",
-                                    (config.systemPrompt || "Você é um assistente virtual.") + qualificationInstruction,
-                                    formattedHistory
-                                );
+                                // 4. Generate AI Response (Adaptive or Generic)
+                                const { ScriptService } = await import("./script");
+                                const scriptInstruction = ScriptService.getInstruction(lead.conversationState);
                                 
-                                console.log(`🤖 [Baileys] Resposta da IA recebida. Tamanho: ${aiResponse?.length || 0}`);
+                                console.log(`🤖 [Baileys] Chamando AIService (Adaptativo: ${!!scriptInstruction}) para: ${agent.name}`);
+
+                                const adaptiveResult = await AIService.generateAdaptiveResponse(
+                                    config,
+                                    lead,
+                                    formattedHistory,
+                                    scriptInstruction
+                                );
+
+                                const aiResponse = adaptiveResult.body;
+                                const leadMeta = (lead.metaData as any) || {};
+
+                                // Update Lead Profile with Learned Info
+                                const nextState = ScriptService.advanceState(lead.conversationState);
+
+                                if (adaptiveResult.detectedNiche || adaptiveResult.interestLevel || nextState !== lead.conversationState) {
+                                    const updatedMeta = {
+                                        ...leadMeta,
+                                        niche: adaptiveResult.detectedNiche || leadMeta.niche,
+                                        interestLevel: adaptiveResult.interestLevel || leadMeta.interestLevel,
+                                        isDecisor: adaptiveResult.isDecisor !== "unknown" ? adaptiveResult.isDecisor : leadMeta.isDecisor
+                                    };
+                                    await (LeadRepository as any).updateSystem(lead.id, { 
+                                        metaData: updatedMeta,
+                                        conversationState: nextState
+                                    });
+                                }
+                                
+                                console.log(`🤖 [Baileys] Resposta adaptativa recebida. Nicho Detectado: ${adaptiveResult.detectedNiche}`);
 
                                 if (aiResponse) {
                                     let finalMessage = aiResponse;

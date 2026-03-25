@@ -100,6 +100,49 @@ Your response MUST be a valid JSON object with the following keys:
         throw new Error("Todos os provedores de IA falharam na resposta estruturada.");
     },
 
+    generateAdaptiveResponse: async (
+        agentConfig: any,
+        lead: any,
+        messages: ChatMessage[],
+        scriptInstruction: string,
+        temperature: number = 0.7
+    ) => {
+        const leadMeta = (lead.metaData as any) || {};
+        const systemPrompt = `
+Você é um assistente comercial humano chamado Bruno.
+Sua missão é seguir este script de prospecção: "${scriptInstruction}"
+
+### DIRETRIZES DE PERSONALIDADE:
+- Seja natural, direto e prestativo.
+- Não use linguagem de robô. Use gírias leves se apropriado (ex: "tudo certo?", "consegue me dar um help?").
+- Sua base de conhecimento sobre o cliente: ${JSON.stringify(leadMeta)}
+
+### AUTO-APRENDIZADO E DETECÇÃO DE NICHO:
+- Analise as mensagens do cliente para identificar:
+  1. O nicho/setor de atuação dele (se ainda não estiver claro).
+  2. O nível de interesse (ALTO, MÉDIO, BAIXO, NENHUM).
+  3. Se ele é o decisor comercial ou não.
+
+### FORMATO DE SAÍDA (JSON):
+Sua resposta deve ser um JSON válido:
+{
+  "body": "A mensagem curta e natural para enviar no WhatsApp",
+  "detectedNiche": "o setor identificado",
+  "interestLevel": "ALTO | MÉDIO | BAIXO",
+  "isDecisor": true | false | "unknown"
+}
+`;
+
+        const response = await AIService.generateResilientResponse(systemPrompt, messages, temperature);
+        try {
+            const cleaned = response.replace(/```json|```/g, "").trim();
+            return JSON.parse(cleaned);
+        } catch (e) {
+            console.warn("⚠️ [AIService] Falha ao parsear JSON adaptativo, retornando corpo bruto.");
+            return { body: response };
+        }
+    },
+
     generateGeminiResponse: async (
         model: string,
         systemPrompt: string,
