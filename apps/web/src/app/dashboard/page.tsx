@@ -3,10 +3,11 @@ import { redirect } from "next/navigation";
 import { db } from "@/lib/db";
 import { users as usersTable, agents } from "@/lib/db/schema";
 import { count, eq } from "drizzle-orm";
-import { Bot, UserCheck, Activity, Globe, Sparkles, Settings, TrendingUp, Users } from "lucide-react";
+import { Bot, UserCheck, Activity, Globe, Sparkles, Settings, TrendingUp, Users, PowerOff } from "lucide-react";
 import { UserService } from "@/lib/services/user";
 import CRMKanban from "./CRMKanban";
-import { getKanbanData } from "./leads/actions";
+import { getKanbanData, stopOutreach } from "./leads/actions";
+import { OutreachBanner } from "./leads/OutreachBanner";
 
 export default async function DashboardPage() {
     try {
@@ -41,7 +42,7 @@ export default async function DashboardPage() {
                         <p className="text-muted-foreground font-medium">Gerencie seus leads e conexões do Meta Ads com IA.</p>
                     </div>
 
-                    <div className="hidden lg:flex gap-4">
+                    <div className="hidden lg:flex gap-4 items-center">
                         <div className="flex items-center gap-2 px-4 py-2 bg-card border border-border rounded-xl shadow-sm">
                             <TrendingUp size={16} className="text-green-500" />
                             <span className="text-xs font-bold text-muted-foreground uppercase tracking-wider">Conversão: 12%</span>
@@ -50,8 +51,20 @@ export default async function DashboardPage() {
                             <Users size={16} className="text-blue-500" />
                             <span className="text-xs font-bold text-muted-foreground uppercase tracking-wider">Leads Hoje: {leads.length}</span>
                         </div>
+
+                        <form action={stopOutreach}>
+                            <button 
+                                type="submit"
+                                className="flex items-center gap-2 rounded-xl bg-red-600/10 px-5 py-2.5 text-xs font-black uppercase tracking-widest text-red-600 hover:bg-red-600 hover:text-white transition-all active:scale-95 border border-red-600/20"
+                            >
+                                <PowerOff size={16} />
+                                Parar Disparos
+                            </button>
+                        </form>
                     </div>
                 </div>
+
+                <OutreachBanner />
 
                 {/* CRM Kanban View */}
                 <CRMKanban initialLeads={leads} initialStages={stages} />
