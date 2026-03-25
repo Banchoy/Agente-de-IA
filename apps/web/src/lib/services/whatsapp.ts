@@ -524,6 +524,15 @@ export const WhatsappService = {
                                 if (aiResponse) {
                                     let finalMessage = aiResponse;
                                     
+                                    // Movimentação automática para 'Em Atendimento (IA)' se for a primeira resposta ou estiver no início
+                                    const inServiceStageId = await CRMRepository.getStageByName(lead.organizationId, "Em Atendimento (IA)") || 
+                                                            await CRMRepository.getStageByName(lead.organizationId, "Atendimento");
+                                    
+                                    if (inServiceStageId && lead.stageId !== inServiceStageId) {
+                                        console.log(`🚀 [Baileys] Movendo lead ${lead.name} para estágio de atendimento.`);
+                                        await (LeadRepository as any).updateSystem(lead.id, { stageId: inServiceStageId });
+                                    }
+
                                     // Detectar qualificação automática
                                     if (aiResponse.includes("[QUALIFICADO]")) {
                                         try {
@@ -532,7 +541,7 @@ export const WhatsappService = {
                                             
                                             // Tenta encontrar o ID do estágio 'Qualificação' dinamicamente
                                             const qualificationStageId = await CRMRepository.getStageByName(lead.organizationId, "Qualificação") || 
-                                                                        await CRMRepository.getStageByName(lead.organizationId, "Qualification");
+                                                                         await CRMRepository.getStageByName(lead.organizationId, "Qualification");
 
                                             if (qualificationStageId) {
                                                 console.log(`✅ [Baileys] Estágio encontrado: ${qualificationStageId}. Movendo lead...`);

@@ -2,7 +2,7 @@
 
 import { db } from "@/lib/db";
 import { leads, stages, pipelines } from "@saas/db";
-import { eq, and, asc } from "drizzle-orm";
+import { eq, and, asc, sql } from "drizzle-orm";
 import { redis } from "@/lib/redis";
 import { revalidatePath } from "next/cache";
 import { LeadRepository } from "@/lib/repositories/lead";
@@ -470,6 +470,65 @@ export async function updateStageOrder(stageId: string, newOrder: string) {
         return { success: true };
     } catch (error) {
         console.error("Error updating stage order:", error);
+        return { success: false, error };
+    }
+}
+export async function getOutreachStatus() {
+    const { orgId: clerkOrgId } = await auth();
+    if (!clerkOrgId) return { active: false };
+
+    try {
+        const org = await OrganizationRepository.getByClerkId(clerkOrgId);
+        if (!org) return { active: false };
+
+        const [pendingResult] = await db.select({ count: sql<number>`count(*)` })
+            .from(leads)
+            .where(and(eq(leads.organizationId, org.id), eq(leads.outreachStatus, "pending")));
+
+        const [completedResult] = await db.select({ count: sql<number>`count(*)` })
+            .from(leads)
+            .where(and(
+                eq(leads.organizationId, org.id), 
+                eq(leads.outreachStatus, "completed"),
+                sql`last_outreach_at > now() - interval '24 hours'`
+            ));
+
+        const pending = Number(pendingResult?.count || 0);
+        const completed = Number(completedResult?.count || 0);
+        const total = pending + completed;
+        
+        return {
+            active: pending > 0,
+            pending,
+            completed,
+            total,
+            percentage: total > 0 ? Math.round((completed / total) * 100) : 0
+        };
+    } catch (error) {
+        console.error("Error getting outreach status:", error);
+        return { active: false };
+    }
+}
+
+export async function stopOutreach() {
+    const { orgId: clerkOrgId } = await auth();
+    if (!clerkOrgId) throw new Error("Unauthorized");
+
+    try {
+        const org = await OrganizationRepository.getByClerkId(clerkOrgId);
+        if (!org) throw new Error("Organization not found");
+
+        await db.update(leads)
+            .set({ outreachStatus: "idle" })
+            .where(and(
+                eq(leads.organizationId, org.id),
+                eq(leads.outreachStatus, "pending")
+            ));
+        
+        revalidatePath("/dashboard/leads");
+        return { success: true };
+    } catch (error) {
+        console.error("Error stopping outreach:", error);
         return { success: false, error };
     }
 }

@@ -6,6 +6,7 @@ import { MessageRepository } from "../repositories/message";
 import { AgentRepository } from "../repositories/agent";
 import { LeadRepository } from "../repositories/lead";
 import { WhatsappService } from "./whatsapp";
+import { CRMRepository } from "../repositories/crm";
 
 export const OutreachService = {
     /**
@@ -76,10 +77,14 @@ export const OutreachService = {
             );
 
             // 6. Atualizar status, estado da conversa e salvar no histórico
+            const inServiceStageId = await CRMRepository.getStageByName(org.id, "Em Atendimento (IA)") || 
+                                    await CRMRepository.getStageByName(org.id, "Atendimento");
+
             await LeadRepository.updateSystem(pendingLead.id, {
                 outreachStatus: "completed",
                 lastOutreachAt: new Date(),
                 conversationState: "WAITING_REPLY", // Próximo passo quando o cliente responder
+                stageId: inServiceStageId || undefined
             });
 
             await MessageRepository.create({

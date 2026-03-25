@@ -1,19 +1,28 @@
 import { LeadRepository } from "../repositories/lead";
 
-const OPENINGS = [
-  "Olá, bom dia, tudo bem?",
-  "Fala, bom dia! Tudo certo por aí?",
-  "Oi, tudo bem? Bom dia!",
-  "Bom dia! Tudo certo?"
-];
-
-function getRandom(arr: string[]): string {
-  return arr[Math.floor(Math.random() * arr.length)];
+function getGreeting(): string {
+  const hour = new Intl.DateTimeFormat('pt-BR', {
+    timeZone: 'America/Sao_Paulo',
+    hour: 'numeric',
+    hour12: false
+  }).format(new Date());
+  
+  const h = parseInt(hour);
+  if (h >= 5 && h < 12) return "bom dia";
+  if (h >= 12 && h < 18) return "boa tarde";
+  return "boa noite";
 }
 
 export const ScriptService = {
   getInitialMessage: () => {
-    return getRandom(OPENINGS);
+    const greeting = getGreeting();
+    const openings = [
+      `Olá, ${greeting}, tudo bem?`,
+      `Fala, ${greeting}! Tudo certo por aí?`,
+      `Oi, tudo bem? ${greeting.charAt(0).toUpperCase() + greeting.slice(1)}!`,
+      `${greeting.charAt(0).toUpperCase() + greeting.slice(1)}! Tudo certo?`
+    ];
+    return openings[Math.floor(Math.random() * openings.length)];
   },
 
   /**
