@@ -296,7 +296,13 @@ export async function startMassOutreach(stageId: string) {
     }
 }
 
-export async function processProspecting(mapsUrl: string, config: { niche?: string; initialMessage?: string }) {
+export async function processProspecting(mapsUrl: string, config: { 
+    niche?: string; 
+    initialMessage?: string;
+    minRating?: string;
+    minReviews?: string;
+    maxItems?: string;
+}) {
     const { orgId: clerkOrgId } = await auth();
     if (!clerkOrgId) throw new Error("Unauthorized");
 

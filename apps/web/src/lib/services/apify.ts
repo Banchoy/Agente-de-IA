@@ -29,8 +29,10 @@ export const ApifyService = {
         // Estamos usando o formato padrão de Google Maps Extractor.
         const payload = {
             startUrls: [{ url }],
-            maxCrawledPlacesPerSearch: 50,
+            maxCrawledPlacesPerSearch: config.maxItems || 50,
             language: "pt-BR",
+            minRating: config.minRating ? parseFloat(config.minRating) : undefined,
+            reviewsCount: config.minReviews ? parseInt(config.minReviews) : undefined,
             // custom fields to pass state
             customData: {
                 orgId,

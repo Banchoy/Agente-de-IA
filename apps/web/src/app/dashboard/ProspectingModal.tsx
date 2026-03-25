@@ -22,6 +22,9 @@ export default function ProspectingModal({ isOpen, onClose }: ProspectingModalPr
     const [url, setUrl] = useState("");
     const [niche, setNiche] = useState("");
     const [initialMessage, setInitialMessage] = useState("");
+    const [minRating, setMinRating] = useState("4.0");
+    const [minReviews, setMinReviews] = useState("10");
+    const [maxItems, setMaxItems] = useState("50");
     const [isLoading, setIsLoading] = useState(false);
     
     // Estados do Progresso
@@ -67,7 +70,13 @@ export default function ProspectingModal({ isOpen, onClose }: ProspectingModalPr
 
         try {
             setIsLoading(true);
-            const res = await processProspecting(url, { niche, initialMessage });
+            const res = await processProspecting(url, { 
+                niche, 
+                initialMessage,
+                minRating,
+                minReviews,
+                maxItems
+            });
             
             if (res.success && res.runId) {
                 setRunId(res.runId);
@@ -132,11 +141,45 @@ export default function ProspectingModal({ isOpen, onClose }: ProspectingModalPr
                                             onChange={(e) => setNiche(e.target.value)}
                                         />
                                     </div>
-                                    <div className="flex flex-col justify-end">
-                                        <div className="p-3 bg-primary/5 rounded-2xl text-[10px] text-muted-foreground leading-relaxed flex items-start gap-2 border border-primary/10">
-                                            <Sparkles className="w-3.5 h-3.5 text-amber-500 flex-shrink-0" />
-                                            <span>O robô filtrará apenas números com WhatsApp ativo.</span>
-                                        </div>
+                                    <div className="space-y-2">
+                                        <Label htmlFor="maxItems" className="text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground/70">Máx. Leads</Label>
+                                        <Input
+                                            id="maxItems"
+                                            type="number"
+                                            className="rounded-2xl bg-muted/30 border-border/50 focus:ring-primary h-12"
+                                            value={maxItems}
+                                            onChange={(e) => setMaxItems(e.target.value)}
+                                        />
+                                    </div>
+                                </div>
+
+                                <div className="grid grid-cols-2 gap-4 border-y border-border/30 py-4 my-2">
+                                    <div className="space-y-2">
+                                        <Label htmlFor="minRating" className="text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground/70 flex items-center gap-2">
+                                            ⭐ Nota Mínima
+                                        </Label>
+                                        <Input
+                                            id="minRating"
+                                            type="number"
+                                            step="0.1"
+                                            min="0"
+                                            max="5"
+                                            className="rounded-2xl bg-muted/30 border-border/50 focus:ring-primary h-12"
+                                            value={minRating}
+                                            onChange={(e) => setMinRating(e.target.value)}
+                                        />
+                                    </div>
+                                    <div className="space-y-2">
+                                        <Label htmlFor="minReviews" className="text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground/70 flex items-center gap-2">
+                                            💬 Mín. Avaliações
+                                        </Label>
+                                        <Input
+                                            id="minReviews"
+                                            type="number"
+                                            className="rounded-2xl bg-muted/30 border-border/50 focus:ring-primary h-12"
+                                            value={minReviews}
+                                            onChange={(e) => setMinReviews(e.target.value)}
+                                        />
                                     </div>
                                 </div>
 
