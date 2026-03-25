@@ -1,5 +1,5 @@
 import { db } from "../db";
-import { leads } from "../db/schema";
+import { leads, organizations } from "../db/schema";
 import { eq, and, or, isNull, lt, sql } from "drizzle-orm";
 import { EvolutionService } from "./evolution";
 import { MessageRepository } from "../repositories/message";
@@ -44,8 +44,8 @@ export const OutreachService = {
             // 2. Buscar organização do lead
             const [org] = await db
                 .select()
-                .from(db.query.organizations as any)
-                .where(eq((db.query.organizations as any).id, pendingLead.organizationId))
+                .from(organizations)
+                .where(eq(organizations.id, pendingLead.organizationId))
                 .limit(1);
 
             if (!org || !org.evolutionInstanceName || org.evolutionInstanceStatus !== "connected") {

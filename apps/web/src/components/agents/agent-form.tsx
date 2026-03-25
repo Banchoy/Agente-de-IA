@@ -55,26 +55,44 @@ export function AgentForm({ availableSessions, freeModels, defaultInstanceName }
                     </div>
                 </div>
 
+                {/* WhatsApp Config */}
                 <div className="p-1.5 bg-muted/30 rounded-3xl border border-border">
-                    <div className="space-y-3 p-6 bg-card rounded-[1.5rem] border border-border shadow-sm">
-                        <label htmlFor="whatsappInstanceName" className="flex items-center gap-2 text-xs font-black text-muted-foreground uppercase tracking-widest">
-                            <Phone size={14} className="text-primary" />
-                            Instância do WhatsApp
+                    <div className="space-y-6 p-6 bg-card rounded-[1.5rem] border border-border shadow-sm">
+                        <label className="flex items-start gap-4 group cursor-pointer">
+                            <div className="relative inline-flex items-center mt-1">
+                                <input
+                                    type="checkbox"
+                                    name="whatsappResponse"
+                                    defaultChecked={true}
+                                    className="sr-only peer"
+                                />
+                                <div className="w-11 h-6 bg-muted peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-primary shadow-inner"></div>
+                            </div>
+                            <div className="space-y-1">
+                                <span className="text-sm font-black text-foreground uppercase tracking-tight">Ativar Respostas do Agente</span>
+                                <p className="text-[10px] text-muted-foreground font-medium lowercase leading-relaxed italic">
+                                    se marcado, o robô responderá automaticamente no whatsapp.
+                                </p>
+                            </div>
                         </label>
-                        <select
-                            name="whatsappInstanceName"
-                            id="whatsappInstanceName"
-                            defaultValue={defaultInstanceName || ""}
-                            className="w-full rounded-xl border border-border bg-background px-5 py-3.5 text-sm font-bold text-foreground focus:border-primary focus:outline-none transition-all shadow-inner appearance-none cursor-pointer"
-                        >
-                            <option value="">Selecione uma sessão...</option>
-                            {availableSessions.map(session => (
-                                <option key={session} value={session}>{session}</option>
-                            ))}
-                        </select>
-                        <p className="text-[10px] text-muted-foreground px-1 leading-relaxed lowercase italic">
-                            defina em qual número ou instância este agente deve operar. deixe o padrão se for o único disponível.
-                        </p>
+
+                        <div className="space-y-3 pt-4 border-t border-border/50">
+                            <label htmlFor="whatsappInstanceName" className="flex items-center gap-2 text-xs font-black text-muted-foreground uppercase tracking-widest">
+                                <Phone size={14} className="text-primary" />
+                                Instância do WhatsApp
+                            </label>
+                            <select
+                                name="whatsappInstanceName"
+                                id="whatsappInstanceName"
+                                defaultValue={defaultInstanceName || ""}
+                                className="w-full rounded-xl border border-border bg-background px-5 py-3.5 text-sm font-bold text-foreground focus:border-primary focus:outline-none transition-all shadow-inner appearance-none cursor-pointer"
+                            >
+                                <option value="">Selecione uma sessão...</option>
+                                {availableSessions.map(session => (
+                                    <option key={session} value={session}>{session}</option>
+                                ))}
+                            </select>
+                        </div>
                     </div>
                 </div>
 

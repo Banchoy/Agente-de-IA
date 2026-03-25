@@ -31,7 +31,8 @@ export async function createAgent(formData: FormData) {
             provider,
             model,
             systemPrompt,
-            temperature: 0.7
+            temperature: 0.7,
+            whatsappResponse: true
         }
     });
 
