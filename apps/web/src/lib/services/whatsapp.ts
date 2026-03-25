@@ -21,6 +21,20 @@ import { TTSService } from "@/lib/services/tts";
 
 const logger = pino({ level: "silent" });
 
+// Singleton para persistência em ambiente Next.js (evita múltiplas instâncias em HMR/Reload)
+declare global {
+    var __baileys_sessions: Map<string, any> | undefined;
+    var __baileys_promises: Map<string, Promise<any>> | undefined;
+}
+
+const sessions = globalThis.__baileys_sessions || new Map<string, any>();
+const connectionPromises = globalThis.__baileys_promises || new Map<string, Promise<any>>();
+
+if (process.env.NODE_ENV !== 'production') {
+    globalThis.__baileys_sessions = sessions;
+    globalThis.__baileys_promises = connectionPromises;
+}
+
 /**
  * Função recursiva para converter objetos {type: 'Buffer', data: [...]} de volta para Buffer real.
  */
@@ -122,8 +136,8 @@ async function useDrizzleAuthState(sessionId: string, organizationId: string) {
 }
 
 export const WhatsappService = {
-    sessions: new Map<string, any>(),
-    connectionPromises: new Map<string, Promise<any>>(),
+    sessions: sessions,
+    connectionPromises: connectionPromises,
 
     deleteSessionFromDb: async (sessionId: string) => {
         console.log(`🧹 [Baileys] Iniciando limpeza profunda da sessão ${sessionId}...`);
@@ -137,20 +151,22 @@ export const WhatsappService = {
     },
 
     connect: (organizationId: string, sessionId: string) => {
-        if (WhatsappService.connectionPromises.has(sessionId)) {
-            console.log(`ℹ️ [Baileys] Conexão já solicitada para ${sessionId}, aguardando promise...`);
-            return WhatsappService.connectionPromises.get(sessionId)!;
+        // LOCK SÍNCRONO IMEDIATO
+        if (connectionPromises.has(sessionId)) {
+            console.log(`ℹ️ [Baileys] Conexão já em andamento para ${sessionId}, devolvendo promise existente...`);
+            return connectionPromises.get(sessionId)!;
         }
 
-        const session = WhatsappService.sessions.get(sessionId);
+        const session = sessions.get(sessionId);
         if (session && (session.status === "open" || session.status === "connecting")) {
-            console.log(`ℹ️ [Baileys] Sessão ${sessionId} já está em estado: ${session.status}. Ignorando nova tentativa.`);
+            console.log(`ℹ️ [Baileys] Sessão ${sessionId} já ATIVA ou CONECTANDO. Ignorando.`);
             return Promise.resolve(session.sock);
         }
 
-        console.log(`🔌 [Baileys] Iniciando nova conexão para: ${sessionId}`);
+        console.log(`🔌 [Baileys] Iniciando nova conexão definitiva para: ${sessionId}`);
         
         const connectionPromise = (async () => {
+            // ... (rest of IIFE)
             // Validação básica para evitar erros de sintaxe UUID no banco
             if (!organizationId || organizationId.includes('wa_')) {
                 console.error(`❌ [Baileys] organizationId inválido detectado: ${organizationId}. Abortando conexão para ${sessionId}`);
@@ -168,8 +184,6 @@ export const WhatsappService = {
                         return existing.sock;
                     }
                 }
-
-                console.log(`🔌 [Baileys] Iniciando nova conexão para: ${sessionId}`);
 
                 // Otimização Render: Aguarda DB estar pronto
                 try {
@@ -626,15 +640,16 @@ export const WhatsappService = {
                 console.error(`❌ [Baileys] Erro no fluxo ${sessionId}:`, err);
                 throw err;
             } finally {
+                // Remove a promise após um tempo para permitir novas tentativas se a conexão cair depois
                 setTimeout(() => {
-                    if (WhatsappService.connectionPromises.get(sessionId) === connectionPromise) {
-                        WhatsappService.connectionPromises.delete(sessionId);
+                    if (connectionPromises.get(sessionId) === connectionPromise) {
+                        connectionPromises.delete(sessionId);
                     }
-                }, 2000);
+                }, 5000);
             }
         })();
 
-        WhatsappService.connectionPromises.set(sessionId, connectionPromise);
+        connectionPromises.set(sessionId, connectionPromise);
         return connectionPromise;
     },
 

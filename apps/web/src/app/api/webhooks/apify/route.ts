@@ -37,17 +37,36 @@ export async function POST(req: Request) {
         const items = await datasetResponse.json();
         
         // Identifica o Stage ID apropriado (Colocamos no primeiro ou Qualificação)
-        const allStages = await db.select({ id: stages.id, name: stages.name })
+        let allStages = await db.select({ id: stages.id, name: stages.name })
             .from(stages)
             .innerJoin(pipelines, eq(stages.pipelineId, pipelines.id))
             .where(eq(pipelines.organizationId, orgId));
+
+        // AUTO-PROVISIONAMENTO: Se não houver estágios, cria um pipeline padrão e o estágio Qualificação
+        if (allStages.length === 0) {
+            console.log(`🏗️ [Apify Webhook] Org ${orgId} sem CRM configurado. Criando estrutura padrão...`);
+            const [newPipeline] = await db.insert(pipelines).values({
+                organizationId: orgId,
+                name: "Vendas Principal",
+                description: "Pipeline criado automaticamente via Apify"
+            }).returning();
+
+            const [newStage] = await db.insert(stages).values({
+                pipelineId: newPipeline.id,
+                name: "Qualificação",
+                order: "0"
+            }).returning();
+
+            allStages = [{ id: newStage.id, name: newStage.name }];
+        }
 
         const defaultStage = allStages.find(s => s.name.toLowerCase() === "qualificação") || 
                              allStages.find(s => s.name.toLowerCase().includes("prospect")) || 
                              allStages.find(s => s.name.toLowerCase().includes("novo")) || 
                              allStages[0];
-                             
+                                     
         const stageId = defaultStage?.id || null;
+        console.log(`🎯 [Apify Webhook] Usando Stage ID: ${stageId} (${defaultStage?.name || "Nenhum"})`);
 
         let savedCount = 0;
         
