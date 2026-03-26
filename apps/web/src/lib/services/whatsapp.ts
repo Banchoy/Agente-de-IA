@@ -709,15 +709,47 @@ export const WhatsappService = {
     sendText: async (sessionId: string, number: string, text: string) => {
         console.log(`📤 [Baileys] Tentando enviar mensagem para ${number} via sessão ${sessionId}`);
         
-        const session = WhatsappService.sessions.get(sessionId);
-        if (!session) {
-            console.error(`❌ [Baileys] Sessão ${sessionId} não encontrada na memória.`);
-            throw new Error(`Sessão ${sessionId} não encontrada.`);
-        }
-
-        if (session.status !== "open" || !session.sock) {
-            console.warn(`⚠️ [Baileys] Sessão ${sessionId} não está aberta (Status: ${session.status}). Tentando reconectar...`);
-            throw new Error(`Sessão ${sessionId} não está pronta para envio.`);
+        let session = WhatsappService.sessions.get(sessionId);
+        
+        // AUTO-RECOVER: Se a sessão não está na memória, tentar restaurar do banco
+        if (!session || session.status !== "open" || !session.sock) {
+            console.warn(`⚠️ [Baileys] Sessão ${sessionId} não encontrada ou inativa. Tentando auto-recuperação...`);
+            
+            try {
+                // Buscar as credenciais no banco para descobrir o organizationId
+                const [sessionRow] = await db
+                    .select({ organizationId: whatsappSessions.organizationId })
+                    .from(whatsappSessions)
+                    .where(and(
+                        eq(whatsappSessions.sessionId, sessionId),
+                        eq(whatsappSessions.key, "creds")
+                    ))
+                    .limit(1);
+                    
+                if (sessionRow) {
+                    console.log(`🔄 [Baileys] Credenciais encontradas no banco. Reconectando ${sessionId}...`);
+                    await WhatsappService.connect(sessionRow.organizationId, sessionId);
+                    
+                    // Aguardar até 15 segundos pela conexão ficar pronta
+                    for (let i = 0; i < 15; i++) {
+                        await new Promise(r => setTimeout(r, 1000));
+                        session = WhatsappService.sessions.get(sessionId);
+                        if (session?.status === "open" && session?.sock) {
+                            console.log(`✅ [Baileys] Auto-recuperação bem-sucedida para ${sessionId}!`);
+                            break;
+                        }
+                    }
+                }
+            } catch (recoveryErr) {
+                console.error(`❌ [Baileys] Falha na auto-recuperação de ${sessionId}:`, recoveryErr);
+            }
+            
+            // Tentar novamente após recuperação
+            session = WhatsappService.sessions.get(sessionId);
+            if (!session || session.status !== "open" || !session.sock) {
+                console.error(`❌ [Baileys] Sessão ${sessionId} não recuperável. Abortando envio.`);
+                throw new Error(`Sessão ${sessionId} não encontrada após auto-recuperação.`);
+            }
         }
 
         try {
