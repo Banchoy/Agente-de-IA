@@ -372,11 +372,16 @@ export const WhatsappService = {
                             
                             if (!lead) {
                                 console.log(`👤 [Baileys] Lead novo detectado. Criando...`);
-                                lead = await (LeadRepository as any).createSystem({
+                                // Buscar estágio inicial "Novo Lead"
+                                const initialStageId = await CRMRepository.getStageByName(org.id, "Novo Lead");
+                                
+                                lead = await LeadRepository.createSystem({
                                     organizationId: org.id,
-                                    name: msg.pushName || phone,
+                                    name: phone,
                                     phone: phone,
-                                    status: "novo",
+                                    aiActive: "true",
+                                    status: "NEW", 
+                                    stageId: initialStageId,
                                 });
                                 console.log(`👤 [Baileys] Lead criado com sucesso: ${lead.id}`);
                             } else {
@@ -630,6 +635,17 @@ export const WhatsappService = {
                                                     content: cleanText,
                                                     type: "text"
                                                 });
+
+                                                // MOVER LEAD PARA "EM ATENDIMENTO" (Se ainda não estiver)
+                                                try {
+                                                    const targetStageId = await CRMRepository.getStageByName(lead.organizationId, "Atendimento");
+                                                    if (targetStageId && lead.stageId !== targetStageId) {
+                                                        console.log(`🚚 [CRM] Movendo lead ${lead.id} para atendimento...`);
+                                                        await LeadRepository.updateSystem(lead.id, { stageId: targetStageId });
+                                                    }
+                                                } catch (crmErr) {
+                                                    console.warn(`⚠️ [CRM] Erro ao mover lead para atendimento:`, crmErr);
+                                                }
                                             }
                                         }
                                     }

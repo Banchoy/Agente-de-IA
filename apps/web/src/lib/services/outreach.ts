@@ -1,13 +1,11 @@
 import { db } from "../db";
-import { leads, organizations } from "../db/schema";
-import { eq, and, or, isNull, lt, desc, sql } from "drizzle-orm";
-import { EvolutionService } from "./evolution";
+import { leads, organizations, messages } from "../db/schema";
+import { eq, and, desc } from "drizzle-orm";
 import { MessageRepository } from "../repositories/message";
 import { AgentRepository } from "../repositories/agent";
 import { LeadRepository } from "../repositories/lead";
 import { WhatsappService } from "./whatsapp";
 import { CRMRepository } from "../repositories/crm";
-import { messages } from "../db/schema";
 
 // Gera um gap randômico de 6 a 15 minutos entre disparos
 function getRandomGapMs() {
@@ -20,7 +18,6 @@ function getRandomGapMs() {
 export const OutreachService = {
     /**
      * Verifica e processa a fila de prospecção.
-     * Deve ser chamado periodicamente (por exemplo, a cada 1 minuto).
      */
     processQueue: async () => {
         console.log("📨 [Outreach] Verificando fila de prospecção...");
@@ -70,7 +67,7 @@ export const OutreachService = {
             }
 
             // 3. Buscar Agente ativo para prospecção
-            const agents = await AgentRepository.listByOrgId(org.id);
+            const agents = await AgentRepository.listByOrgIdSystem(org.id);
             const agent = agents.find((a: any) => a.config?.whatsappResponse === true) || agents[0];
 
             if (!agent) {
@@ -83,25 +80,27 @@ export const OutreachService = {
             const { ScriptService } = await import("./script");
             const messageBody = ScriptService.getInitialMessage();
 
-            // 5. Enviar via WhatsappService (Baileys Interno)
+            // 5. Enviar via WhatsappService
             await WhatsappService.sendText(
-                org.evolutionInstanceName,
-                pendingLead.phone!.replace(/\D/g, ""),
+                org.id, // organizationId
+                pendingLead.phone!,
                 messageBody
             );
 
-            // 6. Atualizar status, estado da conversa e salvar no histórico
-            const inServiceStageId = await CRMRepository.getStageByName(org.id, "Em Atendimento (IA)") || 
-                                    await CRMRepository.getStageByName(org.id, "Atendimento");
+            // 6. Buscar estágio de atendimento no CRM
+            const targetStageId = await CRMRepository.getStageByName(org.id, "Atendimento");
 
+            // 7. Atualizar status, estágio e histórico em uma única transação (ou sequência direta)
             await LeadRepository.updateSystem(pendingLead.id, {
                 outreachStatus: "completed",
                 lastOutreachAt: new Date(),
-                conversationState: "WAITING_REPLY", // Próximo passo quando o cliente responder
-                stageId: inServiceStageId || undefined
+                lastContactAt: new Date(),
+                status: "CONTACTED",
+                conversationState: "WAITING_REPLY", 
+                stageId: targetStageId || pendingLead.stageId
             });
 
-            await (MessageRepository as any).createSystem({
+            await MessageRepository.createSystem({
                 organizationId: org.id,
                 leadId: pendingLead.id,
                 role: "assistant",
