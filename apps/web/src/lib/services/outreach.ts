@@ -79,7 +79,7 @@ export const OutreachService = {
                 return;
             }
 
-            // 4. Montar mensagem inicial personalizada com ScriptService (Bruno)
+            // 4. Montar mensagem inicial personalizada com ScriptService (Tayná)
             const { ScriptService } = await import("./script");
             const messageBody = ScriptService.getInitialMessage();
 

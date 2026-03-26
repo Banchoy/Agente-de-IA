@@ -5,4 +5,4 @@ nixPkgs = ["node", "chromium", "glib", "nss", "atk", "cups", "pango", "cairo", "
 cmds = ["npm install", "npm run build"]
 
 [start]
-cmd = "npm start"
+cmd = "NODE_OPTIONS=--max-old-space-size=2048 npm start"

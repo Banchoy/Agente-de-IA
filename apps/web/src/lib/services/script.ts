@@ -31,7 +31,7 @@ export const ScriptService = {
   getInstruction: (state: string) => {
     switch (state) {
       case "WAITING_REPLY":
-        return "Fase de Introdução: Apresente-se como Bruno, diga que viu que trabalham com consórcio e que precisa de ajuda/orientação. Pergunte se pode explicar rapidinho.";
+        return "Fase de Introdução: Apresente-se como Tayná, diga que viu que trabalham com este nicho e que precisa de ajuda/orientação. Pergunte se pode explicar rapidinho.";
       case "INTRO":
         return "Fase de Contexto: Diga que estava olhando a empresa deles e viu coisas legais, mas identificou pontos de melhoria que trariam mais resultados. Foque na oportunidade.";
       case "CONTEXT":

@@ -20,7 +20,7 @@ import { CRMRepository } from "@/lib/repositories/crm";
 import { AIService } from "@/lib/services/ai";
 import { TTSService } from "@/lib/services/tts";
 
-const logger = pino({ level: "silent" });
+const logger = pino({ level: "error" }); // Silenciar logs informativos do Baileys
 
 // Singleton para persistência em ambiente Next.js (evita múltiplas instâncias em HMR/Reload)
 declare global {
@@ -213,27 +213,16 @@ export const WhatsappService = {
                     getMessage: async () => undefined
                 });
 
-                WhatsappService.sessions.set(sessionId, { sock, qr: null, status: "connecting" });
-
                 // Heartbeat para garantir que o processo está vivo
                 const heartbeat = setInterval(() => {
                     const session = WhatsappService.sessions.get(sessionId);
                     if (session && session.status === "open") {
-                        console.log(`💓 [Baileys] Heatbeat (Vivo): ${sessionId}`);
+                        // Heartbeat silenciado para evitar ruidoso OOM
                     }
                 }, 60000); // 1 minuto
-
-                // Debug: Logar TODOS os eventos do socket (pode ser muito ruidoso, mas ajuda no diagnóstico)
-                sock.ev.process(async (events) => {
-                    if (events['connection.update']) {
-                        const update = events['connection.update']!;
-                        // ... handlado abaixo por sock.ev.on ...
-                    }
-                    if (events['messages.upsert']) {
-                        const { messages, type } = events['messages.upsert']!;
-                        console.log(`📢 [Baileys] INTERNO - Upsert tipo: ${type}, total: ${messages.length}`);
-                    }
-                });
+                
+                // Armazenar heartbeat na sessão para limpeza
+                WhatsappService.sessions.set(sessionId, { sock, qr: null, status: "connecting", heartbeat });
 
                 sock.ev.on("connection.update", async (update) => {
                     const { connection, lastDisconnect, qr } = update;
@@ -280,6 +269,7 @@ export const WhatsappService = {
                                 setTimeout(() => WhatsappService.connect(organizationId, sessionId), 5000);
                             } else {
                                 console.log(`⚠️ [Baileys] Logout detectado. Limpando dados da sessão...`);
+                                if (session?.heartbeat) clearInterval(session.heartbeat);
                                 await WhatsappService.deleteSessionFromDb(sessionId);
                                 WhatsappService.sessions.delete(sessionId);
                                 
