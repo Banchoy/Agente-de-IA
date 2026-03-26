@@ -26,20 +26,23 @@ export const MessageRepository = {
             // USAR tx.execute em vez de db.execute para manter a transação/sessão!
             // Usando NULLIF para evitar erro de UUID vazio se a sessão falhar
             const rawResults = await tx.execute(sql`
-                SELECT DISTINCT ON (m.lead_id) 
-                    m.id, 
-                    m.lead_id, 
-                    m.role, 
-                    m.content, 
-                    m.created_at,
-                    l.name as lead_name, 
-                    l.phone as lead_phone,
-                    l.last_read_at as last_read_at,
-                    l.is_typing as is_typing
-                FROM messages m
-                JOIN leads l ON m.lead_id = l.id
-                WHERE l.organization_id = NULLIF(current_setting('app.current_org_id', true), '')::uuid
-                ORDER BY m.lead_id, m.created_at DESC
+                SELECT * FROM (
+                    SELECT DISTINCT ON (m.lead_id) 
+                        m.id, 
+                        m.lead_id, 
+                        m.role, 
+                        m.content, 
+                        m.created_at,
+                        l.name as lead_name, 
+                        l.phone as lead_phone,
+                        l.last_read_at as last_read_at,
+                        l.is_typing as is_typing
+                    FROM messages m
+                    JOIN leads l ON m.lead_id = l.id
+                    WHERE l.organization_id = NULLIF(current_setting('app.current_org_id', true), '')::uuid
+                    ORDER BY m.lead_id, m.created_at DESC
+                ) sub
+                ORDER BY sub.created_at DESC
             `);
 
             // Mapear os resultados para o formato que a UI espera

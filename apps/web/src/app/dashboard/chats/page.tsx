@@ -7,6 +7,7 @@ import { Search, MessageSquare, User, Send, Bot, Clock } from "lucide-react";
 import { OrganizationRepository } from "@/lib/repositories/organization";
 import { ChatPolling } from "./ChatPolling";
 import { AIToggle } from "@/components/chat/AIToggle";
+import Link from "next/link";
 
 export default async function ChatsPage({
     searchParams,
@@ -65,9 +66,10 @@ export default async function ChatsPage({
                             const isUnread = !chat.lead?.lastReadAt || new Date(chat.createdAt) > new Date(chat.lead.lastReadAt);
                             
                             return (
-                                <a 
+                                <Link 
                                     key={chat.leadId}
                                     href={`/dashboard/chats?leadId=${chat.leadId}`}
+                                    scroll={false}
                                     className={`flex items-center gap-4 p-5 hover:bg-card transition-all border-b border-border/50 group relative ${activeLeadId === chat.leadId ? 'bg-card border-l-4 border-l-primary' : ''}`}
                                 >
                                     <div className="h-12 w-12 rounded-full bg-primary/10 flex items-center justify-center text-primary font-black border border-primary/20 shadow-sm group-hover:scale-110 transition-transform relative">
@@ -93,7 +95,7 @@ export default async function ChatsPage({
                                             )}
                                         </p>
                                     </div>
-                                </a>
+                                </Link>
                             );
                         })
                     )}
@@ -180,7 +182,7 @@ export default async function ChatsPage({
                                         `}>
                                             <div className="flex items-center gap-2 mb-1.5 opacity-60">
                                                 {msg.role === 'assistant' ? <Bot size={12} className="animate-bounce" /> : <User size={12} />}
-                                                <span className="text-[8px] font-black uppercase tracking-widest">{msg.role === 'user' ? 'Lead' : 'Agente IA'}</span>
+                                                <span className="text-[8px] font-black uppercase tracking-widest">{msg.role === 'user' ? (activeLead?.name || 'Lead') : 'Você / IA'}</span>
                                             </div>
                                             {msg.content}
                                         </div>
