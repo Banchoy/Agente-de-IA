@@ -51,7 +51,7 @@ export const OutreachService = {
 
             if (!org || !org.evolutionInstanceName || org.evolutionInstanceStatus !== "connected") {
                 console.warn(`⚠️ [Outreach] Org ${pendingLead.organizationId} não tem WhatsApp conectado. Pulando...`);
-                await LeadRepository.update(pendingLead.id, { outreachStatus: "failed" });
+                await LeadRepository.updateSystem(pendingLead.id, { outreachStatus: "failed" });
                 return;
             }
 
@@ -61,7 +61,7 @@ export const OutreachService = {
 
             if (!agent) {
                 console.warn(`⚠️ [Outreach] Nenhum agente encontrado para ${org.id}. Pulando...`);
-                await LeadRepository.update(pendingLead.id, { outreachStatus: "failed" });
+                await LeadRepository.updateSystem(pendingLead.id, { outreachStatus: "failed" });
                 return;
             }
 

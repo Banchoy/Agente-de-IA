@@ -118,6 +118,11 @@ function SortableItem({ lead, onClick, onDelete, onColorChange }: {
                     <Phone className="w-3 h-3" />
                     {lead.phone}
                 </a>
+                {meta.niche && (
+                    <div className="text-[10px] uppercase font-black tracking-widest text-primary/80 bg-primary/10 w-fit px-2 py-0.5 rounded-md border border-primary/20 truncate max-w-[180px]">
+                        NICHO: {meta.niche}
+                    </div>
+                )}
                 <div className="text-sm font-black text-foreground">
                     {lead.value}
                 </div>
