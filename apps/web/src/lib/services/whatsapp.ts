@@ -89,12 +89,14 @@ async function useDrizzleAuthState(sessionId: string, organizationId: string) {
             });
     };
 
-    const removeData = async (key: string) => {
-        await db.delete(whatsappSessions)
-            .where(and(
-                eq(whatsappSessions.sessionId, sessionId),
-                eq(whatsappSessions.key, key)
-            ));
+    const removeData = async (key: string) => {            // Padronizar sessionId: wa_ + 8 chars do orgId (ou o próprio sessionId se já formatado)
+            const cleanSessionId = sessionId.startsWith("wa_") ? sessionId : `wa_${sessionId.slice(0, 8)}`;
+            
+            await db.delete(whatsappSessions)
+                .where(and(
+                    eq(whatsappSessions.sessionId, cleanSessionId),
+                    eq(whatsappSessions.key, key)
+                ));
     };
 
     const credsData = await readData("creds");
@@ -164,13 +166,17 @@ export const WhatsappService = {
         const session = sessions.get(sessionId);
         if (session && (session.status === "open" || session.status === "connecting")) {
             console.log(`ℹ️ [Baileys] Sessão ${sessionId} já ATIVA ou CONECTANDO. Ignorando.`);
+            // Trava de segurança para evitar loops ou múltiplas conexões paralelas para o mesmo ID
+            if (WhatsappService.sessions.get(sessionId)?.status === "open") {
+                console.log(`✅ [Baileys] Sessão ${sessionId} já está OPEN. Ignorando tentativa.`);
+                return WhatsappService.sessions.get(sessionId).sock;
+            }
             return Promise.resolve(session.sock);
         }
 
         console.log(`🔌 [Baileys] Iniciando nova conexão definitiva para: ${sessionId}`);
         
         const connectionPromise = (async () => {
-            // ... (rest of IIFE)
             // Validação básica para evitar erros de sintaxe UUID no banco
             if (!organizationId || organizationId.includes('wa_')) {
                 console.error(`❌ [Baileys] organizationId inválido detectado: ${organizationId}. Abortando conexão para ${sessionId}`);
@@ -208,7 +214,8 @@ export const WhatsappService = {
                     logger,
                     browser: Browsers.ubuntu("Chrome"),
                     generateHighQualityLinkPreview: true,
-                    syncFullHistory: false,
+                    syncFullHistory: true, // Reativar para melhorar sincronização com o celular
+                    markOnlineOnConnect: true, // Garante que a sessão apareça como ativa
                     // Sem store local (usando apenas auth state)
                     getMessage: async () => undefined
                 });
@@ -700,19 +707,21 @@ export const WhatsappService = {
             for (const { sessionId, organizationId } of sessionsToResume) {
                 console.log(`🔌 [Baileys] Restaurando: ${sessionId}...`);
                 try {
-                    WhatsappService.connect(organizationId, sessionId).catch(err => {
+                    WhatsappService.connect(organizationId, sessionId).catch((err: any) => {
                         console.error(`❌ [Baileys] Falha ao restaurar ${sessionId}:`, err);
                     });
-                } catch (err) {
+                } catch (err: any) {
                     console.error(`❌ [Baileys] Erro crítico ao disparar restauração de ${sessionId}:`, err);
                 }
             }
-        } catch (err) {
+        } catch (err: any) {
             console.error("❌ [Baileys] Erro ao buscar sessões para resumir:", err);
         }
     },
 
-    sendText: async (sessionId: string, number: string, text: string) => {
+    sendText: async (organizationId: string, number: string, text: string) => {
+        // Padronização robusta do sessionId
+        const sessionId = organizationId.startsWith("wa_") ? organizationId : `wa_${organizationId.slice(0, 8)}`;
         console.log(`📤 [Baileys] Tentando enviar mensagem para ${number} via sessão ${sessionId}`);
         
         let session = WhatsappService.sessions.get(sessionId);
