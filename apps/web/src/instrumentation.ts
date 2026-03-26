@@ -1,9 +1,9 @@
 
-import { db } from "@/lib/db";
-import { sql } from "drizzle-orm";
-
 export async function register() {
   if (process.env.NEXT_RUNTIME === 'nodejs') {
+    const { db } = await import("@/lib/db");
+    const { sql } = await import("drizzle-orm");
+    
     console.log("🚀 [Instrumentation] Iniciando registro de serviços de background...");
     
     try {
@@ -14,7 +14,7 @@ export async function register() {
         setTimeout(async () => {
             try {
                 // Tentando obter trava 12345 (valor arbitrário para background_jobs)
-                const [{ isMaster }] = await db.execute(sql`SELECT pg_try_advisory_lock(12345) as "isMaster"`);
+                const [{ isMaster }] = await (db as any).execute(sql`SELECT pg_try_advisory_lock(12345) as "isMaster"`);
                 
                 if (!isMaster) {
                     console.log("⏩ [Instrumentation] Outra instância já é a MASTER. Ignorando crons nesta réplica.");
