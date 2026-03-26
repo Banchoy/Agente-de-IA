@@ -350,6 +350,7 @@ export async function getProspectingProgress(runId: string) {
         if (!run) return { success: false, error: "Run not found" };
 
         const items = await ApifyService.getDatasetItems(run.defaultDatasetId);
+        const configNiche = run.customData?.config?.niche;
         
         // Garantir estrutura de CRM
         const { CRMRepository } = await import("@/lib/repositories/crm");
@@ -372,7 +373,11 @@ export async function getProspectingProgress(runId: string) {
                     phone: cleanPhone,
                     source: "Google Maps",
                     stageId: qualificationStageId || null,
-                    metaData: item,
+                    metaData: {
+                        ...item,
+                        website: item.website || item.url || "",
+                        niche: configNiche || ""
+                    },
                     aiActive: "true"
                 });
             }

@@ -23,6 +23,9 @@ export async function POST(req: Request) {
             return NextResponse.json({ error: "No datasetId found" }, { status: 400 });
         }
 
+        const customData = payload.customData || {};
+        const configNiche = customData.config?.niche;
+
         console.log(`📥 [Apify Webhook] Extração concluída para Org ${orgId}. Buscando dataset ${datasetId}...`);
 
         // Busca o dataset no Apify
@@ -99,17 +102,14 @@ export async function POST(req: Request) {
                         source: "Apify Maps",
                         metaData: {
                             ...item,
-                            website: item.website || item.url || ""
+                            website: item.website || item.url || "",
+                            niche: configNiche || ""
                         },
                         outreachStatus: "idle",
                         aiActive: "true"
                     })
-                    .onConflictDoUpdate({
-                        target: [leads.phone, leads.organizationId],
-                        set: {
-                            updatedAt: new Date(),
-                            metaData: { ...item }
-                        }
+                    .onConflictDoNothing({
+                        target: [leads.phone, leads.organizationId]
                     });
                 savedCount++;
             } catch (err) {
