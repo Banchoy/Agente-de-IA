@@ -3,7 +3,8 @@ import makeWASocket, {
     fetchLatestBaileysVersion, 
     makeCacheableSignalKeyStore,
     AuthenticationCreds,
-    SignalDataTypeMap
+    SignalDataTypeMap,
+    Browsers
 } from "@whiskeysockets/baileys";
 import { Boom } from "@hapi/boom";
 import pino from "pino";
@@ -205,8 +206,9 @@ export const WhatsappService = {
                     auth: state,
                     printQRInTerminal: false,
                     logger,
-                    browser: ["Agente de IA", "Chrome", "1.0.0"],
+                    browser: Browsers.ubuntu("Chrome"),
                     generateHighQualityLinkPreview: true,
+                    syncFullHistory: false,
                     // Sem store local (usando apenas auth state)
                     getMessage: async () => undefined
                 });
