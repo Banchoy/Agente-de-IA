@@ -101,7 +101,7 @@ export const OutreachService = {
                 stageId: inServiceStageId || undefined
             });
 
-            await MessageRepository.create({
+            await (MessageRepository as any).createSystem({
                 organizationId: org.id,
                 leadId: pendingLead.id,
                 role: "assistant",
