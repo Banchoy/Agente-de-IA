@@ -10,7 +10,7 @@ import { Boom } from "@hapi/boom";
 import pino from "pino";
 import { db } from "@/lib/db";
 import { whatsappSessions, organizations, messages as messagesTable, leads } from "@/lib/db/schema";
-import { eq, and, sql, ilike } from "drizzle-orm";
+import { eq, and, or, isNull, lt, desc, sql, ilike } from "drizzle-orm";
 import QRCode from "qrcode";
 import { OrganizationRepository } from "@/lib/repositories/organization";
 import { AgentRepository } from "@/lib/repositories/agent";
@@ -273,7 +273,9 @@ export const WhatsappService = {
                             
                             if (shouldReconnect) {
                                 WhatsappService.sessions.delete(sessionId);
-                                setTimeout(() => WhatsappService.connect(organizationId, sessionId), 5000);
+                                const delay = 5000 + Math.random() * 10000;
+                                console.log(`⏳ [Baileys] Agendando reconexão para ${sessionId} em ${(delay/1000).toFixed(1)}s (jitter)...`);
+                                setTimeout(() => WhatsappService.connect(organizationId, sessionId), delay);
                             } else {
                                 console.log(`⚠️ [Baileys] Logout detectado. Limpando dados da sessão...`);
                                 if (session?.heartbeat) clearInterval(session.heartbeat);
@@ -295,16 +297,16 @@ export const WhatsappService = {
 
 
                 // IA and History Handler (Merged and Highly Logged)
-                sock.ev.on("messages.upsert", async ({ messages, type }) => {
-                    console.log(`🔍 [Baileys] Entrando no Processamento de Upsert. Tipo: ${type}, Total de mensagens: ${messages.length}`);
+                sock.ev.on('messages.upsert', async ({ messages: incomingMessages, type }) => {
+                    console.log(`🔍 [Baileys] Entrando no Processamento de Upsert. Tipo: ${type}, Total de mensagens: ${incomingMessages.length}`);
                     
-                    if (type !== "notify" && type !== "append") {
-                        console.log(`⏩ [Baileys] Ignorando upsert tipo ${type}`);
+                    if (type !== 'notify' && type !== 'append') {
+                        console.log(`⏩ [Baileys] Tipo de upsert ignorado: ${type}`);
                         return;
                     }
 
-                    for (const [index, msg] of messages.entries()) {
-                        console.log(`📩 [Baileys] Analisando mensagem [${index+1}/${messages.length}]...`);
+                    for (const [index, msg] of incomingMessages.entries()) {
+                        console.log(`📩 [Baileys] Analisando mensagem [${index+1}/${incomingMessages.length}]...`);
                         let lead: any = null;
                         try {
                             if (!msg.message) {
@@ -425,11 +427,30 @@ export const WhatsappService = {
 
                             // 4. AI Respond Logic (APENAS para mensagens recebidas)
                             if (isFromMe) continue; 
- 
                             if (leadLocks.has(lead.id)) {
                                 console.log(`⏩ [Baileys] Lead ${lead.id} já está sendo processado. Ignorando.`);
                                 continue;
                             }
+                            
+                             // 4. DEDUPLICAÇÃO DE MENSAGENS (Evita responder duas vezes se o evento disparar duplicado)
+                             const lastMessages = await db.select({ id: messagesTable.id, createdAt: messagesTable.createdAt })
+                                 .from(messagesTable)
+                                 .where(and(
+                                     eq(messagesTable.leadId, lead.id),
+                                     eq(messagesTable.role, role),
+                                     eq(messagesTable.content, text)
+                                 ))
+                                 .orderBy(desc(messagesTable.createdAt))
+                                 .limit(1);
+
+                            if (lastMessages.length > 0) {
+                                const lastTime = new Date(lastMessages[0].createdAt).getTime();
+                                if (Date.now() - lastTime < 10000) { // Janela de 10 segundos
+                                    console.log(`🚫 [Baileys] Mensagem duplicada detectada no DB para o lead ${lead.id}. Ignorando.`);
+                                    continue;
+                                }
+                            }
+
                             leadLocks.add(lead.id);
 
                             // 3. Find Mapped Agent (or fallback)
