@@ -306,6 +306,7 @@ export const WhatsappService = {
 
                     for (const [index, msg] of messages.entries()) {
                         console.log(`📩 [Baileys] Analisando mensagem [${index+1}/${messages.length}]...`);
+                        let lead: any = null;
                         try {
                             if (!msg.message) {
                                 console.log(`⏩ [Baileys] Mensagem [${index+1}] SEM CONTEÚDO (msg.message is null).`);
@@ -375,7 +376,7 @@ export const WhatsappService = {
 
                             // 1. Find or Create Lead
                             console.log(`👤 [Baileys] Buscando/Criando lead para o telefone: ${phone}`);
-                            let lead = await (LeadRepository as any).getByPhoneSystem(phone, org.id);
+                            lead = await (LeadRepository as any).getByPhoneSystem(phone, org.id);
                             
                             if (!lead) {
                                 console.log(`👤 [Baileys] Lead novo detectado. Criando...`);
@@ -497,6 +498,11 @@ export const WhatsappService = {
                                     formattedHistory = [{ role: "user", content: text }];
                                 }
 
+                                // Delay simulado para leitura e tomada de decisão: 30 a 45 segundos! (Anti-ban Dribble)
+                                const leituraDelay = 30000 + Math.random() * 15000;
+                                console.log(`⏳ [Baileys] Simulando leitura humana... Aguardando ${(leituraDelay/1000).toFixed(1)}s antes de chamar IA.`);
+                                await new Promise(resolve => setTimeout(resolve, leituraDelay));
+
                                 // 4. Generate AI Response (Adaptive or Generic)
                                 const { ScriptService } = await import("./script");
                                 const scriptInstruction = ScriptService.getInstruction(lead.conversationState);
@@ -617,7 +623,10 @@ export const WhatsappService = {
                                             }
                                         } else {
                                             await sock.sendPresenceUpdate('composing', jid);
-                                            await new Promise(resolve => setTimeout(resolve, 8000));
+                                            // Digitando: delay de 15 a 20 segundos
+                                            const typingDelay = 15000 + Math.random() * 5000;
+                                            console.log(`💬 [Baileys] Simulando digitação por ${(typingDelay/1000).toFixed(1)}s...`);
+                                            await new Promise(resolve => setTimeout(resolve, typingDelay));
                                             const cleanText = msg.content.replace(/\[\/?(?:AUDIO|ÁUDIO)\]/gi, "").trim();
                                             if (cleanText) {
                                                 await sock.sendMessage(jid, { text: cleanText });

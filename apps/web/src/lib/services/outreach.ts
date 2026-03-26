@@ -1,12 +1,21 @@
 import { db } from "../db";
 import { leads, organizations } from "../db/schema";
-import { eq, and, or, isNull, lt, sql } from "drizzle-orm";
+import { eq, and, or, isNull, lt, desc, sql } from "drizzle-orm";
 import { EvolutionService } from "./evolution";
 import { MessageRepository } from "../repositories/message";
 import { AgentRepository } from "../repositories/agent";
 import { LeadRepository } from "../repositories/lead";
 import { WhatsappService } from "./whatsapp";
 import { CRMRepository } from "../repositories/crm";
+import { messages } from "../db/schema";
+
+// Gera um gap randômico de 6 a 15 minutos entre disparos
+function getRandomGapMs() {
+    const minMinutes = 6;
+    const maxMinutes = 15;
+    const gapMinutes = minMinutes + Math.random() * (maxMinutes - minMinutes);
+    return gapMinutes * 60 * 1000;
+}
 
 export const OutreachService = {
     /**
@@ -17,26 +26,31 @@ export const OutreachService = {
         console.log("📨 [Outreach] Verificando fila de prospecção...");
         
         try {
-            // 1. Buscar um lead que está 'pending' e não recebeu mensagem nos últimos 5 minutos
-            // (ou nunca recebeu)
-            const fiveMinutesAgo = new Date(Date.now() - 5 * 60 * 1000);
-            
+            // Anti-ban: verificar quando foi o último disparo de QUALQUER lead
+            const [lastSent] = await db
+                .select({ lastAt: messages.createdAt })
+                .from(messages)
+                .where(eq(messages.role, "assistant"))
+                .orderBy(desc(messages.createdAt))
+                .limit(1);
+
+            if (lastSent?.lastAt) {
+                const gap = getRandomGapMs();
+                const elapsed = Date.now() - new Date(lastSent.lastAt).getTime();
+                if (elapsed < gap) {
+                    console.log(`⏳ [Outreach] Anti-ban: Last dispatch was ${(elapsed/60000).toFixed(1)}min ago. Gap: ${(gap/60000).toFixed(1)}min. Aguardando...`);
+                    return;
+                }
+            }
+
+            // 1. Buscar um lead que está 'pending'
             const [pendingLead] = await db
                 .select()
                 .from(leads)
-                .where(
-                    and(
-                        eq(leads.outreachStatus, "pending"),
-                        or(
-                            isNull(leads.lastOutreachAt),
-                            lt(leads.lastOutreachAt, fiveMinutesAgo)
-                        )
-                    )
-                )
+                .where(eq(leads.outreachStatus, "pending"))
                 .limit(1);
 
             if (!pendingLead) {
-                // console.log("📨 [Outreach] Nenhum lead pendente ou em intervalo de segurança.");
                 return;
             }
 

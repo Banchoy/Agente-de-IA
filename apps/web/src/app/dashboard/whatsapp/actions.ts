@@ -67,9 +67,15 @@ export async function disconnectWhatsApp() {
         const org = await OrganizationRepository.getByClerkId(clerkOrgId);
         if (!org || !org.evolutionInstanceName) return;
 
-        const sessionId = org.evolutionInstanceName;
-        const session = WhatsappService.getSession(sessionId);
+        const sessionId = `wa_${org.id.split('-')[0]}`;
+        const session = WhatsappService.sessions.get(sessionId);
 
+        console.log(`🔌 [Baileys] Desconectando sessão: ${sessionId}`);
+
+        // 1. Limpar sessão no banco
+        await WhatsappService.deleteSessionFromDb(sessionId);
+
+        // 2. Limpar memória e deslogar sock
         if (session && session.sock) {
             try {
                 await session.sock.logout();
@@ -77,8 +83,11 @@ export async function disconnectWhatsApp() {
             WhatsappService.sessions.delete(sessionId);
         }
 
+        // 3. Status atualizado
         await OrganizationRepository.update(org.id, {
-            evolutionInstanceStatus: "disconnected"
+            evolutionInstanceStatus: "disconnected",
+            evolutionInstanceName: null,
+            evolutionQrCode: null
         });
 
         revalidatePath("/dashboard/whatsapp");
@@ -103,7 +112,7 @@ export async function resetWhatsApp() {
         await WhatsappService.deleteSessionFromDb(sessionId);
         
         // 2. Clear Memory
-        const session = WhatsappService.getSession(sessionId);
+        const session = WhatsappService.sessions.get(sessionId);
         if (session && session.sock) {
             try { await session.sock.logout(); } catch(e) {}
         }
