@@ -8,6 +8,7 @@ import { OrganizationRepository } from "@/lib/repositories/organization";
 import { ChatPolling } from "./ChatPolling";
 import { AIToggle } from "@/components/chat/AIToggle";
 import Link from "next/link";
+import ChatSidebarClient from "./ChatSidebarClient";
 
 export default async function ChatsPage({
     searchParams,
@@ -56,49 +57,7 @@ export default async function ChatsPage({
                 </div>
                 
                 <div className="flex-1 overflow-y-auto custom-scrollbar">
-                    {conversations.length === 0 ? (
-                        <div className="p-10 text-center space-y-2 opacity-40">
-                            <MessageSquare className="mx-auto" size={32} />
-                            <p className="text-[10px] uppercase font-bold tracking-widest">Nenhuma conversa</p>
-                        </div>
-                    ) : (
-                        conversations.map((chat: any) => {
-                            const isUnread = !chat.lead?.lastReadAt || new Date(chat.createdAt) > new Date(chat.lead.lastReadAt);
-                            
-                            return (
-                                <Link 
-                                    key={chat.leadId}
-                                    href={`/dashboard/chats?leadId=${chat.leadId}`}
-                                    scroll={false}
-                                    className={`flex items-center gap-4 p-5 hover:bg-card transition-all border-b border-border/50 group relative ${activeLeadId === chat.leadId ? 'bg-card border-l-4 border-l-primary' : ''}`}
-                                >
-                                    <div className="h-12 w-12 rounded-full bg-primary/10 flex items-center justify-center text-primary font-black border border-primary/20 shadow-sm group-hover:scale-110 transition-transform relative">
-                                        {chat.lead?.name.charAt(0)}
-                                        {isUnread && (
-                                            <div className="absolute -top-1 -right-1 h-4 w-4 bg-primary border-2 border-card rounded-full shadow-lg animate-pulse" />
-                                        )}
-                                    </div>
-                                    <div className="flex-1 min-w-0">
-                                        <div className="flex justify-between items-baseline mb-1">
-                                            <h4 className={`text-xs font-black truncate uppercase ${isUnread ? 'text-foreground' : 'text-muted-foreground'}`}>{chat.lead?.name}</h4>
-                                            <span className="text-[8px] font-bold text-muted-foreground uppercase">{new Date(chat.createdAt).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</span>
-                                        </div>
-                                        <p className={`text-[10px] truncate font-medium lowercase italic leading-tight ${isUnread ? 'text-primary font-bold' : 'text-muted-foreground'}`}>
-                                            {chat.lead?.isTyping === 'true' ? (
-                                                <span className="flex items-center gap-1 text-primary animate-pulse">
-                                                    digitando... <Bot size={10} />
-                                                </span>
-                                            ) : (
-                                                <>
-                                                    {chat.role === 'assistant' ? '🤖 ' : ''}{chat.content}
-                                                </>
-                                            )}
-                                        </p>
-                                    </div>
-                                </Link>
-                            );
-                        })
-                    )}
+                <ChatSidebarClient conversations={conversations} activeLeadId={activeLeadId} />
                 </div>
             </div>
 

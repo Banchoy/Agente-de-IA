@@ -18,7 +18,7 @@ export async function GET(req: NextRequest) {
         }
 
         const sessionId = `wa_${org.id.split('-')[0]}`;
-        const session = WhatsappService.getSession(sessionId);
+        const session = WhatsappService.sessions.get(sessionId);
 
         return NextResponse.json({
             status: session?.status || org.evolutionInstanceStatus || "disconnected",
