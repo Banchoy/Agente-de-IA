@@ -71,7 +71,7 @@ export const LeadRepository = {
                 .set({ ...data, updatedAt: new Date() })
                 .where(eq(leads.id, id))
                 .returning();
-            return updatedLead;
+            return updatedLead || null;
         });
     },
 

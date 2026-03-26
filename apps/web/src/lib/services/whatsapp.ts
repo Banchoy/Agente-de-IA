@@ -647,7 +647,7 @@ export const WhatsappService = {
                                                 await sock.sendMessage(jid, { audio: buffer, mimetype: "audio/mp4", ptt: true });
                                                 
                                                 // SALVAR NO HISTÓRICO
-                                                await (MessageRepository as any).saveSystem({
+                                                await (MessageRepository as any).createSystem({
                                                     leadId: lead.id,
                                                     organizationId: lead.organizationId,
                                                     role: "assistant",
@@ -656,7 +656,7 @@ export const WhatsappService = {
                                                 });
                                             } catch (ttsErr) {
                                                 await sock.sendMessage(jid, { text: msg.content });
-                                                await (MessageRepository as any).saveSystem({
+                                                await (MessageRepository as any).createSystem({
                                                     leadId: lead.id,
                                                     organizationId: lead.organizationId,
                                                     role: "assistant",
@@ -674,7 +674,7 @@ export const WhatsappService = {
                                             if (cleanText) {
                                                 await sock.sendMessage(jid, { text: cleanText });
                                                 // SALVAR NO HISTÓRICO
-                                                await (MessageRepository as any).saveSystem({
+                                                await (MessageRepository as any).createSystem({
                                                     leadId: lead.id,
                                                     organizationId: lead.organizationId,
                                                     role: "assistant",

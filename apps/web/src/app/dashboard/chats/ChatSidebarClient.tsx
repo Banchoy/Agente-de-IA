@@ -144,7 +144,7 @@ export default function ChatSidebarClient({ conversations, activeLeadId }: Props
                                     }
                                 </div>
                                 <div className="h-12 w-12 rounded-full bg-primary/10 flex items-center justify-center text-primary font-black border border-primary/20 shadow-sm">
-                                    {chat.lead?.name.charAt(0)}
+                                    {chat.lead?.name?.charAt(0) || "?"}
                                 </div>
                                 <div className="flex-1 min-w-0">
                                     <h4 className="text-xs font-black truncate uppercase text-muted-foreground">{chat.lead?.name}</h4>
@@ -162,7 +162,7 @@ export default function ChatSidebarClient({ conversations, activeLeadId }: Props
                                 }`}
                             >
                                 <div className="h-12 w-12 rounded-full bg-primary/10 flex items-center justify-center text-primary font-black border border-primary/20 shadow-sm group-hover:scale-110 transition-transform relative">
-                                    {chat.lead?.name.charAt(0)}
+                                    {chat.lead?.name?.charAt(0) || "?"}
                                     {isUnread && (
                                         <div className="absolute -top-1 -right-1 h-4 w-4 bg-primary border-2 border-card rounded-full shadow-lg animate-pulse" />
                                     )}

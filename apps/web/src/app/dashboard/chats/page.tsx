@@ -79,7 +79,7 @@ export default async function ChatsPage({
                         <div className="p-6 border-b border-border bg-card/60 backdrop-blur-xl flex items-center justify-between shadow-sm z-10">
                             <div className="flex items-center gap-4">
                                 <div className="h-12 w-12 rounded-[1rem] bg-foreground text-background flex items-center justify-center font-black shadow-lg">
-                                    {activeLead?.name.charAt(0)}
+                                    {activeLead?.name?.charAt(0) || "?"}
                                 </div>
                                 <div>
                                     <h3 className="text-sm font-black text-foreground uppercase tracking-wider">{activeLead?.name}</h3>
@@ -102,8 +102,8 @@ export default async function ChatsPage({
                             </div>
                             <div className="flex items-center gap-4">
                                 <AIToggle 
-                                    leadId={activeLead!.id} 
-                                    initialStatus={activeLead!.aiActive} 
+                                    leadId={activeLead?.id || activeLeadId!} 
+                                    initialStatus={activeLead?.aiActive ?? "false"} 
                                 />
                                 <div className="h-8 w-8 rounded-full bg-muted/50 flex items-center justify-center text-muted-foreground cursor-pointer hover:bg-muted transition-colors">
                                     <Search size={14} />
