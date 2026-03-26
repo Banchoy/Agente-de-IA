@@ -404,8 +404,26 @@ export const WhatsappService = {
                                 content: text,
                             });
                             console.log(`✅ [Baileys] Mensagem (${role}) salva no histórico.`);
+                            
+                            // 3. Comandos de Controle (Pode ser enviado por 'mim' para controlar o lead)
+                            const cleanText = text?.toLowerCase().trim();
+                            if (cleanText === '/parar ia' || cleanText === '/ativar ia') {
+                                const shouldActivate = cleanText === '/ativar ia';
+                                console.log(`${shouldActivate ? '✅' : '🚫'} [Baileys] Comando ${cleanText} detectado para o lead ${lead.id}`);
+                                
+                                await LeadRepository.updateSystem(lead.id, { 
+                                    aiActive: shouldActivate ? "true" : "false" 
+                                });
+                                
+                                await sock.sendMessage(jid, { 
+                                    text: shouldActivate 
+                                        ? "🤖 Atendimento por IA REATIVADO para este contato." 
+                                        : "🤖 Atendimento por IA PAUSADO para este contato. (Modo Humano Ativado)" 
+                                });
+                                continue;
+                            }
 
-                            // 3. AI Respond Logic (APENAS para mensagens recebidas)
+                            // 4. AI Respond Logic (APENAS para mensagens recebidas)
                             if (isFromMe) continue; 
  
                             if (leadLocks.has(lead.id)) {
