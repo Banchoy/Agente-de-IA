@@ -127,7 +127,13 @@ Você deve seguir rigorosamente este fluxo de mensagens:
 3. **CONTINUIDADE (Apresentação e Venda):**
    - Diga que não sabe se fala com a pessoa certa ou se deveria falar com outra pessoa sobre essa orientação/ajuda.
    - Explique como podemos ajudar a aumentar o faturamento.
-   - Fatos reais: "Tivemos um cliente que faturou mais de R$ 1,5 Milhão em menos de 3 meses com nossa estratégia."
+   - **CASE DE SUCESSO (Prova Social):**
+     "Olha, para você ter uma ideia, a gente tem um cliente da HS Consórcios que entrou com a gente há uns 3 meses. No começo ele já estava faturando legal, uns 500 a 600 mil por mês... Mas agora, no último mês, ele bateu o ápice e faturou mais de R$ 1,5 Milhão! Tudo usando essa nossa estratégia de automação."
+   
+4. **REGRAS DE FORMATAÇÃO E ESTILO:**
+   - **NÃO ENVIE BLOCOS GRANDES DE TEXTO.** Se a resposta for longa, quebre-a em 2 ou 3 mensagens curtas.
+   - Use uma linguagem natural, informal (pode usar 'né', 'ta?', 'então', 'bora').
+   - Use parágrafos curtos.
 
 ### TABELA DE PREÇOS E PLANOS:
 1. **PLANO PREMIUM (R$ 1.750,00)**: CRM Exclusivo + Campanhas Completas + Estrategista Dedicado.
@@ -375,7 +381,9 @@ Sua resposta deve ser um JSON válido:
                 .filter((m: any) => {
                     const isFreeId = m.id.endsWith(":free");
                     const isFreePricing = parseFloat(m.pricing?.prompt || "1") === 0;
-                    return isFreeId || isFreePricing;
+                    // Filtra modelos "gemma" que costumam dar erro de Developer Instruction
+                    const isGemmaOld = m.id.includes("gemma") && !m.id.includes("gemma-3");
+                    return (isFreeId || isFreePricing) && !isGemmaOld;
                 })
                 .map((m: any) => m.id);
 
@@ -384,15 +392,14 @@ Sua resposta deve ser um JSON válido:
             return freeModels;
         } catch (err: any) {
             console.warn("⚠️ [OpenRouter] Falha ao buscar modelos gratuitos:", err.message);
-            // Fallback curado: modelos que são conhecidamente gratuitos
+            // Fallback curado: modelos que são conhecidamente estáveis e suportam instruções de sistema
             return [
                 "google/gemini-2.0-flash-exp:free",
                 "google/gemma-3-27b-it:free",
-                "meta-llama/llama-4-maverick:free",
-                "meta-llama/llama-3.3-70b-instruct:free",
+                "meta-llama/llama-3.1-8b-instruct:free",
                 "mistralai/mistral-7b-instruct:free",
                 "deepseek/deepseek-chat:free",
-                "qwen/qwen2.5-vl-72b-instruct:free",
+                "qwen/qwen2.5-72b-instruct:free",
             ];
         }
     },
@@ -411,7 +418,12 @@ Sua resposta deve ser um JSON válido:
                 console.log(`📡 [AIService] Tentando Gemini (principal)...`);
                 return await AIService.generateGeminiResponse("gemini-1.5-flash", systemPrompt, messages, temperature);
             } catch (err: any) {
-                console.warn(`⚠️ [AIService] Gemini falhou: ${err.message}. Tentando OpenRouter...`);
+                const errMsg = err.message || "";
+                if (errMsg.includes("429") || errMsg.includes("quota")) {
+                    console.warn(`⚠️ [AIService] Quota Gemini esgotada. Indo para OpenRouter...`);
+                } else {
+                    console.warn(`⚠️ [AIService] Gemini falhou: ${errMsg}. Tentando OpenRouter...`);
+                }
             }
         }
 
