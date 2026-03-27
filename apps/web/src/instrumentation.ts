@@ -32,6 +32,18 @@ export async function register() {
                     const { OutreachService } = await import('@/lib/services/outreach');
                     await OutreachService.processQueue();
                 }, 60 * 1000); // 1 minuto
+
+                // Iniciar Limpeza de Leads (Arquivamento Supabase) a cada 6 horas
+                console.log("🧹 [Instrumentation] Iniciando cron de limpeza (2 dias)...");
+                setInterval(async () => {
+                    try {
+                        const { CleanupService } = await import('@/lib/services/cleanup');
+                        await CleanupService.processInactiveLeads(2); // Regra de 2 dias solicitada
+                    } catch (err) {
+                        console.error("❌ [Instrumentation] Erro no cron de limpeza:", err);
+                    }
+                }, 6 * 60 * 60 * 1000); // 6 horas
+
             } catch (err) {
                 console.error("❌ [Instrumentation] Erro ao tentar obter trava de MASTER:", err);
             }

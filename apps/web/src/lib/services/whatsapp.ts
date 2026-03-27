@@ -409,6 +409,7 @@ export const WhatsappService = {
                                 leadId: lead.id,
                                 role: role,
                                 content: text,
+                                type: isAudio ? "audio" : "text",
                                 whatsappMessageId: whatsappMessageId,
                             });
                             console.log(`✅ [Baileys] Mensagem (${role}) salva no histórico.`);
@@ -670,23 +671,11 @@ export const WhatsappService = {
                                                 const buffer = Buffer.from(base64, "base64");
                                                 await sock.sendMessage(jid, { audio: buffer, mimetype: "audio/mp4", ptt: true });
                                                 
-                                                // SALVAR NO HISTÓRICO
-                                                await (MessageRepository as any).createSystem({
-                                                    leadId: lead.id,
-                                                    organizationId: lead.organizationId,
-                                                    role: "assistant",
-                                                    content: msg.content,
-                                                    type: "audio"
-                                                });
+                                                await sock.sendMessage(jid, { audio: buffer, mimetype: "audio/mp4", ptt: true });
+                                                // O salvamento agora é feito automaticamente pelo listener global (eco)
                                             } catch (ttsErr) {
                                                 await sock.sendMessage(jid, { text: msg.content });
-                                                await (MessageRepository as any).createSystem({
-                                                    leadId: lead.id,
-                                                    organizationId: lead.organizationId,
-                                                    role: "assistant",
-                                                    content: msg.content,
-                                                    type: "text"
-                                                });
+                                                // O salvamento agora é feito automaticamente pelo listener global (eco)
                                             }
                                         } else {
                                             await sock.sendPresenceUpdate('composing', jid);
@@ -697,14 +686,7 @@ export const WhatsappService = {
                                             const cleanText = msg.content.replace(/\[\/?(?:AUDIO|ÁUDIO)\]/gi, "").trim();
                                             if (cleanText) {
                                                 await sock.sendMessage(jid, { text: cleanText });
-                                                // SALVAR NO HISTÓRICO
-                                                await (MessageRepository as any).createSystem({
-                                                    leadId: lead.id,
-                                                    organizationId: lead.organizationId,
-                                                    role: "assistant",
-                                                    content: cleanText,
-                                                    type: "text"
-                                                });
+                                                // O salvamento agora é feito automaticamente pelo listener global (eco)
 
                                                 // MOVER LEAD PARA "EM ATENDIMENTO" (Se ainda não estiver)
                                                 try {
