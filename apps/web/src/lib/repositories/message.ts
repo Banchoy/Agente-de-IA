@@ -78,5 +78,16 @@ export const MessageRepository = {
             .onConflictDoNothing({ target: [messages.organizationId, messages.whatsappMessageId] })
             .returning();
         return newMessage;
+    },
+
+    listAllByLeadSystem: async (leadId: string) => {
+        return await db.query.messages.findMany({
+            where: eq(messages.leadId, leadId),
+            orderBy: [desc(messages.createdAt)]
+        });
+    },
+
+    deleteByLeadSystem: async (leadId: string) => {
+        await db.delete(messages).where(eq(messages.leadId, leadId));
     }
 };

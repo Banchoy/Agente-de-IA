@@ -17,10 +17,10 @@ export const ScriptService = {
   getInitialMessage: () => {
     const greeting = getGreeting();
     const openings = [
-      `Olá, ${greeting}, tudo bem?`,
-      `Fala, ${greeting}! Tudo certo por aí?`,
-      `Oi, tudo bem? ${greeting.charAt(0).toUpperCase() + greeting.slice(1)}!`,
-      `${greeting.charAt(0).toUpperCase() + greeting.slice(1)}! Tudo certo?`
+      "Oi, tudo bem?",
+      "Tudo bem?",
+      "Tudo joia?",
+      "Opa, tudo bem?"
     ];
     return openings[Math.floor(Math.random() * openings.length)];
   },

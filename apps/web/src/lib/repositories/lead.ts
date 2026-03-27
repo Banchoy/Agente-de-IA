@@ -79,5 +79,20 @@ export const LeadRepository = {
         return await withOrgContext(async (tx) => {
             await tx.delete(leads).where(eq(leads.id, id));
         });
+    },
+
+    getInactiveLeads: async (days: number) => {
+        const threshold = new Date();
+        threshold.setDate(threshold.getDate() - days);
+
+        // Busca leads sem atualização há X dias
+        return await db.query.leads.findMany({
+            where: (l: any, { lt }: any) => lt(l.updatedAt, threshold),
+            limit: 100
+        });
+    },
+
+    deleteSystem: async (id: string) => {
+        await db.delete(leads).where(eq(leads.id, id));
     }
 };
