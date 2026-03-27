@@ -1,7 +1,7 @@
 import { auth } from "@clerk/nextjs/server";
 import { redirect, notFound } from "next/navigation";
 import { AgentRepository } from "@/lib/repositories/agent";
-import { ArrowLeft, Sparkles, Bot, Save, Trash2, Phone, Zap } from "lucide-react";
+import { ArrowLeft, Sparkles, Bot, Save, Trash2, Phone, Zap, User, Target, Award } from "lucide-react";
 import Link from "next/link";
 import { updateAgent } from "../actions";
 import { db } from "@/lib/db";
@@ -119,6 +119,70 @@ export default async function AgentDetailsPage({ params }: { params: Promise<{ i
                                     required
                                     className="w-full rounded-[2rem] border-2 border-border bg-background/50 px-8 py-6 text-sm font-medium text-foreground focus:border-primary focus:outline-none transition-all resize-none font-mono leading-relaxed"
                                 ></textarea>
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* Personalização e Vendas (Ajuste por Áudio) */}
+                    <div className="rounded-[2.5rem] border border-border bg-card p-10 shadow-xl relative overflow-hidden ring-1 ring-white/5 border-primary/20 bg-gradient-to-br from-card to-primary/5">
+                        <div className="flex items-center gap-3 mb-8">
+                            <div className="p-2 bg-primary/10 rounded-xl">
+                                <Target size={18} className="text-primary" />
+                            </div>
+                            <h2 className="text-xl font-black text-foreground uppercase tracking-tight">Personalização e Vendas</h2>
+                        </div>
+
+                        <div className="grid gap-8 md:grid-cols-2">
+                            <div className="space-y-3">
+                                <label className="text-xs font-black text-muted-foreground uppercase tracking-widest px-1">Nome da Atendente</label>
+                                <div className="relative group">
+                                    <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none text-muted-foreground group-focus-within:text-primary transition-colors">
+                                        <User size={16} />
+                                    </div>
+                                    <input
+                                        name="agentRealName"
+                                        defaultValue={config.agentRealName || ""}
+                                        placeholder="ex: Tayná"
+                                        className="w-full rounded-2xl border-2 border-border bg-background pl-11 pr-6 py-4 text-sm font-bold text-foreground focus:border-primary focus:outline-none transition-all shadow-inner"
+                                    />
+                                </div>
+                            </div>
+                            <div className="space-y-3">
+                                <label className="text-xs font-black text-muted-foreground uppercase tracking-widest px-1">Nome da Empresa</label>
+                                <input
+                                    name="businessName"
+                                    defaultValue={config.businessName || ""}
+                                    placeholder="ex: Agência Banchoy"
+                                    className="w-full rounded-2xl border-2 border-border bg-background px-6 py-4 text-sm font-bold text-foreground focus:border-primary focus:outline-none transition-all shadow-inner"
+                                />
+                            </div>
+                            
+                            <div className="md:col-span-2 space-y-3">
+                                <div className="flex items-center justify-between px-1">
+                                    <label className="text-xs font-black text-muted-foreground uppercase tracking-widest">Oportunidades de Melhoria (Dores)</label>
+                                    <span className="text-[10px] text-primary font-bold uppercase py-1 px-2 bg-primary/10 rounded-lg">Foco em Consórcio</span>
+                                </div>
+                                <textarea
+                                    name="marketOportunities"
+                                    defaultValue={config.marketOportunities || ""}
+                                    placeholder="Liste os problemas que a IA deve apontar nos clientes..."
+                                    rows={4}
+                                    className="w-full rounded-2xl border-2 border-border bg-background px-6 py-4 text-sm font-medium text-foreground focus:border-primary focus:outline-none transition-all shadow-inner resize-none leading-relaxed"
+                                />
+                            </div>
+
+                            <div className="md:col-span-2 space-y-3">
+                                <div className="flex items-center gap-2 px-1">
+                                    <Award size={14} className="text-primary" />
+                                    <label className="text-xs font-black text-muted-foreground uppercase tracking-widest">Prova Social / Case de Sucesso</label>
+                                </div>
+                                <textarea
+                                    name="successCase"
+                                    defaultValue={config.successCase || ""}
+                                    placeholder="Descreva um resultado real de cliente..."
+                                    rows={3}
+                                    className="w-full rounded-2xl border-2 border-border bg-background px-6 py-4 text-sm font-medium text-foreground focus:border-primary focus:outline-none transition-all shadow-inner resize-none leading-relaxed italic"
+                                />
                             </div>
                         </div>
                     </div>
