@@ -217,7 +217,7 @@ export const WhatsappService = {
                     logger,
                     browser: Browsers.ubuntu("Chrome"),
                     generateHighQualityLinkPreview: true,
-                    syncFullHistory: true, // Reativar para melhorar sincronização com o celular
+                    syncFullHistory: false, // DESATIVADO para evitar OOM (Out of Memory)
                     markOnlineOnConnect: true, // Garante que a sessão apareça como ativa
                     // Sem store local (usando apenas auth state)
                     getMessage: async () => undefined
@@ -444,7 +444,8 @@ export const WhatsappService = {
 
                             // Trava de idempotência Temporal: Ignorar se enviamos algo nos últimos 10s
                             try {
-                                const lastAssistantMsg = await (MessageRepository as any).getLastByLeadSystem(lead.id);
+                                const lastMessages = await (MessageRepository as any).listByLeadSystem(lead.id, 1);
+                                const lastAssistantMsg = lastMessages[0];
                                 if (lastAssistantMsg && lastAssistantMsg.role === "assistant") {
                                     const diff = Date.now() - new Date(lastAssistantMsg.createdAt).getTime();
                                     if (diff < 10000) {
@@ -631,8 +632,8 @@ export const WhatsappService = {
                                     // 5. Split and Send Message (BREAK, Text and/or Audio)
                                     const audioRegex = /\[(?:AUDIO|ÁUDIO)\]([\s\S]*?)\[\/(?:AUDIO|ÁUDIO)\]/gi;
                                     
-                                    // Primeiro, quebra pelo delimitador [BREAK] da IA para fragmentação humanizada
-                                    const fragments = finalMessage.split(/\[BREAK\]/i);
+                                    // Primeiro, quebra pelo delimitador [MSG_SEP] da IA para fragmentação humanizada
+                                    const fragments = finalMessage.split(/\[MSG_SEP\]/i);
                                     const messagesToWait: { type: "text" | "audio", content: string }[] = [];
 
                                     for (const fragment of fragments) {
