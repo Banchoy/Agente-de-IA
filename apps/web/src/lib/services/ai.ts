@@ -149,11 +149,32 @@ Sua resposta deve ser um JSON válido:
 
         const response = await AIService.generateResilientResponse(systemPrompt, messages, temperature);
         try {
-            const cleaned = response.replace(/```json|```/g, "").trim();
-            return JSON.parse(cleaned);
+            // Extrator robusto de JSON: busca conteúdo entre chaves { }
+            const jsonMatch = response.match(/\{[\s\S]*\}/);
+            const jsonStr = jsonMatch ? jsonMatch[0] : response;
+            const cleaned = jsonStr.replace(/```json|```/g, "").trim();
+            const parsed = JSON.parse(cleaned);
+            
+            // Se o parsing funcionar mas o body vier vazio, algo está errado
+            if (!parsed.body && typeof parsed === 'object') {
+                console.warn("⚠️ [AIService] JSON parsed mas sem campo 'body'. Usando resposta bruta.");
+                return { body: response };
+            }
+
+            return parsed;
         } catch (e) {
-            console.warn("⚠️ [AIService] Falha ao parsear JSON adaptativo, retornando corpo bruto.");
-            return { body: response };
+            console.warn("⚠️ [AIService] Falha ao parsear JSON adaptativo, limpando e tentando extrair apenas texto.");
+            // Fallback: Tenta remover campos técnicos se o JSON estiver sujo mas visível
+            const fallbackBody = response
+                .replace(/"body":/g, "")
+                .replace(/"detectedName":/g, "")
+                .replace(/"detectedNiche":/g, "")
+                .replace(/"interestLevel":/g, "")
+                .replace(/"isDecisor":/g, "")
+                .replace(/[{}"[\],]/g, "")
+                .trim();
+            
+            return { body: fallbackBody || response };
         }
     },
 

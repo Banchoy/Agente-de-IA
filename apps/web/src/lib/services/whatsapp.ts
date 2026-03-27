@@ -540,6 +540,28 @@ export const WhatsappService = {
                                 );
 
                                 const aiResponse = adaptiveResult.body;
+                                if (!aiResponse) {
+                                    console.log("⏩ [Baileys] IA retornou resposta vazia. Ignorando.");
+                                    return;
+                                }
+
+                                // SEGURANÇA: Limpar qualquer resquício de JSON se o parsing no AIService falhou parcialmente
+                                let finalMessage = aiResponse;
+                                if (finalMessage.includes('{"') || finalMessage.includes('"}')) {
+                                    console.warn("⚠️ [Baileys] JSON detectado na resposta final. Limpando...");
+                                    finalMessage = finalMessage
+                                        .replace(/\{[\s\S]*?\}/g, "") // Remove objetos
+                                        .replace(/["']?body["']?\s*:\s*/g, "") // Remove label
+                                        .replace(/[{}"]/g, "") // Remove chaves e aspas
+                                        .trim();
+                                }
+
+                                // Se a limpeza resultou em nada, aborta
+                                if (!finalMessage) {
+                                    console.warn("⚠️ [Baileys] Resposta da IA ficou vazia após limpeza de JSON. Abortando envio.");
+                                    return;
+                                }
+
                                 const leadMeta = (lead.metaData as any) || {};
 
                                 // Update Lead Profile with Learned Info
@@ -560,11 +582,9 @@ export const WhatsappService = {
                                     });
                                 }
                                 
-                                console.log(`🤖 [Baileys] Resposta adaptativa recebida. Nicho Detectado: ${adaptiveResult.detectedNiche}`);
+                                console.log(`🤖 [Baileys] Resposta pronta para envio. Tamanho: ${finalMessage.length} caracteres.`);
 
-                                if (aiResponse) {
-                                    let finalMessage = aiResponse;
-                                    
+                                if (finalMessage) {
                                     // Movimentação automática para 'Em Atendimento (IA)' se for a primeira resposta ou estiver no início
                                     const inServiceStageId = await CRMRepository.getStageByName(lead.organizationId, "Em Atendimento (IA)") || 
                                                             await CRMRepository.getStageByName(lead.organizationId, "Atendimento");
@@ -575,10 +595,10 @@ export const WhatsappService = {
                                     }
 
                                     // Detectar qualificação automática
-                                    if (aiResponse.includes("[QUALIFICADO]")) {
+                                    if (finalMessage.includes("[QUALIFICADO]")) {
                                         try {
                                             console.log(`🚀 [Baileys] LEAD QUALIFICADO IDENTIFICADO: ${lead.name}. Buscando estágio no CRM...`);
-                                            finalMessage = aiResponse.replace("[QUALIFICADO]", "").trim();
+                                            finalMessage = finalMessage.replace("[QUALIFICADO]", "").trim();
                                             
                                             // Tenta encontrar o ID do estágio 'Qualificação' dinamicamente
                                             const qualificationStageId = await CRMRepository.getStageByName(lead.organizationId, "Qualificação") || 
