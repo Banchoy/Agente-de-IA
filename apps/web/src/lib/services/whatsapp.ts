@@ -27,16 +27,19 @@ declare global {
     var __baileys_sessions: Map<string, any> | undefined;
     var __baileys_promises: Map<string, Promise<any>> | undefined;
     var __lead_locks: Set<string> | undefined;
+    var __processed_messages: Set<string> | undefined;
 }
  
 const sessions = globalThis.__baileys_sessions || new Map<string, any>();
 const connectionPromises = globalThis.__baileys_promises || new Map<string, Promise<any>>();
 const leadLocks = globalThis.__lead_locks || new Set<string>();
+const processedMessages = globalThis.__processed_messages || new Set<string>();
  
 if (process.env.NODE_ENV !== 'production') {
     globalThis.__baileys_sessions = sessions;
     globalThis.__baileys_promises = connectionPromises;
     globalThis.__lead_locks = leadLocks;
+    globalThis.__processed_messages = processedMessages;
 }
 
 /**
@@ -434,6 +437,21 @@ export const WhatsappService = {
                             if (leadLocks.has(lead.id)) {
                                 console.log(`⏩ [Baileys] Lead ${lead.id} já está sendo processado. Ignorando.`);
                                 continue;
+                            }
+                            
+                            // Ativar o lock IMEDIATAMENTE
+                            leadLocks.add(lead.id);
+                            
+                            // Trava de idempotência por mensagem específica (evita notify/append duplicado)
+                            if (whatsappMessageId) {
+                                if (processedMessages.has(whatsappMessageId)) {
+                                    console.log(`⏩ [Baileys] Mensagem ${whatsappMessageId} já foi processada. Ignorando.`);
+                                    leadLocks.delete(lead.id); // Liberar lock se for ignorado
+                                    continue;
+                                }
+                                processedMessages.add(whatsappMessageId);
+                                // Limpar ID da mensagem após 5 minutos para economizar memória
+                                setTimeout(() => processedMessages.delete(whatsappMessageId!), 300000);
                             }
                             
 
