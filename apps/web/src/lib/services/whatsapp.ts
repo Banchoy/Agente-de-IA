@@ -558,26 +558,11 @@ export const WhatsappService = {
 
                                 const aiResponse = adaptiveResult.body;
                                 if (!aiResponse) {
-                                    console.log("⏩ [Baileys] IA retornou resposta vazia. Ignorando.");
+                                    console.log("⏩ [Baileys] IA retornou resposta vazia ou inválida. Ignorando.");
                                     return;
                                 }
 
-                                // SEGURANÇA: Limpar qualquer resquício de JSON se o parsing no AIService falhou parcialmente
                                 let finalMessage = aiResponse;
-                                if (finalMessage.includes('{"') || finalMessage.includes('"}')) {
-                                    console.warn("⚠️ [Baileys] JSON detectado na resposta final. Limpando...");
-                                    finalMessage = finalMessage
-                                        .replace(/\{[\s\S]*?\}/g, "") // Remove objetos
-                                        .replace(/["']?body["']?\s*:\s*/g, "") // Remove label
-                                        .replace(/[{}"]/g, "") // Remove chaves e aspas
-                                        .trim();
-                                }
-
-                                // Se a limpeza resultou em nada, aborta
-                                if (!finalMessage) {
-                                    console.warn("⚠️ [Baileys] Resposta da IA ficou vazia após limpeza de JSON. Abortando envio.");
-                                    return;
-                                }
 
                                 const leadMeta = (lead.metaData as any) || {};
 

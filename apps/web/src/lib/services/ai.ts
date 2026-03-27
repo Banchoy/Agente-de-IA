@@ -107,10 +107,22 @@ Your response MUST be a valid JSON object with the following keys:
         scriptInstruction: string,
         temperature: number = 0.7
     ) => {
-        const leadMeta = (lead.metaData as any) || {};
         const systemPrompt = `
 Você é uma assistente comercial humana altamente assertiva chamada Tayná.
 Sua missão é converter leads através de uma conversa natural e amigável no WhatsApp.
+
+### SEU DIFERENCIAL (POR QUE VOCÊ É MELHOR):
+Você trabalha para a "Agência Banchoy", especializada em automação para empresas de Consórcio.
+Quando você diz que "identificou pontos em aberto ou oportunidades", você se refere a falhas comuns que quase toda empresa de consórcio tem:
+1. **Demora no Feedback**: Leads que chegam e ficam horas/dias sem resposta.
+2. **Perda de Leads de Madrugada/Fim de Semana**: Pessoas que mandam mensagem e não têm atendimento imediato.
+3. **Falta de Régua de Cobrança**: Leads que demonstraram interesse mas nunca mais foram contatados.
+4. **Falta de Prova Social Automática**: Não enviar resultados e casos de sucesso de forma estratégica durante a conversa.
+5. **Atendimento Humano Lento**: Vendedores que ficam sobrecarregados com perguntas repetitivas e deixam de focar no fechamento.
+
+### LÓGICA DE ARGUMENTAÇÃO (QUANDO O CLIENTE PERGUNTA "QUAIS OPORTUNIDADES?"):
+- **Nunca trave.** Use as dores acima como se você tivesse "visto" isso no perfil deles (ex: "Vi que vocês demoram um pouquinho pra responder em horários alternativos, né? Isso faz vocês perderem muito lead quente").
+- Explique que sua automação resolve isso atendendo em 2 segundos e qualificando o lead antes de passar pro vendedor.
 
 ### SCRIPT DE VENDAS (MUITO IMPORTANTE):
 Você deve seguir rigorosamente este fluxo de mensagens:
@@ -138,17 +150,8 @@ Você deve seguir rigorosamente este fluxo de mensagens:
    - Use uma linguagem natural, informal (pode usar 'né', 'ta?', 'então', 'bora').
    - Use parágrafos curtos.
 
-### TABELA DE PREÇOS E PLANOS:
-1. **PLANO PREMIUM (R$ 1.750,00)**: CRM Exclusivo + Campanhas Completas + Estrategista Dedicado.
-2. **PLANO INTERMEDIÁRIO (R$ 1.250,00)**: Suporte WhatsApp + Gestão de Campanhas. (Sem CRM).
-3. **PLANO BÁSICO (R$ 800,00)**: Cobramos comissão (0,25% a 0,30%) sobre vendas. (Sem CRM).
-
-### DIRETRIZES DE PERSONALIDADE:
-- Seja natural, direta, ambiciosa e muito prestativa. Use gírias leves como "bora pra cima?".
-- Use o histórico para saber em qual fase do script você está.
-
 ### FORMATO DE SAÍDA (JSON):
-Sua resposta deve ser um JSON válido:
+Sua resposta deve ser um JSON válido. O campo "body" deve conter APENAS o texto da mensagem humana, sem aspas extras ou marcadores de campo.
 {
   "body": "A mensagem curta e natural",
   "detectedName": "o nome identificado",
@@ -160,32 +163,45 @@ Sua resposta deve ser um JSON válido:
 
         const response = await AIService.generateResilientResponse(systemPrompt, messages, temperature);
         try {
-            // Extrator robusto de JSON: busca conteúdo entre chaves { }
-            const jsonMatch = response.match(/\{[\s\S]*\}/);
-            const jsonStr = jsonMatch ? jsonMatch[0] : response;
-            const cleaned = jsonStr.replace(/```json|```/g, "").trim();
-            const parsed = JSON.parse(cleaned);
+            // Extrator robusto de JSON: busca conteúdo entre a PRIMEIRA e ÚLTIMA chave
+            const firstBrace = response.indexOf('{');
+            const lastBrace = response.lastIndexOf('}');
             
-            // Se o parsing funcionar mas o body vier vazio, algo está errado
-            if (!parsed.body && typeof parsed === 'object') {
-                console.warn("⚠️ [AIService] JSON parsed mas sem campo 'body'. Usando resposta bruta.");
-                return { body: response };
+            if (firstBrace !== -1 && lastBrace !== -1) {
+                const jsonStr = response.substring(firstBrace, lastBrace + 1);
+                const cleaned = jsonStr.replace(/```json|```/g, "").trim();
+                const parsed = JSON.parse(cleaned);
+                
+                if (parsed.body) {
+                    // Blindagem extra: remover qualquer resquício de label "body:" do texto se houver
+                    parsed.body = parsed.body.replace(/^body\s*:\s*/gi, "").trim();
+                    return parsed;
+                }
+            }
+            
+            throw new Error("JSON structure not found or incomplete");
+        } catch (e) {
+            console.warn("⚠️ [AIService] Falha ao parsear JSON adaptativo. Limpando resposta bruta.");
+            
+            // Fallback agressivo: se a resposta conter "body", tenta pegar o que está na frente
+            let cleanBody = response;
+            if (response.includes('"body"')) {
+                const parts = response.split('"body"');
+                const afterBody = parts[parts.length - 1];
+                const match = afterBody.match(/:\s*"([^"]*)"/);
+                if (match && match[1]) {
+                    cleanBody = match[1];
+                }
             }
 
-            return parsed;
-        } catch (e) {
-            console.warn("⚠️ [AIService] Falha ao parsear JSON adaptativo, limpando e tentando extrair apenas texto.");
-            // Fallback: Tenta remover campos técnicos se o JSON estiver sujo mas visível
-            const fallbackBody = response
-                .replace(/"body":/g, "")
-                .replace(/"detectedName":/g, "")
-                .replace(/"detectedNiche":/g, "")
-                .replace(/"interestLevel":/g, "")
-                .replace(/"isDecisor":/g, "")
-                .replace(/[{}"[\],]/g, "")
+            // Remove caracters técnicos residuais
+            cleanBody = cleanBody
+                .replace(/["']?body["']?\s*:\s*/gi, "")
+                .replace(/[{}"[\]]/g, "")
+                .replace(/^[:\s,]+/, "")
                 .trim();
             
-            return { body: fallbackBody || response };
+            return { body: cleanBody || response };
         }
     },
 
