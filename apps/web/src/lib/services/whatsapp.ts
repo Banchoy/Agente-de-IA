@@ -397,13 +397,16 @@ export const WhatsappService = {
                                 console.log(`👤 [Baileys] Lead existente encontrado: ${lead.id}`);
                             }
 
+                            const whatsappMessageId = msg.key.id;
+
                             // 2. Save Message to History
-                            console.log(`💾 [Baileys] Salvando mensagem no histórico do lead: ${lead.id}`);
+                            console.log(`💾 [Baileys] Salvando mensagem no histórico do lead: ${lead.id} (ID: ${whatsappMessageId})`);
                             await (MessageRepository as any).createSystem({
                                 organizationId: org.id,
                                 leadId: lead.id,
                                 role: role,
                                 content: text,
+                                whatsappMessageId: whatsappMessageId,
                             });
                             console.log(`✅ [Baileys] Mensagem (${role}) salva no histórico.`);
                             
@@ -427,88 +430,47 @@ export const WhatsappService = {
 
                             // 4. AI Respond Logic (APENAS para mensagens recebidas)
                             if (isFromMe) continue; 
+                            
                             if (leadLocks.has(lead.id)) {
                                 console.log(`⏩ [Baileys] Lead ${lead.id} já está sendo processado. Ignorando.`);
                                 continue;
                             }
                             
-                             // 4. DEDUPLICAÇÃO DE MENSAGENS (Evita responder duas vezes se o evento disparar duplicado)
-                             const lastMessages = await db.select({ id: messagesTable.id, createdAt: messagesTable.createdAt })
-                                 .from(messagesTable)
-                                 .where(and(
-                                     eq(messagesTable.leadId, lead.id),
-                                     eq(messagesTable.role, role),
-                                     eq(messagesTable.content, text)
-                                 ))
-                                 .orderBy(desc(messagesTable.createdAt))
-                                 .limit(1);
-
-                            if (lastMessages.length > 0) {
-                                const lastTime = new Date(lastMessages[0].createdAt).getTime();
-                                if (Date.now() - lastTime < 10000) { // Janela de 10 segundos
-                                    console.log(`🚫 [Baileys] Mensagem duplicada detectada no DB para o lead ${lead.id}. Ignorando.`);
-                                    continue;
-                                }
-                            }
-
-                            leadLocks.add(lead.id);
 
                             // 3. Find Mapped Agent (or fallback)
                             console.log(`🤖 [Baileys] Buscando agente para a instância: ${sessionId}`);
                             let agents = [];
                             try {
                                 agents = await AgentRepository.listByOrgIdSystem(org.id);
-                                console.log(`🤖 [Baileys] Agentes encontrados na org: ${agents.length}`);
                             } catch (err) {
-                                console.error(`❌ [Baileys] Erro ao buscar agentes no banco:`, err);
-                                continue;
+                                console.error(`❌ [Baileys] Erro ao buscar agentes:`, err);
+                                throw err;
                             }
                             
-                            // Log de mapeamento para depuração
-                            agents.forEach(a => console.log(`   - Agente: ${a.name}, InstanceName no DB: ${(a as any).whatsappInstanceName}`));
-
-                            // Try to find agent with matching instance name
-                            let agent = agents.find(a => (a as any).whatsappInstanceName === sessionId);
+                            let agent = agents.find(a => (a as any).whatsappInstanceName === sessionId) || agents[0];
                             
                             if (!agent) {
-                                console.log(`🤖 [Baileys] Nenhum agente mapeado para ${sessionId}. Usando primeiro agente como fallback.`);
-                                agent = agents[0];
-                            }
-                            
-                            if (!agent) {
-                                console.warn(`⚠️ [Baileys] Nenhum agente TOTALMENTE disponível para a organização ${org.id}`);
-                                continue;
+                                console.warn(`⚠️ [Baileys] Nenhum agente disponível para a organização ${org.id}`);
+                                throw new Error("No agent available");
                             }
 
-                            console.log(`🤖 [Baileys] Agente SELECIONADO: ${agent.name} (ID: ${agent.id})`);
-
+                            console.log(`🤖 [Baileys] Agente: ${agent.name}. Config: ${JSON.stringify(agent.config || {})}`);
                             const config = (agent.config as any) || {};
-                            console.log(`🤖 [Baileys] Config do Agente:`, JSON.stringify(config));
 
-                            // VERIFICAÇÕES DE RESPOSTA
                             if (!config.whatsappResponse) {
-                                console.log(`⏩ [Baileys] Resposta automática DESATIVADA (whatsappResponse: false) para o agente ${agent.name}`);
-                                continue;
+                                console.log(`⏩ [Baileys] Resposta automática DESATIVADA para ${agent.name}`);
+                                return;
                             }
 
-                            // HANDOVER: Se a IA estiver desativada para este lead, não responde
                             if (lead.aiActive === "false") {
-                                console.log(`⏩ [Baileys] IA DESATIVADA para o lead ${lead.name} (Handover ativo).`);
-                                continue;
+                                console.log(`⏩ [Baileys] IA DESATIVADA para o lead ${lead.name} (Handover).`);
+                                return;
                             }
 
-                            if (config.testMode) {
-                                console.log(`🛡️ [Baileys] Modo de Teste ATIVO. Validando número: ${phone} vs Permitido: ${config.testNumber}`);
-                                if (config.testNumber !== phone) {
-                                    console.log(`🛡️ [Baileys] Número de teste NÃO corresponde. Ignorando.`);
-                                    continue;
-                                }
+                            if ((agent.config as any).testMode && (agent.config as any).testNumber !== phone) {
+                                console.log(`🛡️ [Baileys] Modo de Teste ATIVO. Ignorando número externo: ${phone}`);
+                                return;
                             }
-
-                            // 4. Generate AI Response
-                            console.log(`🤖 [Baileys] Chamando AIService para: ${agent.name}. Provider: ${config.provider || "google"}`);
-                            
-                            try {
                                 // ATIVAR DIGITANDO
                                 await (LeadRepository as any).updateSystem(lead.id, { isTyping: "true" });
 
@@ -541,9 +503,9 @@ export const WhatsappService = {
                                     formattedHistory = [{ role: "user", content: text }];
                                 }
 
-                                // Delay simulado para leitura e tomada de decisão: 30 a 45 segundos! (Anti-ban Dribble)
-                                const leituraDelay = 30000 + Math.random() * 15000;
-                                console.log(`⏳ [Baileys] Simulando leitura humana... Aguardando ${(leituraDelay/1000).toFixed(1)}s antes de chamar IA.`);
+                                // Delay simulado para leitura: 5 a 10 segundos
+                                const leituraDelay = 5000 + Math.random() * 5000;
+                                console.log(`⏳ [Baileys] Simulando leitura... Aguardando ${(leituraDelay/1000).toFixed(1)}s.`);
                                 await new Promise(resolve => setTimeout(resolve, leituraDelay));
 
                                 // 4. Generate AI Response (Adaptive or Generic)
@@ -666,8 +628,8 @@ export const WhatsappService = {
                                             }
                                         } else {
                                             await sock.sendPresenceUpdate('composing', jid);
-                                            // Digitando: delay de 15 a 20 segundos
-                                            const typingDelay = 15000 + Math.random() * 5000;
+                                            // Digitando: delay de 3 a 7 segundos
+                                            const typingDelay = 3000 + Math.random() * 4000;
                                             console.log(`💬 [Baileys] Simulando digitação por ${(typingDelay/1000).toFixed(1)}s...`);
                                             await new Promise(resolve => setTimeout(resolve, typingDelay));
                                             const cleanText = msg.content.replace(/\[\/?(?:AUDIO|ÁUDIO)\]/gi, "").trim();
@@ -697,17 +659,12 @@ export const WhatsappService = {
                                     }
                                 }
                             } finally {
-                                // DESATIVAR DIGITANDO E REMOVER TRAVA
                                 if (lead?.id) {
                                     await (LeadRepository as any).updateSystem(lead.id, { isTyping: "false" });
                                     leadLocks.delete(lead.id);
+                                    console.log(`🔓 [Baileys] Lock LIBERADO para o lead ${lead.id}.`);
                                 }
                             }
-
-                        } catch (err) {
-                            console.error("❌ Erro IA/Response:", err);
-                            if (lead?.id) leadLocks.delete(lead.id);
-                        }
                     }
                 });
 

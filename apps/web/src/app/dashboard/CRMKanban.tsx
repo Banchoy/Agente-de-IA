@@ -240,6 +240,27 @@ function KanbanColumn({ stage, leads, onLeadClick, onDeleteLead, onColorChange, 
         }
     };
 
+    const handleClearLeads = async () => {
+        if (!confirm(`Tem certeza que deseja remover TODOS os leads da coluna "${stage.name}"? Esta ação não pode ser desfeita.`)) {
+            return;
+        }
+        
+        try {
+            const response = await fetch(`/api/leads/bulk-delete?stageId=${stage.id}`, {
+                method: 'DELETE',
+            });
+            
+            if (response.ok) {
+                toast.success(`Coluna "${stage.name}" limpa com sucesso!`);
+                window.location.reload();
+            } else {
+                toast.error("Erro ao limpar leads da coluna.");
+            }
+        } catch (err) {
+            toast.error("Erro de conexão ao tentar limpar leads.");
+        }
+    };
+
     const style = {
         transform: CSS.Translate.toString(transform),
         transition,
@@ -273,10 +294,8 @@ function KanbanColumn({ stage, leads, onLeadClick, onDeleteLead, onColorChange, 
                         <DropdownMenuItem 
                             className="cursor-pointer"
                             onClick={() => {
-                                const name = prompt("Novo nome da coluna:", stage.name);
-                                if (name && name !== stage.name) {
-                                    // Future: updateStageName
-                                }
+                                // Esse botão não estava implementado, vou deixar para consistência se o usuário quiser adicionar manual
+                                toast.info("Use o botão 'Adicionar Lead' no topo.");
                             }}
                         >
                             <Plus className="w-4 h-4 mr-2" />
@@ -290,17 +309,28 @@ function KanbanColumn({ stage, leads, onLeadClick, onDeleteLead, onColorChange, 
                             <Send className={`w-4 h-4 mr-2 ${isSending ? 'animate-pulse' : ''}`} />
                             {isSending ? 'Iniciando...' : 'Disparar WhatsApp'}
                         </DropdownMenuItem>
+                        
                         <DropdownMenuSeparator />
+                        
                         <DropdownMenuItem 
-                            className="text-red-500 focus:text-red-500 focus:bg-red-500/10 cursor-pointer"
+                            className="text-red-500 focus:text-red-500 focus:bg-red-500/10 cursor-pointer font-bold"
+                            onClick={handleClearLeads}
+                        >
+                            <Trash2 className="w-4 h-4 mr-2" />
+                            Limpar Leads (Todos)
+                        </DropdownMenuItem>
+                        
+                        <DropdownMenuSeparator />
+                        
+                        <DropdownMenuItem 
+                            className="text-muted-foreground focus:bg-muted/50 cursor-pointer"
                             onClick={() => {
                                 if (confirm(`Deseja excluir a coluna "${stage.name}"? Os leads serão movidos para a primeira coluna.`)) {
-                                    // onDeleteStage is passed via props
-                                    (stage as any).onDelete();
+                                    onDeleteStage(stage.id);
                                 }
                             }}
                         >
-                            <Trash2 className="w-4 h-4 mr-2" />
+                            <XCircle className="w-4 h-4 mr-2" />
                             Excluir Coluna
                         </DropdownMenuItem>
                     </DropdownMenuContent>

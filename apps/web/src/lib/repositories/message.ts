@@ -64,13 +64,19 @@ export const MessageRepository = {
 
     create: async (data: typeof messages.$inferInsert) => {
         return await withOrgContext(async (tx) => {
-            const [newMessage] = await tx.insert(messages).values(data).returning();
+            const [newMessage] = await tx.insert(messages)
+                .values(data)
+                .onConflictDoNothing({ target: [messages.organizationId, messages.whatsappMessageId] })
+                .returning();
             return newMessage;
         });
     },
 
     createSystem: async (data: typeof messages.$inferInsert) => {
-        const [newMessage] = await db.insert(messages).values(data).returning();
+        const [newMessage] = await db.insert(messages)
+            .values(data)
+            .onConflictDoNothing({ target: [messages.organizationId, messages.whatsappMessageId] })
+            .returning();
         return newMessage;
     }
 };

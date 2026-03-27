@@ -201,11 +201,13 @@ export const messages = pgTable("messages", {
         .references(() => leads.id, { onDelete: "cascade" }),
     role: text("role").notNull(),
     content: text("content").notNull(),
+    whatsappMessageId: text("whatsapp_message_id"),
     createdAt: timestamp("created_at").defaultNow().notNull(),
 }, (table) => {
     return {
         organizationIdIdx: index("messages_organization_id_idx").on(table.organizationId),
         leadIdIdx: index("messages_lead_id_idx").on(table.leadId),
+        whatsappMessageIdUnique: uniqueIndex("messages_whatsapp_message_id_unique").on(table.organizationId, table.whatsappMessageId),
     }
 });
 
