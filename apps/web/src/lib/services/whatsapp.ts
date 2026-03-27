@@ -441,6 +441,21 @@ export const WhatsappService = {
                             
                             // Ativar o lock IMEDIATAMENTE
                             leadLocks.add(lead.id);
+
+                            // Trava de idempotência Temporal: Ignorar se enviamos algo nos últimos 10s
+                            try {
+                                const lastAssistantMsg = await (MessageRepository as any).getLastByLeadSystem(lead.id);
+                                if (lastAssistantMsg && lastAssistantMsg.role === "assistant") {
+                                    const diff = Date.now() - new Date(lastAssistantMsg.createdAt).getTime();
+                                    if (diff < 10000) {
+                                        console.log(`⏩ [Baileys] Lead ${lead.id} recebeu resposta há ${diff}ms. Bloqueando duplicidade.`);
+                                        leadLocks.delete(lead.id);
+                                        continue;
+                                    }
+                                }
+                            } catch (err) {
+                                console.warn("⚠️ [Baileys] Erro ao verificar trava temporal:", err);
+                            }
                             
                             // Trava de idempotência por mensagem específica (evita notify/append duplicado)
                             if (whatsappMessageId) {
@@ -613,22 +628,30 @@ export const WhatsappService = {
                                         }
                                     }
 
-                                    // 5. Split and Send Message (Text and/or Audio)
+                                    // 5. Split and Send Message (BREAK, Text and/or Audio)
                                     const audioRegex = /\[(?:AUDIO|ÁUDIO)\]([\s\S]*?)\[\/(?:AUDIO|ÁUDIO)\]/gi;
-                                    let lastIndex = 0;
-                                    let match;
+                                    
+                                    // Primeiro, quebra pelo delimitador [BREAK] da IA para fragmentação humanizada
+                                    const fragments = finalMessage.split(/\[BREAK\]/i);
                                     const messagesToWait: { type: "text" | "audio", content: string }[] = [];
 
-                                    while ((match = audioRegex.exec(finalMessage)) !== null) {
-                                        const textBefore = finalMessage.substring(lastIndex, match.index).trim();
-                                        if (textBefore) messagesToWait.push({ type: "text", content: textBefore });
-                                        const audioContent = match[1].trim();
-                                        if (audioContent) messagesToWait.push({ type: "audio", content: audioContent });
-                                        lastIndex = audioRegex.lastIndex;
-                                    }
+                                    for (const fragment of fragments) {
+                                        let lastIndex = 0;
+                                        let match;
+                                        const trimmedFragment = fragment.trim();
+                                        if (!trimmedFragment) continue;
 
-                                    const remainingText = finalMessage.substring(lastIndex).trim();
-                                    if (remainingText) messagesToWait.push({ type: "text", content: remainingText });
+                                        while ((match = audioRegex.exec(trimmedFragment)) !== null) {
+                                            const textBefore = trimmedFragment.substring(lastIndex, match.index).trim();
+                                            if (textBefore) messagesToWait.push({ type: "text", content: textBefore });
+                                            const audioContent = match[1].trim();
+                                            if (audioContent) messagesToWait.push({ type: "audio", content: audioContent });
+                                            lastIndex = audioRegex.lastIndex;
+                                        }
+
+                                        const remainingText = trimmedFragment.substring(lastIndex).trim();
+                                        if (remainingText) messagesToWait.push({ type: "text", content: remainingText });
+                                    }
 
                                     if (messagesToWait.length === 0) {
                                         messagesToWait.push({ type: config.voiceEnabled ? "audio" : "text", content: finalMessage });
@@ -666,9 +689,9 @@ export const WhatsappService = {
                                             }
                                         } else {
                                             await sock.sendPresenceUpdate('composing', jid);
-                                            // Digitando: delay de 3 a 7 segundos
-                                            const typingDelay = 3000 + Math.random() * 4000;
-                                            console.log(`💬 [Baileys] Simulando digitação por ${(typingDelay/1000).toFixed(1)}s...`);
+                                            // Digitando: base de 2s + 50ms por caractere (máx 10s)
+                                            const typingDelay = Math.min(2000 + (msg.content.length * 50), 10000);
+                                            console.log(`💬 [Baileys] Simulando digitação para "${msg.content.substring(0, 20)}..." por ${(typingDelay/1000).toFixed(1)}s...`);
                                             await new Promise(resolve => setTimeout(resolve, typingDelay));
                                             const cleanText = msg.content.replace(/\[\/?(?:AUDIO|ÁUDIO)\]/gi, "").trim();
                                             if (cleanText) {
