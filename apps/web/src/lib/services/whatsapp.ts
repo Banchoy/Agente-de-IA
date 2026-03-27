@@ -20,7 +20,7 @@ import { CRMRepository } from "@/lib/repositories/crm";
 import { AIService } from "@/lib/services/ai";
 import { TTSService } from "@/lib/services/tts";
 
-const logger = pino({ level: "error" }); // Silenciar logs informativos do Baileys
+const logger = pino({ level: "silent" }); // TOTALMENTE SILENCIOSO para o Baileys
 
 // Singleton para persistência em ambiente Next.js (evita múltiplas instâncias em HMR/Reload)
 declare global {
@@ -135,7 +135,7 @@ async function useDrizzleAuthState(sessionId: string, organizationId: string) {
             }, logger)
         },
         saveCreds: () => {
-            console.log(`💾 [Baileys] Salvando credenciais para a sessão: ${sessionId}`);
+            // Log silenciado para economizar memória
             return writeData("creds", creds);
         }
     };
@@ -269,7 +269,7 @@ export const WhatsappService = {
                             const isLoggedOut = statusCode === DisconnectReason.loggedOut;
                             const shouldReconnect = !isLoggedOut;
                             
-                            console.error(`❌ [Baileys] Conexão fechada (${sessionId}). Status: ${statusCode}. Erro:`, error || "Erro desconhecido");
+                            console.error(`❌ [Baileys] Conexão fechada (${sessionId}). Status: ${statusCode}.`);
                             
                             if (shouldReconnect) {
                                 WhatsappService.sessions.delete(sessionId);
@@ -454,7 +454,7 @@ export const WhatsappService = {
                                 throw new Error("No agent available");
                             }
 
-                            console.log(`🤖 [Baileys] Agente: ${agent.name}. Config: ${JSON.stringify(agent.config || {})}`);
+                            console.log(`🤖 [Baileys] Agente: ${agent.name}`);
                             const config = (agent.config as any) || {};
 
                             if (!config.whatsappResponse) {
