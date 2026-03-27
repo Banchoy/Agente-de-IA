@@ -134,7 +134,7 @@ export default async function AgentDetailsPage({ params }: { params: Promise<{ i
 
                         <div className="grid gap-8 md:grid-cols-2">
                             <div className="space-y-3">
-                                <label className="text-xs font-black text-muted-foreground uppercase tracking-widest px-1">Nome da Atendente</label>
+                                <label className="text-xs font-black text-muted-foreground uppercase tracking-widest px-1">Nome do(a) Atendente</label>
                                 <div className="relative group">
                                     <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none text-muted-foreground group-focus-within:text-primary transition-colors">
                                         <User size={16} />
@@ -142,25 +142,42 @@ export default async function AgentDetailsPage({ params }: { params: Promise<{ i
                                     <input
                                         name="agentRealName"
                                         defaultValue={config.agentRealName || ""}
-                                        placeholder="ex: Tayná"
+                                        placeholder="ex: Tayná ou Bruno"
                                         className="w-full rounded-2xl border-2 border-border bg-background pl-11 pr-6 py-4 text-sm font-bold text-foreground focus:border-primary focus:outline-none transition-all shadow-inner"
                                     />
                                 </div>
                             </div>
+
                             <div className="space-y-3">
-                                <label className="text-xs font-black text-muted-foreground uppercase tracking-widest px-1">Nome da Empresa</label>
-                                <input
-                                    name="businessName"
-                                    defaultValue={config.businessName || ""}
-                                    placeholder="ex: Agência Banchoy"
-                                    className="w-full rounded-2xl border-2 border-border bg-background px-6 py-4 text-sm font-bold text-foreground focus:border-primary focus:outline-none transition-all shadow-inner"
-                                />
+                                <label className="text-xs font-black text-muted-foreground uppercase tracking-widest px-1">Gênero</label>
+                                <select
+                                    name="gender"
+                                    defaultValue={config.gender || "female"}
+                                    className="w-full rounded-2xl border-2 border-border bg-background px-6 py-4 text-sm font-bold text-foreground focus:border-primary focus:outline-none transition-all shadow-inner appearance-none cursor-pointer"
+                                >
+                                    <option value="female">Feminino (Ex: "A" atendente)</option>
+                                    <option value="male">Masculino (Ex: "O" atendente)</option>
+                                </select>
+                            </div>
+
+                            <div className="md:col-span-2 space-y-3">
+                                <div>
+                                    <label className="text-xs font-black text-muted-foreground uppercase tracking-widest px-1">Nome da Sua Agência</label>
+                                    <input 
+                                        type="text" 
+                                        name="businessName"
+                                        defaultValue={config.businessName || ""}
+                                        placeholder="Ex: DreamStore"
+                                        className="w-full mt-2 rounded-2xl border-2 border-border bg-background px-6 py-4 text-sm font-bold text-foreground focus:border-primary focus:outline-none transition-all shadow-inner"
+                                    />
+                                    <p className="text-[10px] text-muted-foreground mt-2 px-1 lowercase italic">Este nome será usado na apresentação.</p>
+                                </div>
                             </div>
                             
                             <div className="md:col-span-2 space-y-3">
                                 <div className="flex items-center justify-between px-1">
                                     <label className="text-xs font-black text-muted-foreground uppercase tracking-widest">Oportunidades de Melhoria (Dores)</label>
-                                    <span className="text-[10px] text-primary font-bold uppercase py-1 px-2 bg-primary/10 rounded-lg">Foco em Consórcio</span>
+                                    <span className="text-[10px] text-primary font-bold uppercase py-1 px-2 bg-primary/10 rounded-lg">Inteligência Multi-Nicho</span>
                                 </div>
                                 <textarea
                                     name="marketOportunities"
