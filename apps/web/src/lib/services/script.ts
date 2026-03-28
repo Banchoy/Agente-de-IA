@@ -39,16 +39,15 @@ ${temperature < 0.5 ?
 1. Procure no Roteiro acima pela "Etapa 1", "Fase 1" ou "Abertura".
 2. Copie EXACTAMENTE o texto instruído para essa etapa.
 3. Se o texto tiver variáveis de tempo (ex: "bom dia / boa tarde"), substitua pela correta ("${timeOfDay}").
-4. NÃO adicione o nome da empresa ("${targetName}"), a menos que a Etapa 1 exija isso.
-5. NÃO adicione "Tudo bem?", a menos que esteja no texto da Etapa 1 (muitos roteiros deixam isso para a Etapa 2).
-6. Entregue APENAS o texto copiado e adaptado para o horário. Sem aspas, sem "Mensagem:".` 
+4. CENSURA ABSOLUTA: NÃO adicione o nome da empresa, "tudo bem?" ou qualquer palavra não escrita expressamente no texto da etapa.
+5. Entregue APENAS o texto copiado e adaptado para o horário. Sem aspas, sem "Mensagem:".` 
 : 
 `- MODO DINÂMICO:
 Adapte a abertura (Fase 1) do roteiro, podendo adicionar uma breve saudação natural usando o nome do lead se julgar amigável, mas respeitando o objetivo inicial.`}
 `.trim();
 
     try {
-        const result = await AIService.generateResilientResponse(systemPrompt, [], 0.7);
+        const result = await AIService.generateResilientResponse(systemPrompt, [], temperature);
         let cleaned = result.replace(/```json|```/g, "").trim();
         if (cleaned.startsWith('"') && cleaned.endsWith('"')) {
             cleaned = cleaned.substring(1, cleaned.length - 1);
