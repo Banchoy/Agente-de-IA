@@ -99,12 +99,7 @@ export const OutreachService = {
                 stageId: targetStageId || pendingLead.stageId
             });
 
-            await MessageRepository.createSystem({
-                organizationId: org.id,
-                leadId: pendingLead.id,
-                role: "assistant",
-                content: messageBody
-            });
+            // 8. O salvamento no histórico é tratado automaticamente pelo hook de recebimento/envio (messages.upsert) do próprio baileys.
 
             console.log(`✅ [Outreach] Mensagem enviada para ${pendingLead.name} com sucesso!`);
 

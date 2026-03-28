@@ -27,11 +27,11 @@ DADOS DO LEAD:
 
 TAREFA: 
 Gere a PRIMEIRA MENSAGEM que você irá enviar para este lead no WhatsApp.
-- Analise o "Prompt do Usuário" acima minuciosamente. 
-- Se o prompt definir "Fases", esta é a FASE 1 (Abertura). Você NÃO DEVE avançar ou misturar as regras da Fase 2, 3, etc. Apenas inicie o script.
-- Nível de Criatividade (${temperature}): ${temperature < 0.5 ? "SIGA O ROTEIRO I-P-S-I-S L-I-T-T-E-R-I-S. Não invente nada fora das orientações da fase inicial." : "Seja natural, adaptando a primeira mensagem com o nicho do cliente, mas mantendo a intenção."}
-- Se ele pedir para você sempre começar com uma frase específica (ex: "Olá, bom dia..."), FAÇA EXATAMENTE COMO PEDIDO e termine a mensagem aí, esperando a pessoa responder.
-- NÃO escreva "Mensagem:" ou coloque aspas, retorne APENAS o texto puro.
+- Leia o "Prompt do Usuário" assiduamente.
+- Se o prompt definir "Fases" ou "Etapas", esta é a FASE 1 (Abertura). Você NÃO DEVE avançar ou misturar o texto das Fases seguintes.
+- REGRA DE OURO (MUITO IMPORTANTE): Se o "Prompt do Usuário" instruir explicitamente qual DEVE ser a fala (ex: "Sempre inicie com 'Olá, tudo bem?'" ou "Na etapa 1 envie apenas 'Olá, bom dia'"), VOCÊ DEVE ESCREVER LITERALMENTE APENAS ISSO. Não adicione o nome da pessoa, não adicione o nome da empresa, não coloque emojis que não estão no script.
+- Nível de Criatividade (${temperature}): ${temperature < 0.5 ? "Siga as falas entre aspas do roteiro IPSIS LITTERIS. A obediência ao texto da Fase 1 deve ser cega, sem floreios." : "Adapte a quebra-gelo, mas sem desviar do roteiro base."}
+- NÃO escreva "Mensagem:" ou coloque aspas, retorne APENAS o texto puro que será disparado.
 `.trim();
 
     try {
