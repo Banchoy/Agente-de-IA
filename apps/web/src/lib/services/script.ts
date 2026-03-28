@@ -27,7 +27,6 @@ ${agentConfig.prompt || "Inicie a conversa de forma amigável."}
 """
 
 DADOS:
-- Nome/Empresa Lead: ${targetName}
 - Nicho: ${leadNiche}
 - Fuso Horário de Referência: São Paulo, Brasil (Hora local: ${hour}h)
 - Saudação correta para AGORA: ${timeOfDay}

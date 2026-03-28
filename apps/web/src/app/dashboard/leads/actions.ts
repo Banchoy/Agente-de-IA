@@ -521,13 +521,13 @@ export async function getOutreachStatus() {
     }
 }
 
-export async function stopOutreach(formData?: FormData) {
+export async function stopOutreach(formData?: FormData): Promise<void> {
     const { orgId: clerkOrgId } = await auth();
-    if (!clerkOrgId) throw new Error("Unauthorized");
+    if (!clerkOrgId) return;
 
     try {
         const org = await OrganizationRepository.getByClerkId(clerkOrgId);
-        if (!org) throw new Error("Organization not found");
+        if (!org) return;
 
         await db.update(leads)
             .set({ outreachStatus: "idle" })
@@ -537,9 +537,8 @@ export async function stopOutreach(formData?: FormData) {
             ));
         
         revalidatePath("/dashboard/leads");
-        return { success: true };
     } catch (error) {
         console.error("Error stopping outreach:", error);
-        return { success: false, error };
     }
 }
+

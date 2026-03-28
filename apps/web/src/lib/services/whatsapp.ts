@@ -394,6 +394,7 @@ export const WhatsappService = {
                                     aiActive: "true",
                                     status: "NEW", 
                                     stageId: initialStageId,
+                                    outreachStatus: "completed"
                                 });
                                 console.log(`👤 [Baileys] Lead criado com sucesso: ${lead.id}`);
                             } else {
@@ -593,8 +594,14 @@ export const WhatsappService = {
                                                             await CRMRepository.getStageByName(lead.organizationId, "Atendimento");
                                     
                                     if (inServiceStageId && lead.stageId !== inServiceStageId) {
-                                        console.log(`🚀 [Baileys] Movendo lead ${lead.name} para estágio de atendimento.`);
-                                        await (LeadRepository as any).updateSystem(lead.id, { stageId: inServiceStageId });
+                                        console.log(`🚀 [Baileys] Movendo lead ${lead.name} para estágio de atendimento e marcando outreach como concluído.`);
+                                        await (LeadRepository as any).updateSystem(lead.id, { 
+                                            stageId: inServiceStageId,
+                                            outreachStatus: "completed"
+                                        });
+                                    } else {
+                                        // Apenas marca como completed
+                                        await (LeadRepository as any).updateSystem(lead.id, { outreachStatus: "completed" });
                                     }
 
                                     // Detectar qualificação automática
