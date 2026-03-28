@@ -78,7 +78,7 @@ export const OutreachService = {
 
             // 4. Montar mensagem inicial personalizada com ScriptService (Tayná)
             const { ScriptService } = await import("./script");
-            const messageBody = ScriptService.getInitialMessage();
+            const messageBody = await ScriptService.getInitialMessage(agent.config || {}, pendingLead);
 
             // 5. Enviar via WhatsappService
             await WhatsappService.sendText(
@@ -94,7 +94,6 @@ export const OutreachService = {
             await LeadRepository.updateSystem(pendingLead.id, {
                 outreachStatus: "completed",
                 lastOutreachAt: new Date(),
-                lastContactAt: new Date(),
                 status: "CONTACTED",
                 conversationState: "WAITING_REPLY", 
                 stageId: targetStageId || pendingLead.stageId

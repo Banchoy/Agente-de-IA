@@ -1,28 +1,48 @@
-import { LeadRepository } from "../repositories/lead";
-
-function getGreeting(): string {
-  const hour = new Intl.DateTimeFormat('pt-BR', {
-    timeZone: 'America/Sao_Paulo',
-    hour: 'numeric',
-    hour12: false
-  }).format(new Date());
-  
-  const h = parseInt(hour);
-  if (h >= 5 && h < 12) return "bom dia";
-  if (h >= 12 && h < 18) return "boa tarde";
-  return "boa noite";
-}
+import { AIService } from "./ai";
 
 export const ScriptService = {
-  getInitialMessage: () => {
-    const greeting = getGreeting();
-    const openings = [
-      "Oi, tudo bem?",
-      "Tudo bem?",
-      "Tudo joia?",
-      "Opa, tudo bem?"
-    ];
-    return openings[Math.floor(Math.random() * openings.length)];
+  getInitialMessage: async (agentConfig: any, lead: any) => {
+    // 1. Template explícito vindo da prospecção
+    if (lead?.metaData?.initialMessage) {
+        let msg = lead.metaData.initialMessage;
+        const firstName = lead.name ? lead.name.split(" ")[0] : "";
+        return msg.replace(/\{nome\}/gi, firstName || "");
+    }
+
+    // 2. IA Gerando saudação dinamicamente com base no 'prompt' do agente
+    const leadNiche = lead?.metaData?.niche || "seu negócio";
+    const targetName = lead?.name?.split(" ")[0] || "";
+    
+    const systemPrompt = `
+Você é um agente de vendas conversando pelo WhatsApp.
+Sua configuração principal (Prompt do Usuário) dita como você deve agir:
+"""
+${agentConfig.prompt || "Inicie a conversa de forma amigável."}
+"""
+
+DADOS DO LEAD:
+- Nome/Empresa: ${targetName}
+- Nicho: ${leadNiche}
+
+TAREFA: 
+Gere a PRIMEIRA MENSAGEM que você irá enviar para este lead no WhatsApp.
+- Analise o "Prompt do Usuário" acima minuciosamente. Se ele pedir para você sempre começar com uma frase específica (ex: "Olá, bom dia..."), FAÇA EXATAMENTE COMO PEDIDO.
+- Seja 100% natural, como um humano digitando.
+- NÃO escreva "Mensagem:" ou coloque aspas, retorne APENAS o texto puro.
+- Tente usar os dados do lead para personalizar, mas seja sucinto. Do contrário, apenas cumpra a instrução principal de abertura.
+`.trim();
+
+    try {
+        const result = await AIService.generateResilientResponse(systemPrompt, [], 0.7);
+        let cleaned = result.replace(/```json|```/g, "").trim();
+        if (cleaned.startsWith('"') && cleaned.endsWith('"')) {
+            cleaned = cleaned.substring(1, cleaned.length - 1);
+        }
+        return cleaned;
+    } catch (e) {
+        console.error("Erro ao gerar mensagem inicial via IA, usando fallback:", e);
+        return targetName ? `Oi ${targetName}, tudo bem?` : "Oi, tudo bem?";
+    }
   },
 
   /**
