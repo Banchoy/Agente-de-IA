@@ -24,7 +24,8 @@ export async function POST(req: Request) {
         }
 
         const customData = payload.customData || {};
-        const configNiche = customData.config?.niche;
+        const fallbackNiche = url.searchParams.get("niche") || "";
+        const configNiche = fallbackNiche || customData.config?.niche;
 
         console.log(`📥 [Apify Webhook] Extração concluída para Org ${orgId}. Buscando dataset ${datasetId}...`);
 

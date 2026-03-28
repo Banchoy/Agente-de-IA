@@ -40,7 +40,7 @@ export default function ProspectingModal({ isOpen, onClose }: ProspectingModalPr
 
         if (view === "progress" && runId) {
             interval = setInterval(async () => {
-                const res = await getProspectingProgress(runId);
+                const res = await getProspectingProgress(runId, niche);
                 if (res.success) {
                     setFoundLeads(res.leads || []);
                     setProgressStatus(res.status === "RUNNING" ? "Extraindo dados do Google Maps..." : "Finalizado!");

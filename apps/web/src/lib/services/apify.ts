@@ -13,7 +13,7 @@ export const ApifyService = {
 
         const finalBaseUrl = baseUrl || process.env.NEXT_PUBLIC_APP_URL || "https://agente-de-ia-production-1081.up.railway.app";
         // Webhook que o Apify vai chamar quando terminar a extração com sucesso:
-        const webhookUrl = `${finalBaseUrl}/api/webhooks/apify?orgId=${orgId}`;
+        const webhookUrl = `${finalBaseUrl}/api/webhooks/apify?orgId=${orgId}&niche=${encodeURIComponent(config.niche || "")}`;
         
         // Passar os metadados na query do webhook ou na payload, optamos pela payload do webhook e query no actor
         // Actor default de Gmaps muito usado: compass/google-maps-extractor

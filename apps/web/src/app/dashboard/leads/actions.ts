@@ -270,6 +270,8 @@ export async function startMassOutreach(stageId: string) {
             l.outreachStatus !== "pending"
         );
 
+        console.log(`[MassOutreach] Estágio: ${stageId} | Leads Totais da Org: ${allLeads.length} | Elegíveis: ${leadsToContact.length}`);
+
         if (leadsToContact.length === 0) {
             return { success: false, error: "Nenhum lead elegível com telefone nesta coluna." };
         }
@@ -338,7 +340,7 @@ export async function processProspecting(mapsUrl: string, config: {
 /**
  * Busca o progresso da prospecção e sincroniza itens parciais no banco.
  */
-export async function getProspectingProgress(runId: string) {
+export async function getProspectingProgress(runId: string, clientNiche?: string) {
     const { orgId: clerkOrgId } = await auth();
     if (!clerkOrgId) return { success: false, error: "Unauthorized" };
 
@@ -350,7 +352,7 @@ export async function getProspectingProgress(runId: string) {
         if (!run) return { success: false, error: "Run not found" };
 
         const items = await ApifyService.getDatasetItems(run.defaultDatasetId);
-        const configNiche = run.customData?.config?.niche;
+        const configNiche = clientNiche || run.customData?.config?.niche;
         
         // Garantir estrutura de CRM
         const { CRMRepository } = await import("@/lib/repositories/crm");
@@ -361,7 +363,11 @@ export async function getProspectingProgress(runId: string) {
             const phone = item.phone || item.phoneNumber || item.phoneNumberStandardized;
             if (!phone) continue;
 
-            const cleanPhone = phone.toString().replace(/\D/g, "");
+            let cleanPhone = phone.toString().replace(/\D/g, "");
+            if (cleanPhone.length === 10 || cleanPhone.length === 11) {
+                if (!cleanPhone.startsWith("55")) cleanPhone = "55" + cleanPhone;
+            }
+            if (cleanPhone && !cleanPhone.startsWith("+")) cleanPhone = "+" + cleanPhone;
             
             // Verifica se o lead existe
             const existing = await (LeadRepository as any).getByPhoneSystem(cleanPhone, org.id);
