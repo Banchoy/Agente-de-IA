@@ -12,6 +12,7 @@ export const ScriptService = {
     // 2. IA Gerando saudação dinamicamente com base no 'prompt' do agente
     const leadNiche = lead?.metaData?.niche || "seu negócio";
     const targetName = lead?.name?.split(" ")[0] || "";
+    const temperature = agentConfig.temperature !== undefined ? parseFloat(agentConfig.temperature) : 0.7;
     
     const systemPrompt = `
 Você é um agente de vendas conversando pelo WhatsApp.
@@ -26,10 +27,11 @@ DADOS DO LEAD:
 
 TAREFA: 
 Gere a PRIMEIRA MENSAGEM que você irá enviar para este lead no WhatsApp.
-- Analise o "Prompt do Usuário" acima minuciosamente. Se ele pedir para você sempre começar com uma frase específica (ex: "Olá, bom dia..."), FAÇA EXATAMENTE COMO PEDIDO.
-- Seja 100% natural, como um humano digitando.
+- Analise o "Prompt do Usuário" acima minuciosamente. 
+- Se o prompt definir "Fases", esta é a FASE 1 (Abertura). Você NÃO DEVE avançar ou misturar as regras da Fase 2, 3, etc. Apenas inicie o script.
+- Nível de Criatividade (${temperature}): ${temperature < 0.5 ? "SIGA O ROTEIRO I-P-S-I-S L-I-T-T-E-R-I-S. Não invente nada fora das orientações da fase inicial." : "Seja natural, adaptando a primeira mensagem com o nicho do cliente, mas mantendo a intenção."}
+- Se ele pedir para você sempre começar com uma frase específica (ex: "Olá, bom dia..."), FAÇA EXATAMENTE COMO PEDIDO e termine a mensagem aí, esperando a pessoa responder.
 - NÃO escreva "Mensagem:" ou coloque aspas, retorne APENAS o texto puro.
-- Tente usar os dados do lead para personalizar, mas seja sucinto. Do contrário, apenas cumpra a instrução principal de abertura.
 `.trim();
 
     try {

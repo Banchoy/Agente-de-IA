@@ -553,7 +553,8 @@ export const WhatsappService = {
                                     config,
                                     lead,
                                     formattedHistory,
-                                    scriptInstruction
+                                    scriptInstruction,
+                                    config.temperature !== undefined ? parseFloat(config.temperature) : 0.7
                                 );
 
                                 const aiResponse = adaptiveResult.body;
