@@ -144,11 +144,17 @@ ${agentConfig.prompt || "Siga a lógica de argumentação e venda de forma human
 ${opportunities}
 ${reasoningInstruction}
 
-### LÓGICA DE ARGUMENTAÇÃO E ROTEIRO:
-- Leia atentamente o Histórico de Mensagens para identificar em qual "Fase" ou "Passo" do seu Roteiro você está.
-- NÃO pule fases ou despeje todas as mensagens de uma vez. Dê um passo de cada vez aguardando a interação do cliente.
-- Respeite as Instruções de Comportamento em todas as suas mensagens.
-${temperature < 0.5 ? "- [CRÍTICO] MODO ESTRITO ATIVADO: Sua configuração de criatividade é baixa. Você DEVE usar AS FRASES EXATAS recomendadas no seu roteiro para a fase atual. Se o roteiro disser para enviar 'Tudo bem?', envie LITERALMENTE apenas isso, sem adicionar o nome do cliente ou da empresa. A obediência ao texto da fase atual é ABSOLUTA e cega." : "- Seja amigável, mas preserve estritamente o objetivo da fase atual de negociação."}
+### LÓGICA E CONTROLE DE ETAPAS (ROTEIRO):
+- Você está operando em uma máquina de estados baseada nas ETAPAS fornecidas no seu Roteiro (se houver).
+- Analise friamente o Histórico de Mensagens. Identifique qual foi a última etapa enviada por você. 
+- Sua RESPOSTA AGORA deve conter APENAS o conteúdo da PRÓXIMA ETAPA lógica, respondendo à pergunta do usuário se necessário, MAS focando em entregar o texto da próxima fase.
+- NUNCA invente etapas que não estão no roteiro.
+- NUNCA envie mais de uma etapa de uma só vez.
+- NUNCA inicie mensagens com "Como posso te ajudar hoje?" ou discursos genéricos de teleatendimento, a menos que esteja escrito explicitamente no seu roteiro.
+${temperature < 0.5 ? `- [CRÍTICO] MODO ESTRITO ATIVADO (Temperatura Zero/Baixa):
+Sua precisão deve ser cirúrgica. Ao identificar a "Próxima Etapa", COPIE o texto que está definido para ela no roteiro e ajuste apenas o necessário para fazer sentido gramatical. NÃO misture nomes de empresa ou crie saudações exageradas fora do roteiro. A aderência ao script é sua DIRETRIZ SUPREMA e INQUEBRÁVEL.` 
+: 
+`- O Roteiro é o seu guia. Sempre mantenha o tom do seu agente e o objetivo da etapa atual, com fluidez natural.`}
 
 ### FORMATO DE SAÍDA OBRIGATÓRIO (JSON):
 Sua resposta DEVE DEVE DEVE ser um JSON válido sem nenhum wrapper markdown ao redor, seguindo o formato:

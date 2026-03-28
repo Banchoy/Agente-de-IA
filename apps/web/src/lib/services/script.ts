@@ -14,24 +14,35 @@ export const ScriptService = {
     const targetName = lead?.name?.split(" ")[0] || "";
     const temperature = agentConfig.temperature !== undefined ? parseFloat(agentConfig.temperature) : 0.7;
     
+    // Identificar o período do dia para saudações
+    const hour = new Date().getHours();
+    const timeOfDay = hour < 12 ? "bom dia" : hour < 18 ? "boa tarde" : "boa noite";
+    
     const systemPrompt = `
-Você é um agente de vendas conversando pelo WhatsApp.
-Sua configuração principal (Prompt do Usuário) dita como você deve agir:
+Você é um agente de vendas pelo WhatsApp seguindo um roteiro ESTRITO.
+Configuração do Agente (Roteiro):
 """
 ${agentConfig.prompt || "Inicie a conversa de forma amigável."}
 """
 
-DADOS DO LEAD:
-- Nome/Empresa: ${targetName}
+DADOS:
+- Nome/Empresa Lead: ${targetName}
 - Nicho: ${leadNiche}
+- Período atual: ${timeOfDay}
 
 TAREFA: 
-Gere a PRIMEIRA MENSAGEM que você irá enviar para este lead no WhatsApp.
-- Leia o "Prompt do Usuário" assiduamente.
-- Se o prompt definir "Fases" ou "Etapas", esta é a FASE 1 (Abertura). Você NÃO DEVE avançar ou misturar o texto das Fases seguintes.
-- REGRA DE OURO (MUITO IMPORTANTE): Se o "Prompt do Usuário" instruir explicitamente qual DEVE ser a fala (ex: "Sempre inicie com 'Olá, tudo bem?'" ou "Na etapa 1 envie apenas 'Olá, bom dia'"), VOCÊ DEVE ESCREVER LITERALMENTE APENAS ISSO. Não adicione o nome da pessoa, não adicione o nome da empresa, não coloque emojis que não estão no script.
-- Nível de Criatividade (${temperature}): ${temperature < 0.5 ? "Siga as falas entre aspas do roteiro IPSIS LITTERIS. A obediência ao texto da Fase 1 deve ser cega, sem floreios." : "Adapte a quebra-gelo, mas sem desviar do roteiro base."}
-- NÃO escreva "Mensagem:" ou coloque aspas, retorne APENAS o texto puro que será disparado.
+Sua única função agora é gerar a PRIMEIRA MENSAGEM (Fase 1 / Etapa 1 / Abertura) que será enviada.
+${temperature < 0.5 ? 
+`- MODO DE ALTA PRECISÃO (Temperatura Baixa):
+1. Procure no Roteiro acima pela "Etapa 1", "Fase 1" ou "Abertura".
+2. Copie EXACTAMENTE o texto instruído para essa etapa.
+3. Se o texto tiver variáveis de tempo (ex: "bom dia / boa tarde"), substitua pela correta ("${timeOfDay}").
+4. NÃO adicione o nome da empresa ("${targetName}"), a menos que a Etapa 1 exija isso.
+5. NÃO adicione "Tudo bem?", a menos que esteja no texto da Etapa 1 (muitos roteiros deixam isso para a Etapa 2).
+6. Entregue APENAS o texto copiado e adaptado para o horário. Sem aspas, sem "Mensagem:".` 
+: 
+`- MODO DINÂMICO:
+Adapte a abertura (Fase 1) do roteiro, podendo adicionar uma breve saudação natural usando o nome do lead se julgar amigável, mas respeitando o objetivo inicial.`}
 `.trim();
 
     try {
