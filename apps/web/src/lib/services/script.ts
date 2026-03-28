@@ -13,9 +13,10 @@ export const ScriptService = {
     const leadNiche = lead?.metaData?.niche || "seu negócio";
     const targetName = lead?.name?.split(" ")[0] || "";
     const temperature = agentConfig.temperature !== undefined ? parseFloat(agentConfig.temperature) : 0.7;
-    
-    // Identificar o período do dia para saudações
-    const hour = new Date().getHours();
+
+    // Identificar o período do dia para saudações usando o fuso horário de São Paulo
+    const spTime = new Date().toLocaleString("en-US", { timeZone: "America/Sao_Paulo" });
+    const hour = new Date(spTime).getHours();
     const timeOfDay = hour < 12 ? "bom dia" : hour < 18 ? "boa tarde" : "boa noite";
     
     const systemPrompt = `
@@ -28,7 +29,8 @@ ${agentConfig.prompt || "Inicie a conversa de forma amigável."}
 DADOS:
 - Nome/Empresa Lead: ${targetName}
 - Nicho: ${leadNiche}
-- Período atual: ${timeOfDay}
+- Fuso Horário de Referência: São Paulo, Brasil (Hora local: ${hour}h)
+- Saudação correta para AGORA: ${timeOfDay}
 
 TAREFA: 
 Sua única função agora é gerar a PRIMEIRA MENSAGEM (Fase 1 / Etapa 1 / Abertura) que será enviada.

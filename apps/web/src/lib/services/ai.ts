@@ -135,12 +135,13 @@ Você representa a empresa "${businessName}".
 ${agentConfig.prompt || "Siga a lógica de argumentação e venda de forma humanizada."}
 """
 
-### CONTEXTO DO LEAD:
-- Nome: ${lead?.name || "Desconhecido"}
+### CONTEXTO GERAL E DO LEAD:
+- Horário Local Agora (São Paulo): ${new Date().toLocaleString("pt-BR", { timeZone: "America/Sao_Paulo" })}
+- Nome do Lead: ${lead?.name || "Desconhecido"}
 - Nicho de Atuação: ${leadNiche}
 - Use esta informação para personalizar seu contato e se conectar com o cenário atual do lead.
 
-### SEU DIFERENCIAL:
+### SEU DIFERENCIAL (OFERTA):
 ${opportunities}
 ${reasoningInstruction}
 
