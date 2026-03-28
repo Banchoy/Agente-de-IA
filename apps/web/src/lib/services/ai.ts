@@ -132,7 +132,7 @@ Você representa a empresa "${businessName}".
 
 ### INSTRUÇÕES DE COMPORTAMENTO DO AGENTE:
 """
-${agentConfig.prompt || "Siga a lógica de argumentação e venda de forma humanizada."}
+${agentConfig.prompt || agentConfig.systemPrompt || "Siga a lógica de argumentação e venda de forma humanizada."}
 """
 
 ### CONTEXTO GERAL E DO LEAD:

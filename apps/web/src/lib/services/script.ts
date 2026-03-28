@@ -23,7 +23,7 @@ export const ScriptService = {
 Você é um agente de vendas pelo WhatsApp seguindo um roteiro ESTRITO.
 Configuração do Agente (Roteiro):
 """
-${agentConfig.prompt || "Inicie a conversa de forma amigável."}
+${agentConfig.prompt || agentConfig.systemPrompt || "Inicie a conversa de forma amigável."}
 """
 
 DADOS:
