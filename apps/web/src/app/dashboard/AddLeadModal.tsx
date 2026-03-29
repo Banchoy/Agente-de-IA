@@ -150,7 +150,7 @@ export default function AddLeadModal({ isOpen, onClose, onAdd }: AddLeadModalPro
                             </div>
 
                             <div className="space-y-2">
-                                <Label className="text-[10px] font-black uppercase text-zinc-400 tracking-widest px-1">Nicho (Para IA)</Label>
+                                <Label className="text-[10px] font-black uppercase text-zinc-400 tracking-widest px-1">Tag de Nicho (CRM / IA)</Label>
                                 <Input
                                     required
                                     value={formData.niche}

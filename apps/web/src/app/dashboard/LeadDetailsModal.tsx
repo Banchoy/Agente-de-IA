@@ -172,7 +172,7 @@ export default function LeadDetailsModal({ lead, isOpen, onClose, onSave }: Lead
                                         <Input value={formData.source || ""} onChange={(e) => handleChange("source", e.target.value)} className="bg-white border-zinc-200 rounded-xl h-11 font-medium" />
                                     </div>
                                     <div className="space-y-2">
-                                        <Label className="text-[10px] font-black uppercase text-zinc-400 tracking-widest">Nicho (Para IA)</Label>
+                                        <Label className="text-[10px] font-black uppercase text-zinc-400 tracking-widest">Tag de Nicho (CRM / IA)</Label>
                                         <Input value={formData.niche || ""} onChange={(e) => handleChange("niche", e.target.value)} placeholder="Ex: Consórcio, Imobiliária" className="bg-white border-zinc-200 rounded-xl h-11 font-medium" />
                                     </div>
                                     <div className="col-span-2 grid grid-cols-3 gap-4 p-4 bg-zinc-100/50 rounded-2xl border border-zinc-100">

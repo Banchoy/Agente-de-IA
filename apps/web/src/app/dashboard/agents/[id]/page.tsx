@@ -108,15 +108,29 @@ export default async function AgentDetailsPage({ params }: { params: Promise<{ i
 
                             <div className="space-y-4">
                                 <div className="flex items-center justify-between px-1">
-                                    <h3 className="text-xs font-black text-primary uppercase tracking-[0.2em]">Diretrizes do Sistema (Prompt)</h3>
+                                    <h3 className="text-xs font-black text-primary uppercase tracking-[0.2em]">Prompt de Prospecção (Outbound)</h3>
                                     <span className="text-[10px] text-muted-foreground font-bold lowercase opacity-40 italic">instruções de comportamento</span>
                                 </div>
                                 <textarea
                                     name="systemPrompt"
                                     defaultValue={config.systemPrompt || ""}
                                     placeholder="Aja como um especialista em..."
-                                    rows={10}
+                                    rows={8}
                                     required
+                                    className="w-full rounded-[2rem] border-2 border-border bg-background/50 px-8 py-6 text-sm font-medium text-foreground focus:border-primary focus:outline-none transition-all resize-none font-mono leading-relaxed"
+                                ></textarea>
+                            </div>
+
+                            <div className="space-y-4">
+                                <div className="flex items-center justify-between px-1">
+                                    <h3 className="text-xs font-black text-primary uppercase tracking-[0.2em]">Script de Receptivo (Inbound - Opcional)</h3>
+                                    <span className="text-[10px] text-muted-foreground font-bold lowercase opacity-40 italic">quando o cliente chama primeiro</span>
+                                </div>
+                                <textarea
+                                    name="inboundPrompt"
+                                    defaultValue={config.inboundPrompt || ""}
+                                    placeholder="Deixe vazio para usar o prompt padrão ou defina como responder quando o cliente chamar primeiro..."
+                                    rows={8}
                                     className="w-full rounded-[2rem] border-2 border-border bg-background/50 px-8 py-6 text-sm font-medium text-foreground focus:border-primary focus:outline-none transition-all resize-none font-mono leading-relaxed"
                                 ></textarea>
                             </div>

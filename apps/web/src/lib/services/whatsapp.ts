@@ -391,6 +391,7 @@ export const WhatsappService = {
                                     organizationId: org.id,
                                     name: phone,
                                     phone: phone,
+                                    source: "WhatsApp (Inbound)",
                                     aiActive: "true",
                                     status: "NEW", 
                                     stageId: initialStageId,

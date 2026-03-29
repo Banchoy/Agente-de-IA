@@ -125,6 +125,10 @@ Your response MUST be a valid JSON object with the following keys:
         const successCase = agentConfig.successCase || `
 Olha, para você ter uma ideia, a gente tem um cliente desse mesmo segmento que triplicou as vendas usando nossa automação.`.trim();
 
+        const systemPromptBase = (lead?.source === "WhatsApp (Inbound)" && agentConfig.inboundPrompt)
+            ? agentConfig.inboundPrompt
+            : (agentConfig.prompt || agentConfig.systemPrompt || "Siga a lógica de argumentação e venda de forma humanizada.");
+
         const systemPrompt = `
 Você é um(a) ${roleName} altamente assertivo(a) chamado(a) ${agentName}.
 Sua missão é converter leads através de uma conversa natural e amigável no WhatsApp.
@@ -132,14 +136,14 @@ Você representa a empresa "${businessName}".
 
 ### INSTRUÇÕES DE COMPORTAMENTO DO AGENTE:
 """
-${agentConfig.prompt || agentConfig.systemPrompt || "Siga a lógica de argumentação e venda de forma humanizada."}
+${systemPromptBase}
 """
 
 ### CONTEXTO GERAL E DO LEAD:
 - Horário Local Agora (São Paulo): ${new Date().toLocaleString("pt-BR", { timeZone: "America/Sao_Paulo" })}
 - Nome do Lead: ${lead?.name || "Desconhecido"}
-- Nicho de Atuação: ${leadNiche}
-- Use esta informação para personalizar seu contato e se conectar com o cenário atual do lead.
+- Tag de Nicho (CRM): [NICHO] = "${leadNiche}"
+- [CRÍTICO] Sempre que se referir ao setor, negócio ou mercado do cliente, utilize o termo exato definido na tag [NICHO]. Esta informação é a "âncora" da ficha dele no sistema e deve ser usada para personalizar seu contato e se conectar com o cenário atual do lead.
 
 ### SEU DIFERENCIAL (OFERTA):
 ${opportunities}

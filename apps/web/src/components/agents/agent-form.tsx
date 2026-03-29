@@ -134,12 +134,12 @@ export function AgentForm({ availableSessions, freeModels, defaultInstanceName }
                 </div>
 
                 <div className="space-y-3">
-                    <label htmlFor="systemPrompt" className="text-xs font-black text-muted-foreground uppercase tracking-widest px-1">Prompt do Sistema (Personalidade)</label>
+                    <label htmlFor="systemPrompt" className="text-xs font-black text-muted-foreground uppercase tracking-widest px-1">Prompt do Sistema (Prospecção)</label>
                     <textarea
                         name="systemPrompt"
                         id="systemPrompt"
                         placeholder="ex: você é um representante comercial do Grupo Dream Store..."
-                        rows={8}
+                        rows={6}
                         defaultValue={`Sua missão é atuar como um representante humano do Grupo Dream Store.
 
 DIRETRIZES:
@@ -151,7 +151,21 @@ DIRETRIZES:
                         className="w-full rounded-3xl border border-border bg-background px-6 py-5 text-sm font-bold text-foreground focus:border-primary focus:outline-none transition-all resize-none shadow-inner placeholder:text-muted-foreground/30"
                     ></textarea>
                     <p className="text-[10px] text-muted-foreground px-1 leading-relaxed lowercase italic">
-                        instrua o agente detalhadamente sobre como ele deve se comportar, tom de voz e o que ele pode ou não dizer.
+                        instrua o agente detalhadamente sobre como ele deve se comportar na prospecção ativa.
+                    </p>
+                </div>
+
+                <div className="space-y-3">
+                    <label htmlFor="inboundPrompt" className="text-xs font-black text-muted-foreground uppercase tracking-widest px-1">Script de Receptivo (Inbound - Opcional)</label>
+                    <textarea
+                        name="inboundPrompt"
+                        id="inboundPrompt"
+                        placeholder="Deixe vazio para usar o prompt padrão ou defina como responder quando o cliente chamar primeiro..."
+                        rows={6}
+                        className="w-full rounded-3xl border border-border bg-background px-6 py-5 text-sm font-bold text-foreground focus:border-primary focus:outline-none transition-all resize-none shadow-inner placeholder:text-muted-foreground/30"
+                    ></textarea>
+                    <p className="text-[10px] text-muted-foreground px-1 leading-relaxed lowercase italic">
+                        instruções específicas para quando o cliente iniciar a conversa. se vazio, usará o prompt de prospecção.
                     </p>
                 </div>
             </div>

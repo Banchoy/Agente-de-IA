@@ -20,6 +20,7 @@ export async function createAgent(formData: FormData) {
     const marketOportunities = formData.get("marketOportunities") as string;
     const successCase = formData.get("successCase") as string;
     const gender = formData.get("gender") as string || "female";
+    const inboundPrompt = formData.get("inboundPrompt") as string;
 
     if (!name || !provider || !model || !systemPrompt) {
         throw new Error("Missing required fields");
@@ -41,6 +42,7 @@ export async function createAgent(formData: FormData) {
             marketOportunities,
             successCase,
             gender,
+            inboundPrompt,
             temperature: 0.7,
             whatsappResponse: true
         }
@@ -69,6 +71,7 @@ export async function updateAgent(id: string, formData: FormData) {
     const marketOportunities = formData.get("marketOportunities") as string;
     const successCase = formData.get("successCase") as string;
     const gender = formData.get("gender") as string || "female";
+    const inboundPrompt = formData.get("inboundPrompt") as string;
 
     await AgentRepository.update(id, {
         name,
@@ -83,6 +86,7 @@ export async function updateAgent(id: string, formData: FormData) {
             marketOportunities,
             successCase,
             gender,
+            inboundPrompt,
             temperature,
             testMode,
             testNumber,

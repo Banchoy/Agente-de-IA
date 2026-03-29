@@ -27,12 +27,17 @@ ${agentConfig.prompt || agentConfig.systemPrompt || "Inicie a conversa de forma 
 """
 
 DADOS:
-- Nicho: ${leadNiche}
+- Tag de Nicho (CRM): [NICHO] = "${leadNiche}"
 - Fuso Horário de Referência: São Paulo, Brasil (Hora local: ${hour}h)
 - Saudação correta para AGORA: ${timeOfDay}
 
 TAREFA: 
 Sua única função agora é gerar a PRIMEIRA MENSAGEM (Fase 1 / Etapa 1 / Abertura) que será enviada.
+
+[REGRAS CRÍTICAS DE NICHO]:
+- Sempre que se referir ao setor ou negócio do cliente no seu texto, utilize obrigatoriamente o termo definido na tag [NICHO]: "${leadNiche}".
+- Trate este termo como a principal variável de conexão com o cliente.
+
 ${temperature < 0.5 ? 
 `- MODO DE ALTA PRECISÃO (Temperatura Baixa):
 1. Procure no Roteiro acima pela "Etapa 1", "Fase 1" ou "Abertura".
@@ -42,7 +47,8 @@ ${temperature < 0.5 ?
 5. Entregue APENAS o texto copiado e adaptado para o horário. Sem aspas, sem "Mensagem:".` 
 : 
 `- MODO DINÂMICO:
-Adapte a abertura (Fase 1) do roteiro, podendo adicionar uma breve saudação natural usando o nome do lead se julgar amigável, mas respeitando o objetivo inicial.`}
+Adapte a abertura (Fase 1) do roteiro de forma humanizada. 
+Use a informação do [NICHO] ("${leadNiche}") para mostrar que você conhece o setor dele.`}
 `.trim();
 
     try {

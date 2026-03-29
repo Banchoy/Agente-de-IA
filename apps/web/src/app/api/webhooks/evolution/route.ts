@@ -89,10 +89,16 @@ export async function POST(req: NextRequest) {
 
         // 7. Generate Structured AI Response
         console.log(`🤖 Agent "${whatsappAgent.name}" processing logic for state: ${lead.conversationState}`);
+        
+        // Select prompt: Use inboundPrompt if lead is Inbound and it exists, else fallback to systemPrompt
+        const systemPromptToUse = (lead.source === "WhatsApp (Inbound)" && config.inboundPrompt) 
+            ? config.inboundPrompt 
+            : (config.systemPrompt || "Você é um assistente útil.");
+
         const structuredResult = await AIService.generateStructuredResponse(
             config.provider || "google",
             config.model || "gemini-1.5-flash",
-            config.systemPrompt || "Você é um assistente útil.",
+            systemPromptToUse,
             [...formattedHistory, { role: "user", content: text }],
             lead.conversationState || "START",
             lead.metaData,
