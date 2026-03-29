@@ -21,6 +21,7 @@ export async function createAgent(formData: FormData) {
     const successCase = formData.get("successCase") as string;
     const gender = formData.get("gender") as string || "female";
     const inboundPrompt = formData.get("inboundPrompt") as string;
+    const temperature = formData.get("temperature") ? parseFloat(formData.get("temperature") as string) : 0.7;
 
     if (!name || !provider || !model || !systemPrompt) {
         throw new Error("Missing required fields");
@@ -43,7 +44,7 @@ export async function createAgent(formData: FormData) {
             successCase,
             gender,
             inboundPrompt,
-            temperature: 0.7,
+            temperature,
             whatsappResponse: true
         }
     });
@@ -61,7 +62,7 @@ export async function updateAgent(id: string, formData: FormData) {
     const provider = formData.get("provider") as string;
     const model = formData.get("model") as string;
     const systemPrompt = formData.get("systemPrompt") as string;
-    const temperature = parseFloat(formData.get("temperature") as string || "0.7");
+    const temperature = formData.get("temperature") ? parseFloat(formData.get("temperature") as string) : 0.7;
     const testMode = formData.get("testMode") === "on";
     const testNumber = formData.get("testNumber") as string;
     const whatsappResponse = formData.get("whatsappResponse") === "on";

@@ -328,7 +328,7 @@ export default async function AgentDetailsPage({ params }: { params: Promise<{ i
                             </div>
 
                             <div className="space-y-4 pt-4 border-t border-border/50">
-                                <TemperatureSlider defaultValue={config.temperature || 0.7} />
+                                <TemperatureSlider defaultValue={config.temperature ?? 0.7} />
                             </div>
                         </div>
 
