@@ -26,9 +26,8 @@ export const ScraperService = {
 
             // 2. Use Gemini to extract business list
             const systemPrompt = `Você é um extrator de dados especialista. Analise o HTML/Texto de uma página do Google Maps e extraia uma lista de empresas.
-            Para cada empresa, tente encontrar: Nome, Telefone (formato internacional), Website, Categoria e Endereço.
-            Retorne APENAS um JSON array de objetos. Se não encontrar nada, retorne [].
-            Exemplo: [{"name": "Empresa X", "phone": "+5511999999999", "website": "https://x.com", "category": "Restaurante", "address": "Rua A, 123"}]`;
+            Para cada empresa, tente encontrar: Nome, Telefone (formato completo com DDI, ex: +1973...), Website, Categoria e Endereço.
+            Retorne APENAS um JSON array de objetos. Se não encontrar nada, retorne [].`;
 
             const aiResponse = await AIService.generateResponse(
                 "google",
@@ -69,7 +68,7 @@ export const ScraperService = {
             const html = await response.text();
 
             const systemPrompt = `Analise o conteúdo do site e encontre um número de WhatsApp ou telefone de contato.
-            Retorne APENAS o número no formato +55XXXXXXXXXXX ou NADA se não encontrar.`;
+            Retorne APENAS o número no formato internacional completo (ex: +1973...) ou NADA se não encontrar.`;
 
             const aiResponse = await AIService.generateResponse(
                 "google",
@@ -79,7 +78,7 @@ export const ScraperService = {
             );
 
             const phone = aiResponse.trim().replace(/\D/g, "");
-            return phone.length >= 10 ? `+${phone.startsWith("55") ? "" : "55"}${phone}` : undefined;
+            return phone.length >= 10 ? `+${phone}` : undefined;
 
         } catch (error) {
             console.warn(`⚠️ [Scraper] Falha ao acessar site ${url}:`, error);
