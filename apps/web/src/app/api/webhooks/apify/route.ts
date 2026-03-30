@@ -89,29 +89,39 @@ export async function POST(req: Request) {
             }
             if (phone && !phone.startsWith("+")) phone = "+" + phone;
 
-            if (!phone) continue;
+            const email = item.email || item.emails?.[0] || item.contactEmails?.[0] || "";
+
+            // Se não tiver nem telefone nem e-mail, nós ignoramos o lead
+            if (!phone && !email) continue;
 
             try {
-                // UPSERT: Evitar duplicidade por telefone na mesma organização
-                await db.insert(leads)
-                    .values({
-                        organizationId: orgId,
-                        stageId: stageId,
-                        name: leadName,
-                        phone: phone,
-                        email: item.email || item.emails?.[0] || "",
-                        source: "Apify Maps",
-                        metaData: {
-                            ...item,
-                            website: item.website || item.url || "",
-                            niche: configNiche || ""
-                        },
-                        outreachStatus: "idle",
-                        aiActive: "true"
-                    })
-                    .onConflictDoNothing({
-                        target: [leads.phone, leads.organizationId]
-                    });
+                const leadValues = {
+                    organizationId: orgId,
+                    stageId: stageId,
+                    name: leadName,
+                    phone: phone,
+                    email: email,
+                    source: "Apify Maps",
+                    metaData: {
+                        ...item,
+                        website: item.website || item.url || "",
+                        niche: configNiche || ""
+                    },
+                    outreachStatus: "idle",
+                    aiActive: "true"
+                };
+
+                if (phone) {
+                    // UPSERT: Evitar duplicidade por telefone na mesma organização
+                    await db.insert(leads)
+                        .values(leadValues)
+                        .onConflictDoNothing({
+                            target: [leads.phone, leads.organizationId]
+                        });
+                } else {
+                    // Sem telefone (apenas e-mail), insere diretamente
+                    await db.insert(leads).values(leadValues);
+                }
                 savedCount++;
             } catch (err) {
                 console.error(`❌ Erro ao inserir/atualizar lead ${phone}:`, err);

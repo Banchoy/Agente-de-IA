@@ -1,0 +1,66 @@
+[dotenv@17.2.4] injecting env (0) from .env.local -- tip: ⚙️  enable debug logging with { debug: true }
+[dotenv@17.2.4] injecting env (17) from .env -- tip: 👥 sync secrets across teammates & machines: https://dotenvx.com/ops
+{
+  "title": "Consórcio Embracon",
+  "price": null,
+  "categoryName": "Instituição financeira",
+  "address": "Av. Barão de Tatuí, 314 - Vila Florinda, Sorocaba - SP, 18030-000, Brasil",
+  "neighborhood": "Vila Florinda",
+  "street": "Av. Barão de Tatuí, 314",
+  "city": "Sorocaba",
+  "postalCode": "18030-000",
+  "state": "São Paulo",
+  "countryCode": "BR",
+  "website": "https://embracon.com.br/filiais/sorocaba",
+  "phone": "+55 15 3388-2050",
+  "phoneUnformatted": "+551533882050",
+  "claimThisBusiness": false,
+  "location": {
+    "lat": -23.5065844,
+    "lng": -47.4633122
+  },
+  "totalScore": 4.2,
+  "permanentlyClosed": false,
+  "temporarilyClosed": false,
+  "placeId": "ChIJtY9Gr72KxZQR9c5iUKf9ZKo",
+  "categories": [
+    "Instituição financeira"
+  ],
+  "fid": "0x94c58abdaf468fb5:0xaa64fda75062cef5",
+  "cid": "12278217379168833269",
+  "reviewsCount": null,
+  "imagesCount": 7,
+  "imageCategories": [],
+  "scrapedAt": "2026-03-30T19:29:49.861Z",
+  "googleFoodUrl": null,
+  "hotelAds": [],
+  "openingHours": [
+    {
+      "day": "segunda-feira",
+      "hours": "08:00 to 17:00"
+    }
+  ],
+  "peopleAlsoSearch": [],
+  "placesTags": [],
+  "reviewsTags": [],
+  "additionalInfo": {
+    "Acessibilidade": [
+      {
+        "Entrada com acessibilidade para pessoas em cadeira de rodas": true
+      },
+      {
+        "Estacionamento com acessibilidade para pessoas em cadeira de rodas": true
+      }
+    ]
+  },
+  "gasPrices": [],
+  "url": "https://www.google.com/maps/search/?api=1&query=Cons%C3%B3rcio%20Embracon&query_place_id=ChIJtY9Gr72KxZQR9c5iUKf9ZKo",
+  "searchPageUrl": "https://www.google.com.br/maps/search/cons%C3%B3rcio+em+sorocaba/@-23.4700621,-47.5253472,11z/data=!3m1!4b1?entry=ttu&g_ep=EgoyMDI2MDMyNC4wIKXMDSoASAFQAw%3D%3D&hl=pt-BR",
+  "searchString": "consórcio+em+sorocaba",
+  "language": "pt-BR",
+  "inputStartUrl": "https://www.google.com.br/maps/search/cons%C3%B3rcio+em+sorocaba/@-23.4700621,-47.5253472,11z/data=!3m1!4b1?entry=ttu&g_ep=EgoyMDI2MDMyNC4wIKXMDSoASAFQAw%3D%3D",
+  "rank": 1,
+  "isAdvertisement": false,
+  "imageUrl": "https://lh3.googleusercontent.com/gps-cs-s/AHVAweo76Q69dx213lUR4NO5SeirJOzgetn79-lGM3QDKcKrhXNmonS-Pb7TcA_s5VW_Gs988l738OK6e859SvpXsv5pYnkt01NYwH3pB5W3eT23Lx9nykeD5bXEYdaFFYMrKrFF1qsL=w408-h306-k-no",
+  "kgmid": "/g/11b6p3wnfz"
+}

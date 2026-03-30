@@ -33,11 +33,11 @@ export const ApifyService = {
             language: "pt-BR",
             minRating: config.minRating ? parseFloat(config.minRating) : undefined,
             reviewsCount: config.minReviews ? parseInt(config.minReviews) : undefined,
-            // Novos campos para enriquecimento de contatos (e-mail e whatsapp de sites)
+            // Atendimento da solicitação do cliente: tentar puxar os contatos dos websites extraídos.
+            // Para the `compass~crawler-google-places` ou `compass~google-maps-extractor`:
             scrapeWebsites: true,
-            extractEmails: true,
-            extractPhones: true,
-            extraContactInfo: true,
+            extractEmailsAndContacts: true,
+            extractContacts: true,
             // custom fields to pass state
             customData: {
                 orgId,

@@ -317,10 +317,9 @@ export async function processProspecting(mapsUrl: string, config: {
             return { success: false, error: "Chave da API do Apify não configurada no servidor." };
         }
         
-        // Determinar URL base dinâmica
-        const host = (await headers()).get("host");
-        const protocol = host?.includes("localhost") ? "http" : "https";
-        const baseUrl = `${protocol}://${host}`;
+        // Determinar URL base dinâmica baseada primariamente na variável de ambiente.
+        // O `host` header no Railway/Vercel às vezes retorna o domínio interno, o que quebra o Webhook.
+        const baseUrl = process.env.NEXT_PUBLIC_APP_URL || "https://agente-de-ia-production-5eb7.up.railway.app";
 
         // Disparar o Google Maps Extractor do Apify assincronamente (ele responderá no Webhook)
         const run = await ApifyService.startGoogleMapsExtractor(mapsUrl, config, org.id, baseUrl);
