@@ -31,7 +31,7 @@ export default function ProspectingModal({ isOpen, onClose }: ProspectingModalPr
     const [view, setView] = useState<"form" | "progress">("form");
     const [runId, setRunId] = useState<string | null>(null);
     const [progressStatus, setProgressStatus] = useState("Iniciando...");
-    const [foundLeads, setFoundLeads] = useState<{name: string, phone: string}[]>([]);
+    const [foundLeads, setFoundLeads] = useState<{name: string, phone?: string, email?: string}[]>([]);
     const [percent, setPercent] = useState(5);
 
     // Polling Effect
@@ -60,7 +60,7 @@ export default function ProspectingModal({ isOpen, onClose }: ProspectingModalPr
         }
 
         return () => clearInterval(interval);
-    }, [view, runId]);
+    }, [view, runId, niche]);
 
     const handleStart = async () => {
         if (!url) {
@@ -70,6 +70,7 @@ export default function ProspectingModal({ isOpen, onClose }: ProspectingModalPr
 
         try {
             setIsLoading(true);
+            toast.info("Iniciando motores do Google Maps...");
             const res = await processProspecting(url, { 
                 niche, 
                 initialMessage,
@@ -81,6 +82,7 @@ export default function ProspectingModal({ isOpen, onClose }: ProspectingModalPr
             if (res.success && res.runId) {
                 setRunId(res.runId);
                 setView("progress");
+                toast.success("Robôs em campo!");
             } else {
                 toast.error(res.error || "Erro ao iniciar prospecção.");
             }

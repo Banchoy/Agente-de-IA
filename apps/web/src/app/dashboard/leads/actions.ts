@@ -359,40 +359,56 @@ export async function getProspectingProgress(runId: string, clientNiche?: string
 
         // Sincronizar itens parciais (Idempotente)
         for (const item of items) {
-            const phone = item.phone || item.phoneNumber || item.phoneNumberStandardized;
-            if (!phone) continue;
-
-            let cleanPhone = phone.toString().replace(/\D/g, "");
+            const leadName = item.title || item.name || "Lead Maps";
+            
+            // Normalizar Telefone
+            const rawPhone = item.phone || item.phoneNumber || item.phoneNumberStandardized;
+            let cleanPhone = rawPhone ? rawPhone.toString().replace(/\D/g, "") : "";
             if (cleanPhone.length === 10 || cleanPhone.length === 11) {
                 if (!cleanPhone.startsWith("55")) cleanPhone = "55" + cleanPhone;
             }
             if (cleanPhone && !cleanPhone.startsWith("+")) cleanPhone = "+" + cleanPhone;
+
+            // Mapeamento Robusto de E-mail
+            const email = (
+                item.email || 
+                (Array.isArray(item.emails) ? item.emails[0] : item.emails) || 
+                (Array.isArray(item.contactEmails) ? item.contactEmails[0] : item.contactEmails) || 
+                item.contactInfo?.email ||
+                item.contactInfo?.emails?.[0] ||
+                item.emailsFromWebsite?.[0] ||
+                ""
+            ).toLowerCase().trim();
             
-            // Verifica se o lead existe
-            const existing = await (LeadRepository as any).getByPhoneSystem(cleanPhone, org.id);
-            if (!existing) {
-                // Só cria se tivermos um estágio válido (opcional, mas recomendado pela constraint)
-                await (LeadRepository as any).createSystem({
-                    organizationId: org.id,
-                    name: item.title || item.name || "Lead Maps",
-                    phone: cleanPhone,
-                    source: "Google Maps",
-                    stageId: qualificationStageId || null,
-                    metaData: {
-                        ...item,
-                        website: item.website || item.url || "",
-                        niche: configNiche || ""
-                    },
-                    aiActive: "true"
-                });
-            }
+            if (!cleanPhone && !email) continue;
+
+            const leadValues = {
+                organizationId: org.id,
+                name: leadName,
+                phone: cleanPhone || null,
+                email: email || null,
+                source: "Google Maps",
+                stageId: qualificationStageId || null,
+                metaData: {
+                    ...item,
+                    website: item.website || item.url || "",
+                    niche: configNiche || ""
+                },
+                aiActive: "true"
+            };
+
+            await LeadRepository.upsertSystem(leadValues);
         }
 
         return { 
             success: true, 
             status: run.status, 
             itemCount: items.length,
-            leads: items.slice(-3).map((it: any) => ({ name: it.title || it.name, phone: it.phone }))
+            leads: items.slice(-5).map((it: any) => ({ 
+                name: it.title || it.name, 
+                phone: it.phone || it.phoneNumber || "",
+                email: it.email || (Array.isArray(it.emails) ? it.emails[0] : "")
+            }))
         };
     } catch (error: any) {
         console.error("Error getting progress:", error);

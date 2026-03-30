@@ -50,6 +50,42 @@ export const LeadRepository = {
         return newLead;
     },
 
+    upsertSystem: async (data: typeof leads.$inferInsert) => {
+        const { sql } = await import("drizzle-orm");
+        
+        if (data.phone) {
+            // Priority: Phone
+            return await db.insert(leads)
+                .values(data)
+                .onConflictDoUpdate({
+                    target: [leads.phone, leads.organizationId],
+                    set: {
+                        name: data.name,
+                        email: data.email || sql`leads.email`,
+                        metaData: data.metaData,
+                        updatedAt: new Date()
+                    }
+                })
+                .returning();
+        } else if (data.email) {
+            // Fallback: Email
+            return await db.insert(leads)
+                .values(data)
+                .onConflictDoUpdate({
+                    target: [leads.email, leads.organizationId],
+                    set: {
+                        name: data.name,
+                        metaData: data.metaData,
+                        updatedAt: new Date()
+                    }
+                })
+                .returning();
+        }
+        
+        // Se não tiver nenhum dos dois, apenas insere
+        return await db.insert(leads).values(data).returning();
+    },
+
     updateSystem: async (id: string, data: Partial<typeof leads.$inferInsert>) => {
         const [updatedLead] = await db.update(leads)
             .set({ ...data, updatedAt: new Date() })
