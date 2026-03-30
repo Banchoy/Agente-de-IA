@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { leads, stages, pipelines } from "@saas/db";
 import { eq, sql } from "drizzle-orm";
+import { LeadRepository } from "@/lib/repositories/lead";
 
 export async function POST(req: Request) {
     try {
@@ -83,10 +84,7 @@ export async function POST(req: Request) {
             let phone = item.phoneUnformatted || item.phone || item.phoneNumber || "";
             phone = phone.replace(/\D/g, "");
             
-            // Adicionar +55 se for BR e tiver 10 ou 11 digitos, caso não tenha DDI.
-            if (phone.length === 10 || phone.length === 11) {
-                if (!phone.startsWith("55")) phone = "55" + phone;
-            }
+            // Adicionar + se não tiver
             if (phone && !phone.startsWith("+")) phone = "+" + phone;
 
             const email = (
@@ -125,32 +123,7 @@ export async function POST(req: Request) {
                     aiActive: "true"
                 };
 
-                if (phone) {
-                    // UPSERT: Evitar duplicidade por telefone na mesma organização
-                    await db.insert(leads)
-                        .values(leadValues)
-                        .onConflictDoUpdate({
-                            target: [leads.phone, leads.organizationId],
-                            set: { 
-                                email: email || sql`leads.email`,
-                                name: leadName,
-                                metaData: leadValues.metaData,
-                                updatedAt: new Date()
-                            }
-                        });
-                } else if (email) {
-                    // UPSERT por E-mail (caso não tenha telefone)
-                    await db.insert(leads)
-                        .values(leadValues)
-                        .onConflictDoUpdate({
-                            target: [leads.email, leads.organizationId],
-                            set: { 
-                                name: leadName,
-                                metaData: leadValues.metaData,
-                                updatedAt: new Date()
-                            }
-                        });
-                }
+                await LeadRepository.upsertSystem(leadValues);
                 savedCount++;
             } catch (err) {
                 console.error(`❌ Erro ao inserir/atualizar lead:`, err);

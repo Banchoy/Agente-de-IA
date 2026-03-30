@@ -55,7 +55,7 @@ export const LeadRepository = {
         
         if (data.phone) {
             // Priority: Phone
-            return await db.insert(leads)
+            const [lead] = await db.insert(leads)
                 .values(data)
                 .onConflictDoUpdate({
                     target: [leads.phone, leads.organizationId],
@@ -67,9 +67,10 @@ export const LeadRepository = {
                     }
                 })
                 .returning();
+            return lead;
         } else if (data.email) {
             // Fallback: Email
-            return await db.insert(leads)
+            const [lead] = await db.insert(leads)
                 .values(data)
                 .onConflictDoUpdate({
                     target: [leads.email, leads.organizationId],
@@ -80,10 +81,12 @@ export const LeadRepository = {
                     }
                 })
                 .returning();
+            return lead;
         }
         
         // Se não tiver nenhum dos dois, apenas insere
-        return await db.insert(leads).values(data).returning();
+        const [newLead] = await db.insert(leads).values(data).returning();
+        return newLead;
     },
 
     updateSystem: async (id: string, data: Partial<typeof leads.$inferInsert>) => {

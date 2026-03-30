@@ -364,9 +364,6 @@ export async function getProspectingProgress(runId: string, clientNiche?: string
             // Normalizar Telefone
             const rawPhone = item.phone || item.phoneNumber || item.phoneNumberStandardized;
             let cleanPhone = rawPhone ? rawPhone.toString().replace(/\D/g, "") : "";
-            if (cleanPhone.length === 10 || cleanPhone.length === 11) {
-                if (!cleanPhone.startsWith("55")) cleanPhone = "55" + cleanPhone;
-            }
             if (cleanPhone && !cleanPhone.startsWith("+")) cleanPhone = "+" + cleanPhone;
 
             // Mapeamento Robusto de E-mail
