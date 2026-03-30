@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { LayoutDashboard, Users, Settings, History, Bot, MessageSquare, Activity } from "lucide-react";
+import { LayoutDashboard, Users, Settings, History, Bot, MessageSquare, Activity, Mail } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const navItems = [
@@ -26,6 +26,11 @@ const navItems = [
         name: "Chats",
         href: "/dashboard/chats",
         icon: History,
+    },
+    {
+        name: "E-mails",
+        href: "/dashboard/emails",
+        icon: Mail,
     },
     {
         name: "Agentes",

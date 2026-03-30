@@ -215,7 +215,7 @@ export const WhatsappService = {
                     auth: state,
                     printQRInTerminal: false,
                     logger,
-                    browser: Browsers.ubuntu("Chrome"),
+                    browser: ["Android", "Chrome", "20.0.0"],
                     generateHighQualityLinkPreview: true,
                     syncFullHistory: false, // DESATIVADO para evitar OOM (Out of Memory)
                     markOnlineOnConnect: true, // Garante que a sessão apareça como ativa

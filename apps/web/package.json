@@ -8,19 +8,20 @@
     "start": "next start"
   },
   "dependencies": {
-    "next": "15.1.6",
-    "react": "19.0.0",
-    "react-dom": "19.0.0",
-    "@saas/db": "*",
     "@clerk/nextjs": "^6.37.3",
+    "@saas/db": "*",
+    "class-variance-authority": "^0.7.1",
+    "clsx": "^2.1.1",
     "drizzle-orm": "^0.45.1",
-    "postgres": "^3.4.8",
     "ioredis": "^5.10.1",
     "lucide-react": "^0.563.0",
-    "clsx": "^2.1.1",
-    "tailwind-merge": "^3.4.0",
-    "class-variance-authority": "^0.7.1",
+    "next": "15.1.6",
+    "postgres": "^3.4.8",
+    "react": "19.0.0",
+    "react-dom": "19.0.0",
+    "resend": "^6.9.4",
     "sonner": "^2.0.7",
+    "tailwind-merge": "^3.4.0",
     "zod": "^4.3.6"
   }
 }

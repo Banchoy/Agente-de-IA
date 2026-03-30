@@ -33,6 +33,11 @@ export const ApifyService = {
             language: "pt-BR",
             minRating: config.minRating ? parseFloat(config.minRating) : undefined,
             reviewsCount: config.minReviews ? parseInt(config.minReviews) : undefined,
+            // Novos campos para enriquecimento de contatos (e-mail e whatsapp de sites)
+            scrapeWebsites: true,
+            extractEmails: true,
+            extractPhones: true,
+            extraContactInfo: true,
             // custom fields to pass state
             customData: {
                 orgId,
