@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { leads, stages, pipelines } from "@saas/db";
-import { eq } from "drizzle-orm";
+import { eq, sql } from "drizzle-orm";
 
 export async function POST(req: Request) {
     try {
@@ -89,23 +89,37 @@ export async function POST(req: Request) {
             }
             if (phone && !phone.startsWith("+")) phone = "+" + phone;
 
-            const email = item.email || item.emails?.[0] || item.contactEmails?.[0] || "";
+            const email = (
+                item.email || 
+                (Array.isArray(item.emails) ? item.emails[0] : item.emails) || 
+                (Array.isArray(item.contactEmails) ? item.contactEmails[0] : item.contactEmails) || 
+                item.contactInfo?.email ||
+                item.contactInfo?.emails?.[0] ||
+                item.emailsFromWebsite?.[0] ||
+                ""
+            ).toLowerCase().trim();
+
+            const website = item.website || item.url || item.websiteUrl || "";
 
             // Se não tiver nem telefone nem e-mail, nós ignoramos o lead
-            if (!phone && !email) continue;
+            if (!phone && !email) {
+                console.log(`⏩ [Apify Webhook] Lead ${leadName} ignorado (sem contato).`);
+                continue;
+            }
 
             try {
-                const leadValues = {
+                const leadValues: any = {
                     organizationId: orgId,
                     stageId: stageId,
                     name: leadName,
-                    phone: phone,
-                    email: email,
+                    phone: phone || null,
+                    email: email || null,
                     source: "Apify Maps",
                     metaData: {
                         ...item,
-                        website: item.website || item.url || "",
-                        niche: configNiche || ""
+                        website,
+                        niche: configNiche || "",
+                        scrapedAt: new Date().toISOString()
                     },
                     outreachStatus: "idle",
                     aiActive: "true"
@@ -115,16 +129,31 @@ export async function POST(req: Request) {
                     // UPSERT: Evitar duplicidade por telefone na mesma organização
                     await db.insert(leads)
                         .values(leadValues)
-                        .onConflictDoNothing({
-                            target: [leads.phone, leads.organizationId]
+                        .onConflictDoUpdate({
+                            target: [leads.phone, leads.organizationId],
+                            set: { 
+                                email: email || sql`leads.email`,
+                                name: leadName,
+                                metaData: leadValues.metaData,
+                                updatedAt: new Date()
+                            }
                         });
-                } else {
-                    // Sem telefone (apenas e-mail), insere diretamente
-                    await db.insert(leads).values(leadValues);
+                } else if (email) {
+                    // UPSERT por E-mail (caso não tenha telefone)
+                    await db.insert(leads)
+                        .values(leadValues)
+                        .onConflictDoUpdate({
+                            target: [leads.email, leads.organizationId],
+                            set: { 
+                                name: leadName,
+                                metaData: leadValues.metaData,
+                                updatedAt: new Date()
+                            }
+                        });
                 }
                 savedCount++;
             } catch (err) {
-                console.error(`❌ Erro ao inserir/atualizar lead ${phone}:`, err);
+                console.error(`❌ Erro ao inserir/atualizar lead:`, err);
             }
         }
 

@@ -62,7 +62,28 @@ export const OutreachService = {
 
             if (!org || !org.evolutionInstanceName || org.evolutionInstanceStatus !== "connected") {
                 console.warn(`⚠️ [Outreach] Org ${pendingLead.organizationId} não tem WhatsApp conectado. Pulando...`);
-                await LeadRepository.updateSystem(pendingLead.id, { outreachStatus: "failed" });
+                await LeadRepository.updateSystem(pendingLead.id, { outreachStatus: "failed_no_whatsapp" });
+                return;
+            }
+
+            // 🆕 VALIDAÇÃO DE NÚMERO (Anti-bloqueio e Assertividade)
+            if (pendingLead.phone) {
+                const isValid = await WhatsappService.isValidNumber(org.id, pendingLead.phone);
+                if (!isValid) {
+                    console.warn(`🚫 [Outreach] Lead ${pendingLead.name} possui telefone inválido: ${pendingLead.phone}`);
+                    
+                    const hasEmail = pendingLead.email && pendingLead.email.includes("@");
+                    const status = hasEmail ? "invalid_phone_email_available" : "failed_invalid_contact";
+                    
+                    await LeadRepository.updateSystem(pendingLead.id, { 
+                        outreachStatus: status,
+                        status: hasEmail ? "CONTACTED" : "ARCHIVED" // Se tiver email, ainda é útil
+                    });
+                    return;
+                }
+            } else if (!pendingLead.email) {
+                // Se não tem nem telefone nem email (estranho mas possível), falha
+                await LeadRepository.updateSystem(pendingLead.id, { outreachStatus: "failed_no_contact" });
                 return;
             }
 
@@ -72,7 +93,7 @@ export const OutreachService = {
 
             if (!agent) {
                 console.warn(`⚠️ [Outreach] Nenhum agente encontrado para ${org.id}. Pulando...`);
-                await LeadRepository.updateSystem(pendingLead.id, { outreachStatus: "failed" });
+                await LeadRepository.updateSystem(pendingLead.id, { outreachStatus: "failed_no_agent" });
                 return;
             }
 

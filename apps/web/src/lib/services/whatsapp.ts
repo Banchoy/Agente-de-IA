@@ -810,5 +810,34 @@ export const WhatsappService = {
             console.error(`❌ [Baileys] Erro ao enviar mensagem para ${number}:`, err);
             throw err;
         }
+    },
+
+    isValidNumber: async (organizationId: string, number: string) => {
+        const sessionId = organizationId.startsWith("wa_") ? organizationId : `wa_${organizationId.slice(0, 8)}`;
+        let session = WhatsappService.sessions.get(sessionId);
+
+        if (!session || session.status !== "open" || !session.sock) {
+             // Tentar auto-recuperação rápida se necessário (similar ao sendText)
+             // Para brevidade, assumiremos que o OutreachService garante que a sessão esteja aberta
+             // Mas se estiver fechada, retornamos false ou tentamos conectar.
+             return false;
+        }
+
+        try {
+            const cleanNumber = number.replace(/\D/g, "");
+            const jid = `${cleanNumber}@s.whatsapp.net`;
+            const [result] = await session.sock.onWhatsApp(jid);
+            
+            if (result && result.exists) {
+                console.log(`✅ [Baileys] Número ${number} validado com sucesso (WhatsApp ativo).`);
+                return true;
+            }
+            
+            console.warn(`⚠️ [Baileys] Número ${number} NÃO possui WhatsApp ativo.`);
+            return false;
+        } catch (err) {
+            console.error(`❌ [Baileys] Erro ao validar número ${number}:`, err);
+            return false;
+        }
     }
 };

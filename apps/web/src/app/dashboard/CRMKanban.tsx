@@ -23,7 +23,7 @@ import { CSS } from "@dnd-kit/utilities";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Plus, MoreHorizontal, User, Phone, MessageSquare, Calendar, CheckCircle, XCircle, Search, RefreshCw, Bot, Trash2, ArrowLeftRight, Mail } from "lucide-react";
+import { Plus, MoreHorizontal, User, Phone, MessageSquare, Calendar, CheckCircle, XCircle, Search, RefreshCw, Bot, Trash2, ArrowLeftRight, Mail, AlertCircle } from "lucide-react";
 import LeadDetailsModal from "./LeadDetailsModal";
 import AddLeadModal from "./AddLeadModal";
 import ProspectingModal from "./ProspectingModal";
@@ -132,9 +132,22 @@ function SortableItem({ lead, onClick, onDelete, onColorChange }: {
                         [NICHO]: {meta.niche}
                     </div>
                 )}
-                <div className="text-sm font-black text-foreground">
+                <div className="text-sm font-black text-foreground mb-2">
                     {lead.value}
                 </div>
+
+                {lead.outreachStatus === "invalid_phone_email_available" && (
+                    <div className="flex items-center gap-1.5 text-[9px] font-black uppercase text-amber-600 bg-amber-50 px-2 py-1 rounded-md border border-amber-100 w-fit mb-2">
+                        <AlertCircle className="w-2.5 h-2.5" />
+                        WhatsApp Inválido (E-mail Disponível)
+                    </div>
+                )}
+                {lead.outreachStatus === "failed_invalid_contact" && (
+                    <div className="flex items-center gap-1.5 text-[9px] font-black uppercase text-red-600 bg-red-50 px-2 py-1 rounded-md border border-red-100 w-fit mb-2">
+                        <XCircle className="w-2.5 h-2.5" />
+                        Número Inválido
+                    </div>
+                )}
             </div>
 
             <div className="flex justify-between items-center border-t border-border pt-3">
