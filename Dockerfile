@@ -8,7 +8,7 @@ COPY apps/web/package.json ./apps/web/
 COPY packages/db/package.json ./packages/db/
 
 # Install dependencies for all workspaces
-RUN npm install
+RUN npm install --legacy-peer-deps
 
 # Install Piper TTS
 RUN wget -q https://github.com/rhasspy/piper/releases/download/v1.2.0/piper_amd64.tar.gz && \
