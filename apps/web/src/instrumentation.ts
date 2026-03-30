@@ -44,6 +44,11 @@ export async function register() {
                     }
                 }, 6 * 60 * 60 * 1000); // 6 horas
 
+                // Iniciar MemoryGuard — monitora e libera memória automaticamente a cada 5 minutos
+                console.log("👁️ [Instrumentation] Iniciando monitoramento de memória...");
+                const { MemoryGuard } = await import('@/lib/services/memory-guard');
+                MemoryGuard.startMonitoring(5 * 60 * 1000); // 5 minutos
+
             } catch (err) {
                 console.error("❌ [Instrumentation] Erro ao tentar obter trava de MASTER:", err);
             }

@@ -36,7 +36,7 @@
     "jimp": "^1.6.0",
     "link-preview-js": "^3.2.0",
     "lucide-react": "^0.563.0",
-    "next": "15.1.6",
+    "next": "^15.1.11",
     "next-themes": "^0.4.6",
     "papaparse": "^5.5.3",
     "pino": "^10.3.1",
