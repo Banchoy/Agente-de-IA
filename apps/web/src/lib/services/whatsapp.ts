@@ -847,9 +847,12 @@ export const WhatsappService = {
                 targetJid = check.jid;
             }
 
-            await session.sock.sendMessage(targetJid, { text });
+            const [sentMsg] = await Promise.all([
+                session.sock.sendMessage(targetJid, { text }),
+            ]);
+            
             console.log(`✅ [Baileys] Mensagem enviada com sucesso para ${targetJid}`);
-            return { success: true };
+            return { success: true, jid: targetJid };
         } catch (err) {
             console.error(`❌ [Baileys] Erro ao enviar mensagem para ${number}:`, err);
             throw err;

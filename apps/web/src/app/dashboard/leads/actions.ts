@@ -368,7 +368,7 @@ export async function getProspectingProgress(runId: string, clientNiche?: string
             const rawPhone = item.phoneUnformatted || item.phone || item.phoneNumber || item.phoneNumberStandardized || "";
             const phone = normalizePhone(rawPhone);
 
-            // Mapeamento Robusto de E-mail
+            // Mapeamento Robusto de E-mail (Múltiplas fontes possíveis do Apify)
             const email = (
                 item.email || 
                 (Array.isArray(item.emails) ? item.emails[0] : item.emails) || 
@@ -377,9 +377,12 @@ export async function getProspectingProgress(runId: string, clientNiche?: string
                 item.contactInfo?.emails?.[0] ||
                 item.emailsFromWebsite?.[0] ||
                 item.emails_from_website?.[0] ||
+                item.websiteEmails?.[0] ||
+                item.contact_emails?.[0] ||
+                item.extradata?.email ||
                 item.personalEmail ||
                 ""
-            ).toLowerCase().trim();
+            ).toString().toLowerCase().trim();
             
             if (!phone && !email) continue;
 
@@ -546,11 +549,13 @@ export async function stopOutreach(formData?: FormData): Promise<void> {
         const org = await OrganizationRepository.getByClerkId(clerkOrgId);
         if (!org) return;
 
+        const { inArray } = await import("drizzle-orm");
+        
         await db.update(leads)
             .set({ outreachStatus: "idle" })
             .where(and(
                 eq(leads.organizationId, org.id),
-                eq(leads.outreachStatus, "pending")
+                inArray(leads.outreachStatus, ["pending", "processing"])
             ));
         
         revalidatePath("/dashboard/leads");

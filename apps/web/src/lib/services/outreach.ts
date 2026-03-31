@@ -122,12 +122,23 @@ export const OutreachService = {
             const { ScriptService } = await import("./script");
             const messageBody = await ScriptService.getInitialMessage(agent.config || {}, pendingLead);
 
-            // 5. Enviar via WhatsappService
-            await WhatsappService.sendText(
+            // 5. Enviar via WhatsappService e capturar o JID real (normalizado pelo WhatsApp)
+            const sendResult = await WhatsappService.sendText(
                 org.id, // organizationId
                 pendingLead.phone!,
                 messageBody
             );
+
+            // 5.1 Sincronização Crítica: Se o WhatsApp normalizou o JID (ex: removeu o 9º dígito), 
+            // atualizamos o lead no banco para que as respostas futuras casem com este ID.
+            let finalPhone = pendingLead.phone;
+            if (sendResult.jid) {
+                const jidNumber = sendResult.jid.split("@")[0];
+                if (jidNumber !== pendingLead.phone) {
+                    console.log(`🔄 [Outreach] Telefone do lead ${pendingLead.name} sincronizado: ${pendingLead.phone} -> ${jidNumber}`);
+                    finalPhone = jidNumber;
+                }
+            }
 
             // Atualiza o anti-ban no Redis
             if (redis) await redis.set("outreach:last_sent_at", Date.now().toString(), "EX", 86400);
@@ -135,8 +146,9 @@ export const OutreachService = {
             // 6. Buscar estágio de atendimento no CRM
             const targetStageId = await CRMRepository.getStageByName(org.id, "Em Atendimento (IA)");
 
-            // 7. Atualizar status, estágio e histórico em uma única transação (ou sequência direta)
+            // 7. Atualizar status, estágio, telefone (se mudou) e histórico
             await LeadRepository.updateSystem(pendingLead.id, {
+                phone: finalPhone,
                 outreachStatus: "completed",
                 lastOutreachAt: new Date(),
                 status: "CONTACTED",

@@ -36,12 +36,44 @@ export const LeadRepository = {
     },
 
     getByPhoneSystem: async (phone: string, organizationId: string) => {
-        return await db.query.leads.findFirst({
+        // 1. Tenta busca exata
+        let lead = await db.query.leads.findFirst({
             where: and(
                 eq(leads.phone, phone),
                 eq(leads.organizationId, organizationId)
             )
         });
+
+        if (lead) return lead;
+
+        // 2. Busca Resiliente para Números do Brasil (Divergência de 9º dígito)
+        // Se o número começa com 55 (Brasil) e tem 12 ou 13 dígitos
+        if (phone.startsWith("55") && (phone.length === 12 || phone.length === 13)) {
+            const ddd = phone.substring(2, 4);
+            const body = phone.substring(4);
+            
+            let alternativePhone: string | null = null;
+            
+            if (phone.length === 13 && body.startsWith("9")) {
+                // Tem 9 dígito, tenta sem
+                alternativePhone = `55${ddd}${body.substring(1)}`;
+            } else if (phone.length === 12) {
+                // Não tem 9 dígito, tenta com
+                alternativePhone = `55${ddd}9${body}`;
+            }
+
+            if (alternativePhone) {
+                console.log(`🔍 [LeadRepository] Tentando busca resiliente para ${phone} -> ${alternativePhone}`);
+                lead = await db.query.leads.findFirst({
+                    where: and(
+                        eq(leads.phone, alternativePhone),
+                        eq(leads.organizationId, organizationId)
+                    )
+                });
+            }
+        }
+
+        return lead;
     },
 
     create: async (data: typeof leads.$inferInsert) => {
