@@ -72,11 +72,18 @@ export const CRMRepository = {
             .innerJoin(pipelines, eq(stages.pipelineId, pipelines.id))
             .where(eq(pipelines.organizationId, organizationId));
 
-        const defaultStage = allStages.find(s => s.name.toLowerCase().includes("novo")) || 
-                             allStages.find(s => s.name.toLowerCase() === "qualificação") || 
-                             allStages.find(s => s.name.toLowerCase().includes("prospect")) || 
-                             allStages[0];
+        // 1. Tentar encontrar pelo nome exato ou parte (ignorar maiúsculas/minúsculas)
+        const cleanSearch = stageName.trim().toLowerCase();
+        let targetStage = allStages.find(s => s.name.toLowerCase().includes(cleanSearch));
+
+        // 2. Se não encontrou o nome desejado e a requisição era específica, tentar fallbacks comuns
+        if (!targetStage) {
+            targetStage = allStages.find(s => s.name.toLowerCase().includes("novo")) || 
+                          allStages.find(s => s.name.toLowerCase() === "qualificação") || 
+                          allStages.find(s => s.name.toLowerCase().includes("prospect")) || 
+                          allStages[0];
+        }
         
-        return defaultStage?.id || null;
+        return targetStage?.id || null;
     }
 };

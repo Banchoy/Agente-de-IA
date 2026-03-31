@@ -211,7 +211,7 @@ export const WhatsappService = {
                     auth: state,
                     printQRInTerminal: false,
                     logger,
-                    browser: ["Android", "Chrome", "20.0.0"],
+                    browser: ["Chrome (Windows)", "Chrome", "115.0.0"],
                     generateHighQualityLinkPreview: true,
                     syncFullHistory: true, // HABILITADO para melhorar sincronização com o celular
                     markOnlineOnConnect: true, // Garante que a sessão apareça como ativa
