@@ -3,17 +3,28 @@ import Redis from "ioredis";
 import { env } from "./env";
 
 const redisUrl = env.REDIS_URL;
+const redisHost = env.REDISHOST;
 
-if (!redisUrl) {
-    console.warn("⚠️ REDIS_URL não configurada. Cache e sessões via Redis estarão desativados.");
+if (!redisUrl && !redisHost) {
+    console.warn("⚠️ REDIS_URL ou REDISHOST não configurada. Cache e sessões via Redis estarão desativados.");
 }
 
-export const redis = redisUrl 
-    ? new Redis(redisUrl, {
-        tls: redisUrl.startsWith("rediss://") ? { rejectUnauthorized: false } : undefined,
+// Configuração de conexão flexível: tenta variáveis individuais primeiro por serem mais estáveis
+const connectionOptions: any = redisHost 
+    ? {
+        host: redisHost,
+        password: env.REDISPASSWORD,
+        port: Number(env.REDISPORT || 6379),
+        username: env.REDISUSER || "default",
+        family: 4,
+    }
+    : redisUrl;
+
+export const redis = (redisUrl || redisHost) 
+    ? new Redis(connectionOptions, {
+        tls: (redisUrl?.startsWith("rediss://") || env.REDISPORT === "29508") ? { rejectUnauthorized: false } : undefined,
         maxRetriesPerRequest: null,
         connectTimeout: 15000,
-        family: 4, // Forçar IPv4 para consistência no Railway/Upstash
         retryStrategy: (times) => {
             const delay = Math.min(times * 100, 3000);
             return delay;
@@ -28,8 +39,11 @@ export const redis = redisUrl
 
 // Diagnóstico inicial
 if (redis) {
-    const maskedUrl = redisUrl?.replace(/:[^:@]+@/, ":****@");
-    console.log(`🔌 [Redis] Tentando conectar em: ${maskedUrl}`);
+    const maskedUrl = redisHost 
+        ? `host: ${redisHost}:${env.REDISPORT} (Variáveis Individuais)`
+        : redisUrl?.replace(/:[^:@]+@/, ":****@") + " (URL)";
+        
+    console.log(`🔌 [Redis] Tentando conectar via ${maskedUrl}`);
     
     redis.on("connect", () => {
         console.log("✅ [Redis] Evento: Connect");
@@ -37,7 +51,7 @@ if (redis) {
             .then(pong => console.log("🏓 [Redis] Ping result:", pong))
             .catch(e => {
                 if (e.message.includes("WRONGPASS")) {
-                    console.error("❌ [Redis] ERRO CRÍTICO: Senha incorreta ou usuário desativado (WRONGPASS). Verifique a REDIS_URL no Railway.");
+                    console.error("❌ [Redis] ERRO CRÍTICO: Senha incorreta ou usuário desativado (WRONGPASS). Certifique-se que REDISPASSWORD está correta.");
                 } else {
                     console.error("❌ [Redis] Ping falhou:", e.message);
                 }

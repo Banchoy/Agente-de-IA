@@ -22,6 +22,10 @@ const envSchema = z.object({
     NEXT_PUBLIC_META_APP_ID: z.string().optional(),
     NEXT_PUBLIC_APP_URL: z.string().optional(),
     REDIS_URL: z.string().optional(),
+    REDISHOST: z.string().optional(),
+    REDISPASSWORD: z.string().optional(),
+    REDISPORT: z.string().optional(),
+    REDISUSER: z.string().optional(),
     SUPABASE_URL: z.string().url().optional(),
     SUPABASE_SERVICE_ROLE_KEY: z.string().optional(),
 });
