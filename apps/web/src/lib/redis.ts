@@ -87,9 +87,9 @@ if (redis) {
             .then(pong => console.log("🏓 [Redis] Ping result:", pong))
             .catch(e => {
                 if (e.message.includes("WRONGPASS")) {
-                    const passToTest = redisHost ? env.REDISPASSWORD : urlOptions?.password;
-                    console.error(`❌ [Redis] ERRO DE SENHA (WRONGPASS). Tamanho da senha detectada: ${passToTest?.length || 0} caracteres.`);
-                    console.error("❌ Verifique se há espaços extras no final da variável no painel do Railway.");
+                    const passToTest = connectionOptions.password;
+                    console.error(`❌ [Redis] ERRO DE SENHA (WRONGPASS). Tamanho da senha configurada: ${passToTest?.length || 0} caracteres.`);
+                    console.error("💡 [Redis] Verifique se esta variável está em Shared Vars ou se o serviço Redis está iniciado.");
                 } else {
                     console.error("❌ [Redis] Falha no teste de conexão:", e.message);
                 }

@@ -1,4 +1,3 @@
-
 import { z } from "zod";
 
 const envSchema = z.object({
@@ -34,7 +33,9 @@ const envSchema = z.object({
     SUPABASE_SERVICE_ROLE_KEY: z.string().optional(),
 });
 
-console.log("🔍 [env.ts] Keys encontradas em process.env:", Object.keys(process.env).filter(k => k.includes("META") || k.includes("NEXT_PUBLIC_APP")));
+console.log("🔍 [env.ts] Keys encontradas em process.env:", Object.keys(process.env).filter(k => 
+    k.includes("META") || k.includes("NEXT_PUBLIC_APP") || k.includes("REDIS") || k.includes("DATABASE")
+));
 
 const parsed = envSchema.safeParse(process.env);
 
