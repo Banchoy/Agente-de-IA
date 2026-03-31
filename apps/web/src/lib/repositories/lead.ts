@@ -69,6 +69,7 @@ export const LeadRepository = {
                     set: {
                         name: data.name,
                         email: data.email || sql`leads.email`,
+                        stageId: data.stageId || sql`leads.stage_id`,
                         metaData: data.metaData,
                         updatedAt: new Date()
                     }
@@ -87,6 +88,7 @@ export const LeadRepository = {
                     target: [leads.email, leads.organizationId],
                     set: {
                         name: data.name,
+                        stageId: data.stageId || sql`leads.stage_id`,
                         metaData: data.metaData,
                         updatedAt: new Date()
                     }

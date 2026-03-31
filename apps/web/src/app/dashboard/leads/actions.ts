@@ -56,6 +56,8 @@ export async function getKanbanData() {
 
         const kanbanLeads = await LeadRepository.listByOrg();
         
+        console.log(`📊 [Kanban] Org Clerk: ${clerkOrgId} | Org DB: ${org.id} | Leads recuperados: ${kanbanLeads.length}`);
+        
         // Ensure default structure exists
         const { CRMRepository } = await import("@/lib/repositories/crm");
         await CRMRepository.ensureDefaultPipeline(org.id);
