@@ -1,7 +1,7 @@
 
 import { db } from "@/lib/db";
 import { stages, pipelines } from "@/lib/db/schema";
-import { eq, and, or, ilike } from "drizzle-orm";
+import { eq, and, or, ilike, asc } from "drizzle-orm";
 
 
 export const CRMRepository = {
@@ -14,12 +14,14 @@ export const CRMRepository = {
             .limit(1);
         
         if (existing.length > 0) {
-            // Verifica se este pipeline já possui estágios
-            const currentStages = await db.select({ id: stages.id })
+            // Verifica se este pipeline já possui estágios e retorna o PRIMEIRO (conforme 'order')
+            const currentStages = await db.select({ id: stages.id, name: stages.name, order: stages.order })
                 .from(stages)
-                .where(eq(stages.pipelineId, existing[0].id));
+                .where(eq(stages.pipelineId, existing[0].id))
+                .orderBy(asc(stages.order));
             
             if (currentStages.length > 0) {
+                console.log(`🎯 [CRM] Usando estágio existente: ${currentStages[0].name} (ID: ${currentStages[0].id})`);
                 return currentStages[0].id;
             }
             
@@ -64,21 +66,17 @@ export const CRMRepository = {
         await CRMRepository.ensureDefaultPipeline(organizationId);
 
         // Encontra o estágio pelo nome (case insensitive)
-        const result = await db
-            .select({ stageId: stages.id })
+        const allStages = await db
+            .select({ id: stages.id, name: stages.name })
             .from(stages)
             .innerJoin(pipelines, eq(stages.pipelineId, pipelines.id))
-            .where(
-                and(
-                    eq(pipelines.organizationId, organizationId),
-                    or(
-                        ilike(stages.name, stageName),
-                        ilike(stages.name, `%${stageName}%`)
-                    )
-                )
-            )
-            .limit(1);
+            .where(eq(pipelines.organizationId, organizationId));
+
+        const defaultStage = allStages.find(s => s.name.toLowerCase().includes("novo")) || 
+                             allStages.find(s => s.name.toLowerCase() === "qualificação") || 
+                             allStages.find(s => s.name.toLowerCase().includes("prospect")) || 
+                             allStages[0];
         
-        return result[0]?.stageId || null;
+        return defaultStage?.id || null;
     }
 };

@@ -66,9 +66,9 @@ export async function POST(req: Request) {
             allStages = [{ id: newStage.id, name: newStage.name }];
         }
 
-        const defaultStage = allStages.find(s => s.name.toLowerCase() === "qualificação") || 
+        const defaultStage = allStages.find(s => s.name.toLowerCase().includes("novo")) || 
                              allStages.find(s => s.name.toLowerCase().includes("prospect")) || 
-                             allStages.find(s => s.name.toLowerCase().includes("novo")) || 
+                             allStages.find(s => s.name.toLowerCase() === "qualificação") || 
                              allStages[0];
                                      
         const stageId = defaultStage?.id || null;

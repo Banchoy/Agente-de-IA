@@ -27,25 +27,25 @@ const parseRedisUrl = (urlStr: string) => {
 const urlOptions = redisUrl ? parseRedisUrl(redisUrl) : null;
 
 // Configuração de conexão flexível
-const connectionOptions: any = (redisHost || env.REDIS_HOST) 
+const connectionOptions: any = (redisHost || process.env.REDISHOST || process.env.REDIS_HOST) 
     ? {
-        host: redisHost || env.REDIS_HOST,
-        password: (env.REDISPASSWORD || env.REDIS_PASSWORD)?.trim(),
+        host: redisHost || process.env.REDISHOST || process.env.REDIS_HOST,
+        password: (process.env.REDISPASSWORD || process.env.REDIS_PASSWORD || env.REDISPASSWORD || env.REDIS_PASSWORD)?.trim(),
         // Regra de Ouro: Se o host é interno do Railway, a porta obrigatoriamente deve ser 6379
-        port: (redisHost || env.REDIS_HOST)?.includes("railway.internal") 
+        port: (redisHost || process.env.REDISHOST || process.env.REDIS_HOST)?.includes("railway.internal") 
             ? 6379 
-            : Number(env.REDISPORT || env.REDIS_PORT || 6379),
-        username: env.REDISUSER || "default",
+            : Number(env.REDISPORT || env.REDIS_PORT || process.env.REDISPORT || 6379),
+        username: env.REDISUSER || process.env.REDISUSER || "default",
     }
     : urlOptions || redisUrl;
 
 if (connectionOptions.password) {
-    console.log(`🔌 [Redis] Senha detectada (${connectionOptions.password.length} caracteres)`);
+    console.log(`🔌 [Redis] Senha detectada no sistema (${connectionOptions.password.length} caracteres)`);
 } else {
-    console.warn("⚠️ [Redis] ATENÇÃO: Nenhuma senha encontrada no ambiente para o Redis!");
+    console.warn("⚠️ [Redis] CRÍTICO: Nenhuma senha encontrada no process.env!");
 }
 
-export const redis = (redisUrl || redisHost || env.REDIS_HOST) 
+export const redis = (redisUrl || redisHost || process.env.REDISHOST || process.env.REDIS_HOST) 
     ? new Redis(connectionOptions, {
         // Habilita TLS SOMENTE se não for conexão interna E (for porta pública ou esquema rediss)
         tls: (!redisHost?.includes("railway.internal") && (
