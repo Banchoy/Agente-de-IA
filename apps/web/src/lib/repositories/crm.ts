@@ -14,20 +14,30 @@ export const CRMRepository = {
             .limit(1);
         
         if (existing.length > 0) {
-            // Retorna o primeiro estágio deste pipeline
-            const [firstStage] = await db.select({ id: stages.id })
+            // Verifica se este pipeline já possui estágios
+            const currentStages = await db.select({ id: stages.id })
                 .from(stages)
-                .where(eq(stages.pipelineId, existing[0].id))
-                .limit(1);
-            return firstStage?.id || null;
+                .where(eq(stages.pipelineId, existing[0].id));
+            
+            if (currentStages.length > 0) {
+                return currentStages[0].id;
+            }
+            
+            // Se o pipeline existir mas estiver VAZIO, continuamos para criar os estágios padrão abaixo.
+            console.log(`⚠️ [CRM] Pipeline ${existing[0].id} encontrado mas sem estágios. Criando colunas padrão...`);
         }
 
-        // Se não houver, cria um padrão
-        console.log(`🏗️ [CRM] Criando pipeline padrão para a org ${organizationId}...`);
-        const [newPipeline] = await db.insert(pipelines).values({
-            name: "Pipeline de Vendas",
-            organizationId: organizationId
-        }).returning();
+        // Determina o ID do pipeline (ou o existente ou o novo)
+        let pipelineId = existing[0]?.id;
+        
+        if (!pipelineId) {
+            console.log(`🏗️ [CRM] Criando pipeline padrão para a org ${organizationId}...`);
+            const [newPipeline] = await db.insert(pipelines).values({
+                name: "Pipeline de Vendas",
+                organizationId: organizationId
+            }).returning();
+            pipelineId = newPipeline.id;
+        }
 
         // Cria os estágios padrão
         const defaultStages = [
@@ -39,7 +49,7 @@ export const CRMRepository = {
 
         const insertedStages = await db.insert(stages).values(
             defaultStages.map(s => ({
-                pipelineId: newPipeline.id,
+                pipelineId: pipelineId,
                 name: s.name,
                 order: s.order
             }))

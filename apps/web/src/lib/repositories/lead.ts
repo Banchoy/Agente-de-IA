@@ -74,6 +74,10 @@ export const LeadRepository = {
                     }
                 })
                 .returning();
+            
+            if (lead) {
+                console.log(`✅ [LeadRepository] Lead upsertado por telefone: ${lead.name} [ID: ${lead.id}]`);
+            }
             return lead;
         } else if (data.email) {
             // Fallback: Email
@@ -88,6 +92,10 @@ export const LeadRepository = {
                     }
                 })
                 .returning();
+            
+            if (lead) {
+                console.log(`✅ [LeadRepository] Lead upsertado por e-mail: ${lead.name} [ID: ${lead.id}]`);
+            }
             return lead;
         }
         

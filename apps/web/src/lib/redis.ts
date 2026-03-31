@@ -39,12 +39,12 @@ const connectionOptions: any = redisHost
 
 export const redis = (redisUrl || redisHost) 
     ? new Redis(connectionOptions, {
-        // Habilita TLS se for a porta pública do Railway ou esquema rediss
-        tls: (
+        // Habilita TLS SOMENTE se não for conexão interna E (for porta pública ou esquema rediss)
+        tls: (!redisHost?.includes("railway.internal") && (
             redisUrl?.startsWith("rediss://") || 
             env.REDISPORT === "29508" || 
             (urlOptions?.port === 29508)
-        ) ? { rejectUnauthorized: false } : undefined,
+        )) ? { rejectUnauthorized: false } : undefined,
         maxRetriesPerRequest: null,
         connectTimeout: 20000,
         family: 4, // Forçar IPv4 para consistência
