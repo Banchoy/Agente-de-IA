@@ -168,6 +168,7 @@ export const LeadRepository = {
         // 2. Leads nos últimos 7 dias
         const sevenDaysAgo = new Date();
         sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+        const isoDateStr = sevenDaysAgo.toISOString();
         
         const last7Days = await db
             .select({
@@ -177,7 +178,7 @@ export const LeadRepository = {
             .from(leads)
             .where(and(
                 eq(leads.organizationId, organizationId),
-                sql`created_at >= ${sevenDaysAgo}`
+                sql`created_at >= ${isoDateStr}`
             ))
             .groupBy(sql`DATE(created_at)`)
             .orderBy(sql`DATE(created_at)`);
