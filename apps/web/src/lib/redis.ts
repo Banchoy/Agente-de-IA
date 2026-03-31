@@ -33,12 +33,26 @@ if (redis) {
     
     redis.on("connect", () => {
         console.log("✅ [Redis] Evento: Connect");
-        redis.ping().then(pong => console.log("🏓 [Redis] Ping result:", pong)).catch(e => console.error("❌ [Redis] Ping falhou:", e.message));
+        redis.ping()
+            .then(pong => console.log("🏓 [Redis] Ping result:", pong))
+            .catch(e => {
+                if (e.message.includes("WRONGPASS")) {
+                    console.error("❌ [Redis] ERRO CRÍTICO: Senha incorreta ou usuário desativado (WRONGPASS). Verifique a REDIS_URL no Railway.");
+                } else {
+                    console.error("❌ [Redis] Ping falhou:", e.message);
+                }
+            });
     });
     
     redis.on("ready", () => console.log("🚀 [Redis] Conexão pronta (READY)"));
+    
     redis.on("error", (err: any) => {
-        console.error("❌ [Redis] Erro detectado:", err.name, err.message);
+        if (err.message.includes("WRONGPASS")) {
+            console.error("❌ [Redis] Erro de Autenticação Detectado (WRONGPASS).");
+        } else {
+            console.error("❌ [Redis] Erro detectado:", err.name, err.message);
+        }
+        
         if (err instanceof AggregateError) {
             console.error("🔍 [Redis] Erros agregados:", err.errors.map((e: any) => e.message).join(" | "));
         }

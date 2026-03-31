@@ -46,13 +46,20 @@ export const LeadRepository = {
     },
 
     createSystem: async (data: typeof leads.$inferInsert) => {
+        const { ensureLeadsConstraints } = await import("@/lib/db/ensure-constraints");
+        await ensureLeadsConstraints();
+        
         const [newLead] = await db.insert(leads).values(data).returning();
         return newLead;
     },
 
     upsertSystem: async (data: typeof leads.$inferInsert) => {
         const { sql } = await import("drizzle-orm");
+        const { ensureLeadsConstraints } = await import("@/lib/db/ensure-constraints");
         
+        // Garante que o banco de dados tenha as constraints necessárias (Self-Healing)
+        await ensureLeadsConstraints();
+
         if (data.phone) {
             // Priority: Phone
             const [lead] = await db.insert(leads)
