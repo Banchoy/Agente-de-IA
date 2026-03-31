@@ -31,7 +31,8 @@ const connectionOptions: any = redisHost
     ? {
         host: redisHost,
         password: env.REDISPASSWORD,
-        port: Number(env.REDISPORT || 6379),
+        // Regra de Ouro: Se o host é interno do Railway, a porta obrigatoriamente deve ser 6379
+        port: redisHost.includes("railway.internal") ? 6379 : Number(env.REDISPORT || 6379),
         username: env.REDISUSER || "default",
     }
     : urlOptions || redisUrl;
