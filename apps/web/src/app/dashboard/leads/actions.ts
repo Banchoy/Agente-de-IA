@@ -376,6 +376,8 @@ export async function getProspectingProgress(runId: string, clientNiche?: string
                 item.contactInfo?.email ||
                 item.contactInfo?.emails?.[0] ||
                 item.emailsFromWebsite?.[0] ||
+                item.emails_from_website?.[0] ||
+                item.personalEmail ||
                 ""
             ).toLowerCase().trim();
             
@@ -554,6 +556,70 @@ export async function stopOutreach(formData?: FormData): Promise<void> {
         revalidatePath("/dashboard/leads");
     } catch (error) {
         console.error("Error stopping outreach:", error);
+    }
+}
+
+/**
+ * Recupera estatísticas reais para o dashboard e analytics.
+ */
+export async function getDashboardAnalytics() {
+    const { orgId: clerkOrgId } = await auth();
+    if (!clerkOrgId) return { success: false, error: "Não autorizado." };
+
+    try {
+        const { OrganizationRepository } = await import("@/lib/repositories/organization");
+        const { LeadRepository } = await import("@/lib/repositories/lead");
+
+        const org = await OrganizationRepository.getByClerkId(clerkOrgId);
+        if (!org) return { success: false, error: "Organização não encontrada." };
+
+        const stats = await LeadRepository.getAnalyticsStats(org.id);
+        const { stages } = await getKanbanData();
+
+        // 1. Formatar funil
+        const funnelData = stages.map(s => {
+            const count = stats.stageStats.find(ss => ss.stageId === s.id)?.count || 0;
+            return {
+                name: s.name,
+                value: Number(count),
+                fill: s.name.toLowerCase().includes("venda") || s.name.toLowerCase().includes("vendido") ? "#10b981" : "#3b82f6"
+            };
+        });
+
+        // 2. Formatar histórico (últimos 7 dias)
+        // Criar um array com os últimos 7 dias para garantir que todos os dias apareçam (mesmo com 0)
+        const days = [];
+        for (let i = 6; i >= 0; i--) {
+            const d = new Date();
+            d.setDate(d.getDate() - i);
+            const dateStr = d.toISOString().split('T')[0];
+            const found = stats.last7Days.find(sd => sd.date === dateStr);
+            days.push({
+                name: d.toLocaleDateString("pt-BR", { weekday: "short" }),
+                leads: found ? Number(found.count) : 0
+            });
+        }
+
+        // 3. Taxa de conversão
+        const total = stats.totals.total || 0;
+        const converted = stats.totals.converted || 0;
+        const conversionRate = total > 0 
+            ? ((converted / total) * 100).toFixed(1)
+            : "0";
+
+        return {
+            success: true,
+            stats: {
+                totalLeads: total,
+                leadsToday: stats.totals.today,
+                conversionRate: `${conversionRate}%`,
+                funnelData,
+                leadsOverTime: days
+            }
+        };
+    } catch (error: any) {
+        console.error("❌ [Analytics Action] Erro:", error);
+        return { success: false, error: error.message };
     }
 }
 

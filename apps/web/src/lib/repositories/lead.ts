@@ -150,5 +150,56 @@ export const LeadRepository = {
 
     deleteSystem: async (id: string) => {
         await db.delete(leads).where(eq(leads.id, id));
+    },
+
+    getAnalyticsStats: async (organizationId: string) => {
+        const { sql } = await import("drizzle-orm");
+        
+        // 1. Leads por Estágio
+        const stageStats = await db
+            .select({
+                stageId: leads.stageId,
+                count: sql<number>`count(*)`
+            })
+            .from(leads)
+            .where(eq(leads.organizationId, organizationId))
+            .groupBy(leads.stageId);
+
+        // 2. Leads nos últimos 7 dias
+        const sevenDaysAgo = new Date();
+        sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+        
+        const last7Days = await db
+            .select({
+                date: sql<string>`DATE(created_at)`,
+                count: sql<number>`count(*)`
+            })
+            .from(leads)
+            .where(and(
+                eq(leads.organizationId, organizationId),
+                sql`created_at >= ${sevenDaysAgo}`
+            ))
+            .groupBy(sql`DATE(created_at)`)
+            .orderBy(sql`DATE(created_at)`);
+
+        // 3. Totais rápidos
+        const [totals] = await db
+            .select({
+                total: sql<number>`count(*)`,
+                today: sql<number>`count(*) filter (where created_at >= CURRENT_DATE)`,
+                converted: sql<number>`count(*) filter (where stage_id in (select id from stages where name ilike '%vendido%'))`
+            })
+            .from(leads)
+            .where(eq(leads.organizationId, organizationId));
+
+        return {
+            stageStats,
+            last7Days,
+            totals: {
+                total: Number(totals?.total || 0),
+                today: Number(totals?.today || 0),
+                converted: Number(totals?.converted || 0)
+            }
+        };
     }
 };

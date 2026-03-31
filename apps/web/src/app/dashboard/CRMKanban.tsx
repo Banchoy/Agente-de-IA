@@ -121,7 +121,7 @@ function SortableItem({ lead, onClick, onDelete, onColorChange }: {
 
                 {lead.email && (
                     <div className="flex items-center text-xs text-muted-foreground gap-2 w-fit">
-                        <Mail className="w-3 h-3" />
+                        <Mail className="w-3 h-3 text-blue-500" />
                         <span className="truncate max-w-[170px]" title={lead.email}>
                             {lead.email}
                         </span>

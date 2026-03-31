@@ -6,7 +6,7 @@ import { count, eq } from "drizzle-orm";
 import { Bot, UserCheck, Activity, Globe, Sparkles, Settings, TrendingUp, Users, PowerOff } from "lucide-react";
 import { UserService } from "@/lib/services/user";
 import CRMKanban from "./CRMKanban";
-import { getKanbanData, stopOutreach } from "./leads/actions";
+import { getKanbanData, stopOutreach, getDashboardAnalytics } from "./leads/actions";
 import { OutreachBanner } from "./leads/OutreachBanner";
 
 export default async function DashboardPage() {
@@ -33,6 +33,8 @@ export default async function DashboardPage() {
             .where(eq(agents.organizationId, dbUser.organizationId));
 
         const { leads, stages } = await getKanbanData();
+        const analyticsRes = await getDashboardAnalytics();
+        const stats = analyticsRes?.success && analyticsRes?.stats ? analyticsRes.stats : { conversionRate: "0%", leadsToday: 0 };
 
         return (
             <div className="h-full flex flex-col space-y-6 overflow-hidden">
@@ -45,11 +47,11 @@ export default async function DashboardPage() {
                     <div className="hidden lg:flex gap-4 items-center">
                         <div className="flex items-center gap-2 px-4 py-2 bg-card border border-border rounded-xl shadow-sm">
                             <TrendingUp size={16} className="text-green-500" />
-                            <span className="text-xs font-bold text-muted-foreground uppercase tracking-wider">Conversão: 12%</span>
+                            <span className="text-xs font-bold text-muted-foreground uppercase tracking-wider">Conversão: {stats.conversionRate}</span>
                         </div>
                         <div className="flex items-center gap-2 px-4 py-2 bg-card border border-border rounded-xl shadow-sm">
                             <Users size={16} className="text-blue-500" />
-                            <span className="text-xs font-bold text-muted-foreground uppercase tracking-wider">Leads Hoje: {leads.length}</span>
+                            <span className="text-xs font-bold text-muted-foreground uppercase tracking-wider">Leads Hoje: {stats.leadsToday}</span>
                         </div>
 
                         <form action={async () => {

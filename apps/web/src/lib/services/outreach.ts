@@ -89,20 +89,16 @@ export const OutreachService = {
             if (pendingLead.phone) {
                 const isValid = await WhatsappService.isValidNumber(org.id, pendingLead.phone);
                 if (!isValid) {
-                    console.warn(`🚫 [Outreach] Lead ${pendingLead.name} possui telefone inválido: ${pendingLead.phone}`);
+                    console.warn(`🚫 [Outreach] Lead ${pendingLead.name} possui telefone inválido: ${pendingLead.phone}. EXCLUINDO permanentemente...`);
                     
-                    const hasEmail = pendingLead.email && pendingLead.email.includes("@");
-                    const status = hasEmail ? "invalid_phone_email_available" : "failed_invalid_contact";
-                    
-                    await LeadRepository.updateSystem(pendingLead.id, { 
-                        outreachStatus: status,
-                        status: hasEmail ? "CONTACTED" : "ARCHIVED" // Se tiver email, ainda é útil
-                    });
+                    // Conforme solicitado pelo usuário, deletar permanentemente se o número for inválido
+                    await LeadRepository.deleteSystem(pendingLead.id);
                     return;
                 }
             } else if (!pendingLead.email) {
-                // Se não tem nem telefone nem email (estranho mas possível), falha
-                await LeadRepository.updateSystem(pendingLead.id, { outreachStatus: "failed_no_contact" });
+                // Se não tem nem telefone nem email (estranho mas possível), exclui para não poluir o CRM
+                console.warn(`🚫 [Outreach] Lead ${pendingLead.name} sem formas de contato válidas. EXCLUINDO...`);
+                await LeadRepository.deleteSystem(pendingLead.id);
                 return;
             }
 
@@ -131,7 +127,7 @@ export const OutreachService = {
             if (redis) await redis.set("outreach:last_sent_at", Date.now().toString(), "EX", 86400);
 
             // 6. Buscar estágio de atendimento no CRM
-            const targetStageId = await CRMRepository.getStageByName(org.id, "Atendimento");
+            const targetStageId = await CRMRepository.getStageByName(org.id, "Em Atendimento (IA)");
 
             // 7. Atualizar status, estágio e histórico em uma única transação (ou sequência direta)
             await LeadRepository.updateSystem(pendingLead.id, {
