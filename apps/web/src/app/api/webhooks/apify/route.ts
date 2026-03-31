@@ -132,7 +132,7 @@ export async function POST(req: Request) {
 
         console.log(`✅ [Apify Webhook] Processo de extração salvo! ${savedCount} leads inseridos na fase Qualificação.`);
 
-        return NextResponse.json({ success: true, count: savedCount });
+        return NextResponse.json({ success: true, count: savedCount, stageId: stageId });
     } catch (error: any) {
         console.error("❌ [Apify Webhook] Ocorreu um erro no processamento:", error);
         return NextResponse.json({ error: error.message }, { status: 500 });

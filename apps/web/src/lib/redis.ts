@@ -27,17 +27,25 @@ const parseRedisUrl = (urlStr: string) => {
 const urlOptions = redisUrl ? parseRedisUrl(redisUrl) : null;
 
 // Configuração de conexão flexível
-const connectionOptions: any = redisHost 
+const connectionOptions: any = (redisHost || env.REDIS_HOST) 
     ? {
-        host: redisHost,
-        password: env.REDISPASSWORD,
+        host: redisHost || env.REDIS_HOST,
+        password: (env.REDISPASSWORD || env.REDIS_PASSWORD)?.trim(),
         // Regra de Ouro: Se o host é interno do Railway, a porta obrigatoriamente deve ser 6379
-        port: redisHost.includes("railway.internal") ? 6379 : Number(env.REDISPORT || 6379),
+        port: (redisHost || env.REDIS_HOST)?.includes("railway.internal") 
+            ? 6379 
+            : Number(env.REDISPORT || env.REDIS_PORT || 6379),
         username: env.REDISUSER || "default",
     }
     : urlOptions || redisUrl;
 
-export const redis = (redisUrl || redisHost) 
+if (connectionOptions.password) {
+    console.log(`🔌 [Redis] Senha detectada (${connectionOptions.password.length} caracteres)`);
+} else {
+    console.warn("⚠️ [Redis] ATENÇÃO: Nenhuma senha encontrada no ambiente para o Redis!");
+}
+
+export const redis = (redisUrl || redisHost || env.REDIS_HOST) 
     ? new Redis(connectionOptions, {
         // Habilita TLS SOMENTE se não for conexão interna E (for porta pública ou esquema rediss)
         tls: (!redisHost?.includes("railway.internal") && (

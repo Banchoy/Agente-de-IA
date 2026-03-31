@@ -55,6 +55,7 @@ export const CRMRepository = {
             }))
         ).returning();
 
+        console.log(`🎯 [CRM] Stage ID retornado (novo): ${insertedStages[0]?.id || "null"}`);
         return insertedStages[0]?.id || null;
     },
 

@@ -26,6 +26,10 @@ const envSchema = z.object({
     REDISPASSWORD: z.string().optional(),
     REDISPORT: z.string().optional(),
     REDISUSER: z.string().optional(),
+    // Fallbacks para o Railway (algumas vezes usa underscore)
+    REDIS_PASSWORD: z.string().optional(),
+    REDIS_HOST: z.string().optional(),
+    REDIS_PORT: z.string().optional(),
     SUPABASE_URL: z.string().url().optional(),
     SUPABASE_SERVICE_ROLE_KEY: z.string().optional(),
 });
