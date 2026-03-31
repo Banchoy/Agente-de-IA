@@ -65,31 +65,27 @@ Use a informação do [NICHO] ("${leadNiche}") para mostrar que você conhece o 
   },
 
    /**
-   * Retorna a "Instrução de Comportamento" para a IA baseado no estado atual e origem do lead.
+   * Retorna a "Instrução de Comportamento" para a IA baseado nas etapas do roteiro.
    */
   getInstruction: (state: string, lead?: any) => {
     const isOutreach = lead?.source !== "WhatsApp (Inbound)";
-    const niche = lead?.metaData?.niche || "este segmento";
+    
+    // Mapeamento dinâmico para as etapas do prompt do usuário
+    const stageMap: Record<string, string> = {
+      "WAITING_REPLY": isOutreach ? "Etapa 2️⃣: CONTEXTO" : "Etapa 1️⃣: ABERTURA",
+      "INTRO": "Etapa 2️⃣: CONTEXTO",
+      "CONTEXT": "Etapa 3️⃣: OBSERVAÇÃO",
+      "DIAGNOSIS": "Etapa 4️⃣: PERGUNTA DIAGNÓSTICA",
+      "VALIDATION": "Etapa 5️⃣: VALIDAÇÃO",
+      "POSITIONING": "Etapa 6️⃣: POSICIONAMENTO",
+      "OPPORTUNITY": "Etapa 7️⃣: OPORTUNIDADE",
+      "CTA": "Etapa 8️⃣: CHAMADA PARA AÇÃO"
+    };
 
-    switch (state) {
-      case "WAITING_REPLY":
-        if (isOutreach) {
-          return `Fase de Introdução (PROSPECÇÃO): Apresente-se, diga que viu que trabalham com "${niche}" e que precisa de ajuda/orientação rápida, mas não sabe se é com ele mesmo. Pergunte se pode explicar rapidinho.`;
-        }
-        return `Fase de Abertura (INBOUND): Agradeça o contato, pergunte o nome da pessoa (se não souber) e qual o segmento/nicho de atuação deles hoje para entender como ajudar.`;
-      
-      case "INTRO":
-        return `Fase de Contexto: Diga que estava olhando a empresa deles/perfil e viu que eles fazem um bom trabalho no setor de "${niche}", mas identificou pontos de melhoria que trariam muito mais resultados. Foque na oportunidade.`;
-      
-      case "CONTEXT":
-        return `Fase de Direcionamento: Diga que organizou esses pontos em uma apresentação direta de 10-15 min e quer apresentar para o responsável comercial. Pergunte se fala com a pessoa atual ou outra.`;
-      
-      case "DECISION":
-        return "Fase de Agendamento: Reforce que as oportunidades detectadas podem triplicar os resultados deles e que quer mostrar como isso funciona. Pergunte qual o melhor dia/horário para uma call rápida.";
-      
-      default:
-        return "Converse naturalmente para qualificar o lead e agendar uma reunião.";
-    }
+    const currentStage = stageMap[state] || "Próxima Etapa Lógica";
+
+    return `Siga RIGOROSAMENTE o roteiro fornecido. Você deve executar agora o conteúdo da: ${currentStage}.
+    REGRA DE NICHO: Se o nicho do lead for Consórcio, adapte a etapa de OBSERVAÇÃO seguindo o padrão usado para os outros setores no roteiro.`.trim();
   },
 
   /**
@@ -99,8 +95,12 @@ Use a informação do [NICHO] ("${leadNiche}") para mostrar que você conhece o 
     switch (currentState) {
       case "WAITING_REPLY": return "INTRO";
       case "INTRO": return "CONTEXT";
-      case "CONTEXT": return "DECISION";
-      case "DECISION": return "MEETING";
+      case "CONTEXT": return "DIAGNOSIS";
+      case "DIAGNOSIS": return "VALIDATION";
+      case "VALIDATION": return "POSITIONING";
+      case "POSITIONING": return "OPPORTUNITY";
+      case "OPPORTUNITY": return "CTA";
+      case "CTA": return "DECISION_MAKER";
       default: return currentState;
     }
   }
