@@ -9,8 +9,8 @@ import { CRMRepository } from "../repositories/crm";
 
 // Gera um gap randômico de 6 a 15 minutos entre disparos
 function getRandomGapMs() {
-    const minMinutes = 6;
-    const maxMinutes = 15;
+    const minMinutes = 4;
+    const maxMinutes = 10;
     const gapMinutes = minMinutes + Math.random() * (maxMinutes - minMinutes);
     return gapMinutes * 60 * 1000;
 }

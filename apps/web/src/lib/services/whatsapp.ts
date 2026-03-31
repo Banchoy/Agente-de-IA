@@ -213,7 +213,7 @@ export const WhatsappService = {
                     logger,
                     browser: ["Android", "Chrome", "20.0.0"],
                     generateHighQualityLinkPreview: true,
-                    syncFullHistory: false, // DESATIVADO para evitar OOM (Out of Memory)
+                    syncFullHistory: true, // HABILITADO para melhorar sincronização com o celular
                     markOnlineOnConnect: true, // Garante que a sessão apareça como ativa
                     // Sem store local (usando apenas auth state)
                     getMessage: async () => undefined
@@ -661,8 +661,6 @@ export const WhatsappService = {
                                                 const audioData = await TTSService.generateAudio(msg.content, config.ttsProvider || "openai", config.ttsVoiceId, config.coquiUrl);
                                                 const base64 = audioData.split(",")[1];
                                                 const buffer = Buffer.from(base64, "base64");
-                                                await sock.sendMessage(jid, { audio: buffer, mimetype: "audio/mp4", ptt: true });
-                                                
                                                 await sock.sendMessage(jid, { audio: buffer, mimetype: "audio/mp4", ptt: true });
                                                 // O salvamento agora é feito automaticamente pelo listener global (eco)
                                             } catch (ttsErr) {
