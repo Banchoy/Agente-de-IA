@@ -95,10 +95,17 @@ Your response MUST be a valid JSON object with the following keys:
         scriptInstruction: string,
         temperature: number = 0.7
     ) => {
-        const agentName = agentConfig.agentRealName || "Tayná";
+        // Nome Real do Agente prioritário: Se o usuário definiu Bruno, use Bruno. Fallback Tayná.
+        const agentName = agentConfig.agentRealName || agentConfig.name || "Bruno";
         const businessName = agentConfig.businessName || "Sua Agência";
         const leadNiche = lead?.metaData?.niche || "seu negócio";
-        const gender = agentConfig.gender || "female";
+        
+        // Detectar gênero dinamicamente (Bruno = male)
+        let gender = agentConfig.gender;
+        if (!gender) {
+            const lowName = agentName.toLowerCase();
+            gender = (lowName.endsWith("o") || lowName === "bruno" || lowName.includes("vendedor")) ? "male" : "female";
+        }
         
         // Ajuste gramatical por gênero do agente
         const article = gender === "male" ? "o" : "a";
@@ -143,7 +150,10 @@ ${systemPromptBase}
 - Horário Local Agora (São Paulo): ${new Date().toLocaleString("pt-BR", { timeZone: "America/Sao_Paulo" })}
 - Nome do Lead: ${lead?.name || "Desconhecido"}
 - Tag de Nicho (CRM): [NICHO] = "${leadNiche}"
-- [CRÍTICO] Sempre que se referir ao setor, negócio ou mercado do cliente, utilize o termo exato definido na tag [NICHO]. Esta informação é a "âncora" da ficha dele no sistema e deve ser usada para personalizar seu contato e se conectar com o cenário atual do lead.
+- Origem do Contato: ${lead?.source === "WhatsApp (Inbound)" ? "RECEPTIVO (Cliente chamou primeiro)" : "PROSPECÇÃO (Você iniciou o contato)"}
+- [CRÍTICO] Sempre que se referir ao setor, negócio ou mercado do cliente, utilize o termo exato definido na tag [NICHO]. 
+- [REGRA DE OURO]: Se o [NICHO] for "${leadNiche}" e não for genérico ("seu negócio"), NUNCA pergunte ao cliente qual o segmento dele. AJA como quem já sabe e use isso para puxar assunto.
+- [INSTRUÇÃO DO ESTADO ATUAL]: ${scriptInstruction}
 
 ### SEU DIFERENCIAL (OFERTA):
 ${opportunities}

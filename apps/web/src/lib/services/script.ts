@@ -64,19 +64,29 @@ Use a informação do [NICHO] ("${leadNiche}") para mostrar que você conhece o 
     }
   },
 
-  /**
-   * Retorna a "Instrução de Comportamento" para a IA baseado no estado atual.
+   /**
+   * Retorna a "Instrução de Comportamento" para a IA baseado no estado atual e origem do lead.
    */
-  getInstruction: (state: string) => {
+  getInstruction: (state: string, lead?: any) => {
+    const isOutreach = lead?.source !== "WhatsApp (Inbound)";
+    const niche = lead?.metaData?.niche || "este segmento";
+
     switch (state) {
       case "WAITING_REPLY":
-        return "Fase de Introdução: Apresente-se como Tayná, diga que viu que trabalham com este nicho e que precisa de ajuda/orientação. Pergunte se pode explicar rapidinho.";
+        if (isOutreach) {
+          return `Fase de Introdução (PROSPECÇÃO): Apresente-se, diga que viu que trabalham com "${niche}" e que precisa de ajuda/orientação rápida, mas não sabe se é com ele mesmo. Pergunte se pode explicar rapidinho.`;
+        }
+        return `Fase de Abertura (INBOUND): Agradeça o contato, pergunte o nome da pessoa (se não souber) e qual o segmento/nicho de atuação deles hoje para entender como ajudar.`;
+      
       case "INTRO":
-        return "Fase de Contexto: Diga que estava olhando a empresa deles e viu coisas legais, mas identificou pontos de melhoria que trariam mais resultados. Foque na oportunidade.";
+        return `Fase de Contexto: Diga que estava olhando a empresa deles/perfil e viu que eles fazem um bom trabalho no setor de "${niche}", mas identificou pontos de melhoria que trariam muito mais resultados. Foque na oportunidade.`;
+      
       case "CONTEXT":
-        return "Fase de Direcionamento: Diga que organizou esses pontos em uma apresentação direta e quer apresentar para o responsável comercial. Pergunte se fala com a pessoa atual ou outra.";
+        return `Fase de Direcionamento: Diga que organizou esses pontos em uma apresentação direta de 10-15 min e quer apresentar para o responsável comercial. Pergunte se fala com a pessoa atual ou outra.`;
+      
       case "DECISION":
-        return "Fase de Agendamento: Reforce que viu oportunidades de melhoria e quer mostrar em 10-15 min. Pergunte se faz sentido para o cliente.";
+        return "Fase de Agendamento: Reforce que as oportunidades detectadas podem triplicar os resultados deles e que quer mostrar como isso funciona. Pergunte qual o melhor dia/horário para uma call rápida.";
+      
       default:
         return "Converse naturalmente para qualificar o lead e agendar uma reunião.";
     }

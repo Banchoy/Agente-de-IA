@@ -560,7 +560,7 @@ export const WhatsappService = {
 
                                 // 4. Generate AI Response (Adaptive or Generic)
                                 const { ScriptService } = await import("./script");
-                                const scriptInstruction = ScriptService.getInstruction(lead.conversationState);
+                                const scriptInstruction = ScriptService.getInstruction(lead.conversationState, lead);
                                 
                                 console.log(`🤖 [Baileys] Chamando AIService (Adaptativo: ${!!scriptInstruction}) para: ${agent.name}`);
 
