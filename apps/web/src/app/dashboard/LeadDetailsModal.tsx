@@ -115,23 +115,23 @@ export default function LeadDetailsModal({ lead, isOpen, onClose, onSave }: Lead
 
     return (
         <Dialog open={isOpen} onOpenChange={onClose}>
-            <DialogContent className="sm:max-w-[1000px] p-0 border-zinc-200 rounded-3xl shadow-2xl overflow-hidden bg-white">
+            <DialogContent className="sm:max-w-[1000px] p-0 border-border rounded-3xl shadow-2xl overflow-hidden bg-background">
                 <div className="flex h-[80vh]">
-                    <div className="flex-1 flex flex-col bg-zinc-50/50">
-                        {/* Tab Headers */}
-                        <div className="px-6 pt-6 border-b border-zinc-100 bg-white">
+                        <div className="flex-1 flex flex-col bg-muted/20">
+                            {/* Tab Headers */}
+                            <div className="px-6 pt-6 border-b border-border bg-background">
                             <div className="flex items-center justify-between mb-6">
                                 <div className="flex items-center gap-3">
-                                    <div className="h-10 w-10 rounded-xl bg-zinc-900 flex items-center justify-center text-white">
+                                    <div className="h-10 w-10 rounded-xl bg-primary flex items-center justify-center text-primary-foreground">
                                         <User size={20} />
                                     </div>
                                     <div>
-                                        <h2 className="text-xl font-black text-zinc-900 uppercase tracking-tight">{lead.name || 'Sem Nome'}</h2>
-                                        <span className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest">Lead ID: {String(lead.id).slice(0, 8)}</span>
+                                        <h2 className="text-xl font-black text-foreground uppercase tracking-tight">{lead.name || 'Sem Nome'}</h2>
+                                        <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Lead ID: {String(lead.id).slice(0, 8)}</span>
                                     </div>
                                 </div>
                                 <div className="flex gap-2">
-                                    <Badge className="rounded-full h-8 px-4 bg-zinc-100 text-zinc-600 border-none text-[10px] font-black uppercase">
+                                    <Badge className="rounded-full h-8 px-4 bg-muted text-muted-foreground border-none text-[10px] font-black uppercase">
                                         Etapa: {lead.stageId}
                                     </Badge>
                                 </div>
@@ -142,10 +142,10 @@ export default function LeadDetailsModal({ lead, isOpen, onClose, onSave }: Lead
                                     <button
                                         key={tab.id}
                                         onClick={() => setActiveTab(tab.id)}
-                                        className={`pb-4 text-xs font-black uppercase tracking-widest transition-all relative ${activeTab === tab.id ? 'text-zinc-900' : 'text-zinc-400 hover:text-zinc-600'}`}
+                                        className={`pb-4 text-xs font-black uppercase tracking-widest transition-all relative ${activeTab === tab.id ? 'text-foreground' : 'text-muted-foreground hover:text-foreground'}`}
                                     >
                                         {tab.label}
-                                        {activeTab === tab.id && <div className="absolute bottom-0 left-0 w-full h-0.5 bg-zinc-900 animate-in fade-in slide-in-from-bottom-1" />}
+                                        {activeTab === tab.id && <div className="absolute bottom-0 left-0 w-full h-0.5 bg-primary animate-in fade-in slide-in-from-bottom-1" />}
                                     </button>
                                 ))}
                             </div>
@@ -156,37 +156,37 @@ export default function LeadDetailsModal({ lead, isOpen, onClose, onSave }: Lead
                             {activeTab === "dados" && (
                                 <div className="grid grid-cols-2 gap-6 animate-in fade-in duration-300">
                                     <div className="space-y-2">
-                                        <Label className="text-[10px] font-black uppercase text-zinc-400 tracking-widest">Nome Completo</Label>
-                                        <Input value={lead.name || ""} readOnly className="bg-white border-zinc-200 rounded-xl h-11 font-medium" />
+                                        <Label className="text-[10px] font-black uppercase text-muted-foreground tracking-widest">Nome Completo</Label>
+                                        <Input value={lead.name || ""} readOnly className="bg-background border-border rounded-xl h-11 font-medium" />
                                     </div>
                                     <div className="space-y-2">
-                                        <Label className="text-[10px] font-black uppercase text-zinc-400 tracking-widest">E-mail</Label>
-                                        <Input value={formData.email || ""} onChange={(e) => handleChange("email", e.target.value)} className="bg-white border-zinc-200 rounded-xl h-11 font-medium" />
+                                        <Label className="text-[10px] font-black uppercase text-muted-foreground tracking-widest">E-mail</Label>
+                                        <Input value={formData.email || ""} onChange={(e) => handleChange("email", e.target.value)} className="bg-background border-border rounded-xl h-11 font-medium" />
                                     </div>
                                     <div className="space-y-2">
-                                        <Label className="text-[10px] font-black uppercase text-zinc-400 tracking-widest">Telefone Principal</Label>
-                                        <Input value={formData.phone || ""} onChange={(e) => handleChange("phone", e.target.value)} className="bg-white border-zinc-200 rounded-xl h-11 font-medium" />
+                                        <Label className="text-[10px] font-black uppercase text-muted-foreground tracking-widest">Telefone Principal</Label>
+                                        <Input value={formData.phone || ""} onChange={(e) => handleChange("phone", e.target.value)} className="bg-background border-border rounded-xl h-11 font-medium" />
                                     </div>
                                     <div className="space-y-2">
-                                        <Label className="text-[10px] font-black uppercase text-zinc-400 tracking-widest">Origem do Lead</Label>
-                                        <Input value={formData.source || ""} onChange={(e) => handleChange("source", e.target.value)} className="bg-white border-zinc-200 rounded-xl h-11 font-medium" />
+                                        <Label className="text-[10px] font-black uppercase text-muted-foreground tracking-widest">Origem do Lead</Label>
+                                        <Input value={formData.source || ""} onChange={(e) => handleChange("source", e.target.value)} className="bg-background border-border rounded-xl h-11 font-medium" />
                                     </div>
                                     <div className="space-y-2">
-                                        <Label className="text-[10px] font-black uppercase text-zinc-400 tracking-widest">Tag de Nicho (CRM / IA)</Label>
-                                        <Input value={formData.niche || ""} onChange={(e) => handleChange("niche", e.target.value)} placeholder="Ex: Consórcio, Imobiliária" className="bg-white border-zinc-200 rounded-xl h-11 font-medium" />
+                                        <Label className="text-[10px] font-black uppercase text-muted-foreground tracking-widest">Tag de Nicho (CRM / IA)</Label>
+                                        <Input value={formData.niche || ""} onChange={(e) => handleChange("niche", e.target.value)} placeholder="Ex: Consórcio, Imobiliária" className="bg-background border-border rounded-xl h-11 font-medium" />
                                     </div>
-                                    <div className="col-span-2 grid grid-cols-3 gap-4 p-4 bg-zinc-100/50 rounded-2xl border border-zinc-100">
+                                    <div className="col-span-2 grid grid-cols-3 gap-4 p-4 bg-muted/50 rounded-2xl border border-border">
                                         <div className="space-y-1">
-                                            <p className="text-[9px] font-black text-zinc-400 uppercase">UTM Source</p>
-                                            <p className="text-xs font-bold text-zinc-600">{formData.utm_source || "Não disponível"}</p>
+                                            <p className="text-[9px] font-black text-muted-foreground uppercase">UTM Source</p>
+                                            <p className="text-xs font-bold text-foreground/80">{formData.utm_source || "Não disponível"}</p>
                                         </div>
                                         <div className="space-y-1">
-                                            <p className="text-[9px] font-black text-zinc-400 uppercase">UTM Medium</p>
-                                            <p className="text-xs font-bold text-zinc-600">{formData.utm_medium || "Não disponível"}</p>
+                                            <p className="text-[9px] font-black text-muted-foreground uppercase">UTM Medium</p>
+                                            <p className="text-xs font-bold text-foreground/80">{formData.utm_medium || "Não disponível"}</p>
                                         </div>
                                         <div className="space-y-1">
-                                            <p className="text-[9px] font-black text-zinc-400 uppercase">UTM Campaign</p>
-                                            <p className="text-xs font-bold text-zinc-600">{formData.utm_campaign || "Não disponível"}</p>
+                                            <p className="text-[9px] font-black text-muted-foreground uppercase">UTM Campaign</p>
+                                            <p className="text-xs font-bold text-foreground/80">{formData.utm_campaign || "Não disponível"}</p>
                                         </div>
                                     </div>
                                 </div>
@@ -195,38 +195,38 @@ export default function LeadDetailsModal({ lead, isOpen, onClose, onSave }: Lead
                             {activeTab === "qualificacao" && (
                                 <div className="grid grid-cols-2 gap-6 animate-in fade-in duration-300">
                                     <div className="space-y-2">
-                                        <Label className="text-[10px] font-black uppercase text-zinc-400 tracking-widest">Produto de Interesse</Label>
-                                        <Input value={formData.product || ""} onChange={(e) => handleChange("product", e.target.value)} placeholder="ex: Imóveis, Automóveis" className="bg-white border-zinc-200 rounded-xl h-11" />
+                                        <Label className="text-[10px] font-black uppercase text-muted-foreground tracking-widest">Produto de Interesse</Label>
+                                        <Input value={formData.product || ""} onChange={(e) => handleChange("product", e.target.value)} placeholder="ex: Imóveis, Automóveis" className="bg-background border-border rounded-xl h-11" />
                                     </div>
                                     <div className="space-y-2">
-                                        <Label className="text-[10px] font-black uppercase text-zinc-400 tracking-widest">Administradora</Label>
-                                        <Input value={formData.admin || ""} onChange={(e) => handleChange("admin", e.target.value)} className="bg-white border-zinc-200 rounded-xl h-11" />
+                                        <Label className="text-[10px] font-black uppercase text-muted-foreground tracking-widest">Administradora</Label>
+                                        <Input value={formData.admin || ""} onChange={(e) => handleChange("admin", e.target.value)} className="bg-background border-border rounded-xl h-11" />
                                     </div>
                                     <div className="space-y-2">
-                                        <Label className="text-[10px] font-black uppercase text-zinc-400 tracking-widest">Renda Mensal</Label>
-                                        <Input value={formData.income || ""} onChange={(e) => handleChange("income", e.target.value)} placeholder="R$ 0,00" className="bg-white border-zinc-200 rounded-xl h-11" />
+                                        <Label className="text-[10px] font-black uppercase text-muted-foreground tracking-widest">Renda Mensal</Label>
+                                        <Input value={formData.income || ""} onChange={(e) => handleChange("income", e.target.value)} placeholder="R$ 0,00" className="bg-background border-border rounded-xl h-11" />
                                     </div>
                                     <div className="space-y-2">
-                                        <Label className="text-[10px] font-black uppercase text-zinc-400 tracking-widest">Crédito Desejado</Label>
-                                        <Input value={formData.credit || ""} onChange={(e) => handleChange("credit", e.target.value)} placeholder="R$ 0,00" className="bg-white border-zinc-200 rounded-xl h-11 font-black text-emerald-600" />
+                                        <Label className="text-[10px] font-black uppercase text-muted-foreground tracking-widest">Crédito Desejado</Label>
+                                        <Input value={formData.credit || ""} onChange={(e) => handleChange("credit", e.target.value)} placeholder="R$ 0,00" className="bg-background border-border rounded-xl h-11 font-black text-emerald-500" />
                                     </div>
                                     <div className="col-span-2 space-y-4 pt-4 border-t border-zinc-100">
                                         <div className="flex gap-4">
                                             <div className="flex-1 space-y-2">
-                                                <Label className="text-[10px] font-black uppercase text-zinc-400 tracking-widest">Paga aluguel?</Label>
-                                                <div className="flex gap-1 p-1 bg-zinc-100 rounded-xl">
+                                                <Label className="text-[10px] font-black uppercase text-muted-foreground tracking-widest">Paga aluguel?</Label>
+                                                <div className="flex gap-1 p-1 bg-muted rounded-xl">
                                                     {["Sim", "Não", "Não sei"].map(val => (
-                                                        <button key={val} onClick={() => handleChange("rent", val)} className={`flex-1 py-1.5 text-[10px] font-black uppercase rounded-lg transition-all ${formData.rent === val ? 'bg-zinc-900 text-white shadow-md' : 'text-zinc-400'}`}>
+                                                        <button key={val} onClick={() => handleChange("rent", val)} className={`flex-1 py-1.5 text-[10px] font-black uppercase rounded-lg transition-all ${formData.rent === val ? 'bg-primary text-primary-foreground shadow-md' : 'text-muted-foreground'}`}>
                                                             {val}
                                                         </button>
                                                     ))}
                                                 </div>
                                             </div>
                                             <div className="flex-1 space-y-2">
-                                                <Label className="text-[10px] font-black uppercase text-zinc-400 tracking-widest">Já simulou financiamento?</Label>
-                                                <div className="flex gap-1 p-1 bg-zinc-100 rounded-xl">
+                                                <Label className="text-[10px] font-black uppercase text-muted-foreground tracking-widest">Já simulou financiamento?</Label>
+                                                <div className="flex gap-1 p-1 bg-muted rounded-xl">
                                                     {["Sim", "Não", "Não sei"].map(val => (
-                                                        <button key={val} onClick={() => handleChange("simulation", val)} className={`flex-1 py-1.5 text-[10px] font-black uppercase rounded-lg transition-all ${formData.simulation === val ? 'bg-zinc-900 text-white shadow-md' : 'text-zinc-400'}`}>
+                                                        <button key={val} onClick={() => handleChange("simulation", val)} className={`flex-1 py-1.5 text-[10px] font-black uppercase rounded-lg transition-all ${formData.simulation === val ? 'bg-primary text-primary-foreground shadow-md' : 'text-muted-foreground'}`}>
                                                             {val}
                                                         </button>
                                                     ))}
@@ -248,22 +248,22 @@ export default function LeadDetailsModal({ lead, isOpen, onClose, onSave }: Lead
                                     </div>
                                     <div className="space-y-4">
                                         {Array.isArray(editableSuggestions) && editableSuggestions.map((suggestion) => (
-                                            <div key={suggestion.id} className="p-5 bg-white border border-zinc-100 rounded-2xl shadow-sm hover:border-emerald-200 transition-all">
+                                            <div key={suggestion.id} className="p-5 bg-background border border-border rounded-2xl shadow-sm hover:border-emerald-500/30 transition-all">
                                                 <div className="flex justify-between items-start mb-3">
                                                     <div>
-                                                        <span className="text-[9px] font-black uppercase text-zinc-400">{suggestion.type}</span>
+                                                        <span className="text-[9px] font-black uppercase text-muted-foreground">{suggestion.type}</span>
                                                         <h5 className="text-sm font-black">{suggestion.title}</h5>
                                                     </div>
                                                     <div className="flex gap-2">
-                                                        <Button variant="outline" size="icon" onClick={() => handleRegenerate(suggestion.id)} className="rounded-xl h-9 w-9">
+                                                        <Button variant="outline" size="icon" onClick={() => handleRegenerate(suggestion.id)} className="rounded-xl h-9 w-9 border-border">
                                                             <Plus size={14} className="rotate-45" />
                                                         </Button>
-                                                        <Button onClick={() => handleSendWhatsApp(suggestion.message)} className="bg-emerald-600 text-white rounded-xl h-9 px-4 text-[10px] font-black uppercase gap-2 transition-all shadow-lg shadow-emerald-100">
+                                                        <Button onClick={() => handleSendWhatsApp(suggestion.message)} className="bg-emerald-600 text-white rounded-xl h-9 px-4 text-[10px] font-black uppercase gap-2 transition-all shadow-lg shadow-emerald-500/20">
                                                             <Phone size={14} /> WhatsApp
                                                         </Button>
                                                     </div>
                                                 </div>
-                                                <Textarea value={suggestion.message} onChange={(e) => handleMessageChange(suggestion.id, e.target.value)} className="text-xs bg-zinc-50 border-none rounded-xl min-h-[80px] italic" />
+                                                <Textarea value={suggestion.message} onChange={(e) => handleMessageChange(suggestion.id, e.target.value)} className="text-xs bg-muted/30 border-none rounded-xl min-h-[80px] italic text-foreground" />
                                             </div>
                                         ))}
                                     </div>
@@ -280,26 +280,26 @@ export default function LeadDetailsModal({ lead, isOpen, onClose, onSave }: Lead
                         </div>
 
                         {/* Footer */}
-                        <div className="p-6 border-t border-zinc-100 bg-white flex justify-end gap-3">
+                        <div className="p-6 border-t border-border bg-background flex justify-end gap-3">
                             <Button onClick={onClose} variant="ghost" className="rounded-xl font-bold uppercase text-[10px] tracking-widest">Voltar</Button>
                             <Button onClick={handleSave} className="bg-emerald-600 text-white rounded-xl px-8 font-black uppercase text-[10px] tracking-widest shadow-lg shadow-emerald-200">Salvar Lead</Button>
                         </div>
                     </div>
 
                     {/* Right Side History */}
-                    <div className="w-[350px] border-l border-zinc-100 flex flex-col bg-white overflow-hidden text-zinc-600">
-                        <div className="p-6 border-b border-zinc-100 font-black text-xs uppercase text-zinc-400">Histórico de Atendimento</div>
+                    <div className="w-[350px] border-l border-border flex flex-col bg-background overflow-hidden text-foreground">
+                        <div className="p-6 border-b border-border font-black text-xs uppercase text-muted-foreground">Histórico de Atendimento</div>
                         <div className="flex-1 overflow-y-auto p-6 space-y-6 custom-scrollbar">
-                            <div className="relative pl-6 border-l-2 border-zinc-100 space-y-8">
+                            <div className="relative pl-6 border-l-2 border-border space-y-8">
                                 <div className="relative">
-                                    <div className="absolute -left-[31px] top-0 h-4 w-4 rounded-full bg-zinc-900 border-4 border-white shadow-sm" />
+                                    <div className="absolute -left-[31px] top-0 h-4 w-4 rounded-full bg-primary border-4 border-background shadow-sm" />
                                     <div className="space-y-1">
                                         <div className="flex justify-between items-center text-[10px] font-black uppercase">
                                             <span>Lead Capturado</span>
-                                            <span className="text-zinc-400">há {captureTimeLabel} min</span>
+                                            <span className="text-muted-foreground">há {captureTimeLabel} min</span>
                                         </div>
-                                        <div className="p-4 bg-zinc-50 rounded-2xl border border-zinc-100 text-xs">
-                                            Origem: <span className="font-black text-zinc-900">{lead.source || "Meta Ads"}</span>
+                                        <div className="p-4 bg-muted/40 rounded-2xl border border-border text-xs">
+                                            Origem: <span className="font-black text-foreground">{lead.source || "Meta Ads"}</span>
                                             {lead.metaData?.form_responses && typeof lead.metaData.form_responses === 'object' && (
                                                 <div className="mt-3 space-y-2 pt-3 border-t border-zinc-100">
                                                     <p className="text-[9px] font-black text-zinc-400 uppercase mb-2">Respostas do Formulário:</p>
