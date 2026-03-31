@@ -3,6 +3,7 @@ import { AIService } from "./ai";
 export interface ScrapedLead {
     name: string;
     phone?: string;
+    email?: string;
     website?: string;
     category?: string;
     address?: string;
@@ -26,7 +27,7 @@ export const ScraperService = {
 
             // 2. Use Gemini to extract business list
             const systemPrompt = `Você é um extrator de dados especialista. Analise o HTML/Texto de uma página do Google Maps e extraia uma lista de empresas.
-            Para cada empresa, tente encontrar: Nome, Telefone (formato completo com DDI, ex: +1973...), Website, Categoria e Endereço.
+            Para cada empresa, tente encontrar: Nome, Telefone (formato completo com DDI, ex: +1973...), E-mail, Website, Categoria e Endereço.
             Retorne APENAS um JSON array de objetos. Se não encontrar nada, retorne [].`;
 
             const aiResponse = await AIService.generateResponse(
@@ -41,12 +42,16 @@ export const ScraperService = {
 
             console.log(`✅ [Scraper] ${leads.length} potenciais leads encontrados.`);
 
-            // 3. Enrichment: if phone is missing but website exists, scrape the website
+            // 3. Enrichment: if phone or email is missing but website exists, scrape the website
             const enrichedLeads = await Promise.all(leads.map(async (lead) => {
-                if (!lead.phone && lead.website && lead.website.startsWith("http")) {
-                    console.log(`🌐 [Scraper] Buscando WhatsApp no site: ${lead.website}`);
-                    const phone = await ScraperService.findWhatsAppOnSite(lead.website);
-                    if (phone) return { ...lead, phone };
+                if ((!lead.phone || !lead.email) && lead.website && lead.website.startsWith("http")) {
+                    console.log(`🌐 [Scraper] Buscando dados de contato no site: ${lead.website}`);
+                    const contactInfo = await ScraperService.findContactsOnSite(lead.website);
+                    return { 
+                        ...lead, 
+                        phone: lead.phone || contactInfo.phone,
+                        email: lead.email || contactInfo.email
+                    };
                 }
                 return lead;
             }));
@@ -60,29 +65,39 @@ export const ScraperService = {
     },
 
     /**
-     * Tries to find a WhatsApp number on a given website.
+     * Tries to find contact info (WhatsApp/Email) on a given website.
      */
-    findWhatsAppOnSite: async (url: string): Promise<string | undefined> => {
+    findContactsOnSite: async (url: string): Promise<{ phone?: string; email?: string }> => {
         try {
-            const response = await fetch(url, { timeout: 10000 } as any);
+            const response = await fetch(url, { signal: AbortSignal.timeout(10000) });
             const html = await response.text();
 
-            const systemPrompt = `Analise o conteúdo do site e encontre um número de WhatsApp ou telefone de contato.
-            Retorne APENAS o número no formato internacional completo (ex: +1973...) ou NADA se não encontrar.`;
+            const systemPrompt = `Analise o conteúdo do site e encontre um número de WhatsApp/Telefone e um E-mail de contato.
+            Retorne um JSON com os campos "phone" (formato internacional +DDI) e "email". Se algum não for encontrado, deixe nulo.`;
 
             const aiResponse = await AIService.generateResponse(
                 "google",
                 "gemini-1.5-flash",
                 systemPrompt,
-                [{ role: "user", content: `Encontre o WhatsApp neste site:\n\n${html.substring(0, 30000)}` }]
+                [{ role: "user", content: `Encontre contatos neste site:\n\n${html.substring(0, 30000)}` }]
             );
 
-            const phone = aiResponse.trim().replace(/\D/g, "");
-            return phone.length >= 10 ? `+${phone}` : undefined;
+            const cleaned = aiResponse.replace(/```json|```/g, "").trim();
+            const data = JSON.parse(cleaned);
+
+            // Normalização básica de telefone aqui também
+            let phone = data.phone ? data.phone.toString().replace(/\D/g, "") : undefined;
+            if (phone && !phone.startsWith("+")) phone = "+" + phone;
+
+            return { 
+                phone: phone, 
+                email: data.email || undefined 
+            };
 
         } catch (error) {
             console.warn(`⚠️ [Scraper] Falha ao acessar site ${url}:`, error);
-            return undefined;
+            return {};
         }
     }
 };
+

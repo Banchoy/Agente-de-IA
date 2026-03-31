@@ -11,6 +11,7 @@ import { OrganizationRepository } from "@/lib/repositories/organization";
 import { ApifyService } from "@/lib/services/apify";
 import { auth } from "@clerk/nextjs/server";
 import { headers } from "next/headers";
+import { normalizePhone } from "@/lib/utils/phone";
 
 export async function listLeads() {
     try {
@@ -361,10 +362,9 @@ export async function getProspectingProgress(runId: string, clientNiche?: string
         for (const item of items) {
             const leadName = item.title || item.name || "Lead Maps";
             
-            // Normalizar Telefone
-            const rawPhone = item.phone || item.phoneNumber || item.phoneNumberStandardized;
-            let cleanPhone = rawPhone ? rawPhone.toString().replace(/\D/g, "") : "";
-            if (cleanPhone && !cleanPhone.startsWith("+")) cleanPhone = "+" + cleanPhone;
+            // Normalizar Telefone usando utilidade global
+            const rawPhone = item.phoneUnformatted || item.phone || item.phoneNumber || item.phoneNumberStandardized || "";
+            const phone = normalizePhone(rawPhone);
 
             // Mapeamento Robusto de E-mail
             const email = (
@@ -377,12 +377,12 @@ export async function getProspectingProgress(runId: string, clientNiche?: string
                 ""
             ).toLowerCase().trim();
             
-            if (!cleanPhone && !email) continue;
+            if (!phone && !email) continue;
 
             const leadValues = {
                 organizationId: org.id,
                 name: leadName,
-                phone: cleanPhone || null,
+                phone: phone || null,
                 email: email || null,
                 source: "Google Maps",
                 stageId: qualificationStageId || null,
@@ -412,6 +412,7 @@ export async function getProspectingProgress(runId: string, clientNiche?: string
         return { success: false, error: error.message };
     }
 }
+
 
 export async function createStage(name: string) {
     const { orgId: clerkOrgId } = await auth();

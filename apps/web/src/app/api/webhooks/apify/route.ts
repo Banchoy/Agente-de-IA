@@ -3,6 +3,7 @@ import { db } from "@/lib/db";
 import { leads, stages, pipelines } from "@saas/db";
 import { eq, sql } from "drizzle-orm";
 import { LeadRepository } from "@/lib/repositories/lead";
+import { normalizePhone } from "@/lib/utils/phone";
 
 export async function POST(req: Request) {
     try {
@@ -80,12 +81,10 @@ export async function POST(req: Request) {
             if (!item.title && !item.name) continue;
 
             const leadName = item.title || item.name || "Sem Nome Apify";
-            // Normalizar telefone para o padrão
-            let phone = item.phoneUnformatted || item.phone || item.phoneNumber || "";
-            phone = phone.replace(/\D/g, "");
             
-            // Adicionar + se não tiver
-            if (phone && !phone.startsWith("+")) phone = "+" + phone;
+            // Normalizar telefone usando a utilidade global
+            const rawPhone = item.phoneUnformatted || item.phone || item.phoneNumber || item.phoneNumberStandardized || "";
+            const phone = normalizePhone(rawPhone);
 
             const email = (
                 item.email || 
@@ -104,6 +103,7 @@ export async function POST(req: Request) {
                 console.log(`⏩ [Apify Webhook] Lead ${leadName} ignorado (sem contato).`);
                 continue;
             }
+
 
             try {
                 const leadValues: any = {
