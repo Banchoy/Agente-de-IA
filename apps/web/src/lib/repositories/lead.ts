@@ -8,7 +8,7 @@ export const LeadRepository = {
     listByOrg: async () => {
         return await withOrgContext(async (tx) => {
             return await tx.query.leads.findMany({
-                orderBy: (l: any, { desc }: any) => [desc(l.createdAt)]
+                orderBy: (l: any, { desc }: any) => [desc(l.updatedAt)]
             });
         });
     },
