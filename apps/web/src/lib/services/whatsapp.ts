@@ -111,7 +111,10 @@ async function useDrizzleAuthState(sessionId: string, organizationId: string) {
                         ids.map(async (id) => {
                             let value = await readData(`${type}-${id}`);
                             if (type === "app-state-sync-key" && value) {
-                                value = (await import("@whiskeysockets/baileys")).proto.Message.AppStateSyncKeyData.fromObject(value);
+                                // Garantir que chaves de sincronização sejam Buffers reais (essencial para o sync)
+                                if (value && typeof value === 'object' && !Buffer.isBuffer(value)) {
+                                    value = (await import("@whiskeysockets/baileys")).proto.Message.AppStateSyncKeyData.fromObject(value);
+                                }
                             }
                             data[id] = value;
                         })
@@ -134,7 +137,6 @@ async function useDrizzleAuthState(sessionId: string, organizationId: string) {
             }, logger)
         },
         saveCreds: () => {
-            // Log silenciado para economizar memória
             return writeData("creds", creds);
         }
     };
@@ -263,12 +265,17 @@ export const WhatsappService = {
                                 })
                                 .where(eq(organizations.id, organizationId));
                         } else if (connection === "close") {
-                            const error = lastDisconnect?.error as Boom;
-                            const statusCode = error?.output?.statusCode;
-                            const isLoggedOut = statusCode === DisconnectReason.loggedOut;
-                            const shouldReconnect = !isLoggedOut;
-                            
-                            console.error(`❌ [Baileys] Conexão fechada (${sessionId}). Status: ${statusCode}.`);
+                             const error = lastDisconnect?.error as Boom;
+                             const statusCode = error?.output?.statusCode;
+                             const isLoggedOut = statusCode === DisconnectReason.loggedOut;
+                             const isReplaced = statusCode === DisconnectReason.connectionReplaced;
+                             const shouldReconnect = !isLoggedOut && !isReplaced;
+                             
+                             if (isReplaced) {
+                                 console.error(`⚠️ [Baileys] CONFLITO DETECTADO: A última sessão para ${sessionId} foi substituída por outro dispositivo/instância. Sync interrompido.`);
+                             } else {
+                                 console.error(`❌ [Baileys] Conexão fechada (${sessionId}). Status: ${statusCode}.`);
+                             }
                             
                             if (shouldReconnect) {
                                 WhatsappService.sessions.delete(sessionId);
@@ -831,9 +838,17 @@ export const WhatsappService = {
         }
 
         try {
-            const jid = number.includes("@s.whatsapp.net") ? number : `${number}@s.whatsapp.net`;
-            await session.sock.sendMessage(jid, { text });
-            console.log(`✅ [Baileys] Mensagem enviada com sucesso para ${number}`);
+            // Normalização de JID para garantir sincronização style "WhatsApp Web" e entrega real
+            let targetJid = number.includes("@s.whatsapp.net") ? number : `${number}@s.whatsapp.net`;
+            
+            // Tenta obter o JID exato via onWhatsApp (resolve problemas de 9º dígito no Brasil)
+            const [check] = await session.sock.onWhatsApp(targetJid);
+            if (check?.exists) {
+                targetJid = check.jid;
+            }
+
+            await session.sock.sendMessage(targetJid, { text });
+            console.log(`✅ [Baileys] Mensagem enviada com sucesso para ${targetJid}`);
             return { success: true };
         } catch (err) {
             console.error(`❌ [Baileys] Erro ao enviar mensagem para ${number}:`, err);

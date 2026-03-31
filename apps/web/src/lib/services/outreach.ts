@@ -21,6 +21,7 @@ export const OutreachService = {
      */
     processQueue: async () => {
         console.log("📨 [Outreach] Verificando fila de prospecção...");
+        let pendingLead: any = null;
         
         try {
             // Anti-ban: verificar quando foi o último disparo de QUALQUER lead via Redis
@@ -60,15 +61,20 @@ export const OutreachService = {
             }
 
             // 1. Buscar um lead que está 'pending'
-            const [pendingLead] = await db
+            const [result] = await db
                 .select()
                 .from(leads)
                 .where(eq(leads.outreachStatus, "pending"))
                 .limit(1);
 
+            pendingLead = result;
+
             if (!pendingLead) {
                 return;
             }
+
+            // 1.1 Marcar imediatamente como 'processing' para evitar duplicidade em execuções paralelas ou próximas
+            await LeadRepository.updateSystem(pendingLead.id, { outreachStatus: "processing" });
 
             console.log(`📨 [Outreach] Processando lead: ${pendingLead.name} (${pendingLead.phone})`);
 
@@ -142,8 +148,18 @@ export const OutreachService = {
 
             console.log(`✅ [Outreach] Mensagem enviada para ${pendingLead.name} com sucesso!`);
 
+            console.log(`✅ [Outreach] Mensagem enviada para ${pendingLead.name} com sucesso!`);
+
         } catch (error) {
             console.error("❌ [Outreach] Erro crítico ao processar fila:", error);
+            // Se houver um lead sendo processado, marcar como falha para não travar a fila
+            if (pendingLead?.id) {
+                try {
+                    await LeadRepository.updateSystem(pendingLead.id, { outreachStatus: "failed_error" });
+                } catch (retryErr) {
+                    console.error("❌ [Outreach] Erro ao marcar falha no lead:", retryErr);
+                }
+            }
         }
     }
 };
