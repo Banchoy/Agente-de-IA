@@ -262,7 +262,10 @@ export default function ProspectingModal({ isOpen, onClose }: ProspectingModalPr
                                         <div key={i} className="flex items-center justify-between p-3 bg-background rounded-2xl border border-border/50 animate-in slide-in-from-bottom duration-500">
                                             <div className="text-left">
                                                 <p className="font-bold text-xs truncate max-w-[150px]">{l.name}</p>
-                                                <p className="text-[10px] text-muted-foreground">{l.phone}</p>
+                                                <p className="text-[10px] text-muted-foreground">{l.phone || "—"}</p>
+                                                {l.email && (
+                                                    <p className="text-[10px] text-primary/80 truncate max-w-[150px]">✉️ {l.email}</p>
+                                                )}
                                             </div>
                                             <Badge variant="outline" className="text-[9px] border-emerald-500/30 text-emerald-600 bg-emerald-50 font-black">
                                                 SALVO

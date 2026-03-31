@@ -29,6 +29,12 @@ export const LeadRepository = {
         });
     },
 
+    getByIdSystem: async (id: string) => {
+        return await db.query.leads.findFirst({
+            where: eq(leads.id, id)
+        });
+    },
+
     getByPhoneSystem: async (phone: string, organizationId: string) => {
         return await db.query.leads.findFirst({
             where: and(

@@ -299,7 +299,9 @@ export const WhatsappService = {
                 sock.ev.on('messages.upsert', async ({ messages: incomingMessages, type }) => {
                     console.log(`🔍 [Baileys] Entrando no Processamento de Upsert. Tipo: ${type}, Total de mensagens: ${incomingMessages.length}`);
                     
-                    if (type !== 'notify' && type !== 'append') {
+                    // Apenas processar mensagens recebidas em tempo real (não sincronização de histórico)
+                    // Para mensagens 'append', estas são geralmente ecos de histórico/sincronização
+                    if (type !== 'notify') {
                         console.log(`⏩ [Baileys] Tipo de upsert ignorado: ${type}`);
                         return;
                     }
@@ -365,6 +367,13 @@ export const WhatsappService = {
 
                             console.log(`✨ [Baileys] MENSAGEM VÁLIDA: (${role}) de ${phone}. Texto: "${text.substring(0, 50)}..."`);
 
+                            // CRÍTICO: Mensagens enviadas pelo próprio sistema (fromMe=true) são ecos
+                            // do que a IA já salvou manualmente antes de enviar. Ignorar para evitar duplicatas.
+                            if (isFromMe) {
+                                console.log(`⏩ [Baileys] Mensagem fromMe (eco de envio da IA) ignorada para evitar duplicata.`);
+                                continue;
+                            }
+
                             // 0. Get Organization
                             console.log(`🔍 [Baileys] Buscando organização ID: ${organizationId}`);
                             const org = await OrganizationRepository.getById(organizationId);
@@ -400,8 +409,8 @@ export const WhatsappService = {
 
                             const whatsappMessageId = msg.key.id;
 
-                            // 2. Save Message to History
-                            console.log(`💾 [Baileys] Salvando mensagem no histórico do lead: ${lead.id} (ID: ${whatsappMessageId})`);
+                            // 2. Save Message to History (apenas mensagens recebidas do usuário)
+                            console.log(`💾 [Baileys] Salvando mensagem do usuário no histórico do lead: ${lead.id} (ID: ${whatsappMessageId})`);
                             await (MessageRepository as any).createSystem({
                                 organizationId: org.id,
                                 leadId: lead.id,
@@ -412,7 +421,7 @@ export const WhatsappService = {
                             });
                             console.log(`✅ [Baileys] Mensagem (${role}) salva no histórico.`);
                             
-                            // 3. Comandos de Controle (Pode ser enviado por 'mim' para controlar o lead)
+                            // 3. Comandos de Controle (enviados pelo usuário para controlar o lead)
                             const cleanText = text?.toLowerCase().trim();
                             if (cleanText === '/parar ia' || cleanText === '/ativar ia') {
                                 const shouldActivate = cleanText === '/ativar ia';
@@ -430,8 +439,7 @@ export const WhatsappService = {
                                 continue;
                             }
 
-                            // 4. AI Respond Logic (APENAS para mensagens recebidas)
-                            if (isFromMe) continue; 
+                            // 4. AI Respond Logic (chegamos aqui apenas com mensagens de usuários) 
                             
                             const { redis } = await import("@/lib/redis");
                             
@@ -661,11 +669,27 @@ export const WhatsappService = {
                                                 const audioData = await TTSService.generateAudio(msg.content, config.ttsProvider || "openai", config.ttsVoiceId, config.coquiUrl);
                                                 const base64 = audioData.split(",")[1];
                                                 const buffer = Buffer.from(base64, "base64");
-                                                await sock.sendMessage(jid, { audio: buffer, mimetype: "audio/mp4", ptt: true });
-                                                // O salvamento agora é feito automaticamente pelo listener global (eco)
+                                                const sentMsg = await sock.sendMessage(jid, { audio: buffer, mimetype: "audio/mp4", ptt: true });
+                                                // Salvar resposta da IA no histórico manualmente
+                                                await (MessageRepository as any).createSystem({
+                                                    organizationId: org.id,
+                                                    leadId: lead.id,
+                                                    role: "assistant",
+                                                    content: msg.content,
+                                                    type: "audio",
+                                                    whatsappMessageId: sentMsg?.key?.id || `ai_${Date.now()}`,
+                                                });
                                             } catch (ttsErr) {
-                                                await sock.sendMessage(jid, { text: msg.content });
-                                                // O salvamento agora é feito automaticamente pelo listener global (eco)
+                                                const sentMsg = await sock.sendMessage(jid, { text: msg.content });
+                                                // Salvar fallback de texto no histórico
+                                                await (MessageRepository as any).createSystem({
+                                                    organizationId: org.id,
+                                                    leadId: lead.id,
+                                                    role: "assistant",
+                                                    content: msg.content,
+                                                    type: "text",
+                                                    whatsappMessageId: sentMsg?.key?.id || `ai_${Date.now()}`,
+                                                });
                                             }
                                         } else {
                                             await sock.sendPresenceUpdate('composing', jid);
@@ -675,8 +699,16 @@ export const WhatsappService = {
                                             await new Promise(resolve => setTimeout(resolve, typingDelay));
                                             const cleanText = msg.content.replace(/\[\/?(?:AUDIO|ÁUDIO)\]/gi, "").trim();
                                             if (cleanText) {
-                                                await sock.sendMessage(jid, { text: cleanText });
-                                                // O salvamento agora é feito automaticamente pelo listener global (eco)
+                                                const sentMsg = await sock.sendMessage(jid, { text: cleanText });
+                                                // Salvar resposta da IA no histórico manualmente (listener não captura fromMe)
+                                                await (MessageRepository as any).createSystem({
+                                                    organizationId: org.id,
+                                                    leadId: lead.id,
+                                                    role: "assistant",
+                                                    content: cleanText,
+                                                    type: "text",
+                                                    whatsappMessageId: sentMsg?.key?.id || `ai_${Date.now()}`,
+                                                });
 
                                                 // MOVER LEAD PARA "EM ATENDIMENTO" (Se ainda não estiver)
                                                 try {
