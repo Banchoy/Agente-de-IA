@@ -32,14 +32,10 @@ declare global {
  
 const sessions = globalThis.__baileys_sessions || new Map<string, any>();
 const connectionPromises = globalThis.__baileys_promises || new Map<string, Promise<any>>();
-const leadLocks = globalThis.__lead_locks || new Set<string>();
-const processedMessages = globalThis.__processed_messages || new Set<string>();
  
 if (process.env.NODE_ENV !== 'production') {
     globalThis.__baileys_sessions = sessions;
     globalThis.__baileys_promises = connectionPromises;
-    globalThis.__lead_locks = leadLocks;
-    globalThis.__processed_messages = processedMessages;
 }
 
 /**
@@ -437,14 +433,29 @@ export const WhatsappService = {
                             // 4. AI Respond Logic (APENAS para mensagens recebidas)
                             if (isFromMe) continue; 
                             
-                            if (leadLocks.has(lead.id)) {
-                                console.log(`⏩ [Baileys] Lead ${lead.id} já está sendo processado. Ignorando.`);
-                                continue;
+                            const { redis } = await import("@/lib/redis");
+                            
+                            if (redis) {
+                                // Lock de Lead (5 minutos) - Evita concorrência de processamento
+                                const isLocked = await redis.get(`lock:lead:${lead.id}`);
+                                if (isLocked) {
+                                    console.log(`⏩ [Baileys] Lead ${lead.id} já está sendo processado. Ignorando.`);
+                                    continue;
+                                }
+                                await redis.set(`lock:lead:${lead.id}`, "1", "EX", 300);
+
+                                // Trava de idempotência por mensagem específica (evita notify/append duplicado)
+                                if (whatsappMessageId) {
+                                    const isProcessed = await redis.get(`processed:msg:${whatsappMessageId}`);
+                                    if (isProcessed) {
+                                        console.log(`⏩ [Baileys] Mensagem ${whatsappMessageId} já foi processada. Ignorando.`);
+                                        await redis.del(`lock:lead:${lead.id}`);
+                                        continue;
+                                    }
+                                    await redis.set(`processed:msg:${whatsappMessageId}`, "1", "EX", 3600); // 1 hora de retenção
+                                }
                             }
                             
-                            // Ativar o lock IMEDIATAMENTE
-                            leadLocks.add(lead.id);
-
                             // Trava de idempotência Temporal: Ignorar se enviamos algo nos últimos 10s
                             try {
                                 const lastMessages = await (MessageRepository as any).listByLeadSystem(lead.id, 1);
@@ -453,26 +464,13 @@ export const WhatsappService = {
                                     const diff = Date.now() - new Date(lastAssistantMsg.createdAt).getTime();
                                     if (diff < 10000) {
                                         console.log(`⏩ [Baileys] Lead ${lead.id} recebeu resposta há ${diff}ms. Bloqueando duplicidade.`);
-                                        leadLocks.delete(lead.id);
+                                        if (redis) await redis.del(`lock:lead:${lead.id}`);
                                         continue;
                                     }
                                 }
                             } catch (err) {
                                 console.warn("⚠️ [Baileys] Erro ao verificar trava temporal:", err);
                             }
-                            
-                            // Trava de idempotência por mensagem específica (evita notify/append duplicado)
-                            if (whatsappMessageId) {
-                                if (processedMessages.has(whatsappMessageId)) {
-                                    console.log(`⏩ [Baileys] Mensagem ${whatsappMessageId} já foi processada. Ignorando.`);
-                                    leadLocks.delete(lead.id); // Liberar lock se for ignorado
-                                    continue;
-                                }
-                                processedMessages.add(whatsappMessageId);
-                                // Limpar ID da mensagem após 5 minutos para economizar memória
-                                setTimeout(() => processedMessages.delete(whatsappMessageId!), 300000);
-                            }
-                            
 
                             // 3. Find Mapped Agent (or fallback)
                             console.log(`🤖 [Baileys] Buscando agente para a instância: ${sessionId}`);
@@ -698,8 +696,9 @@ export const WhatsappService = {
                                 }
                             } finally {
                                 if (lead?.id) {
+                                    const { redis } = await import("@/lib/redis");
                                     await (LeadRepository as any).updateSystem(lead.id, { isTyping: "false" });
-                                    leadLocks.delete(lead.id);
+                                    if (redis) await redis.del(`lock:lead:${lead.id}`);
                                     console.log(`🔓 [Baileys] Lock LIBERADO para o lead ${lead.id}.`);
                                 }
                             }
