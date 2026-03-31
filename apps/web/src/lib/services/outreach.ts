@@ -23,17 +23,36 @@ export const OutreachService = {
         console.log("📨 [Outreach] Verificando fila de prospecção...");
         
         try {
-            // Anti-ban: verificar quando foi o último disparo de QUALQUER lead
-            const [lastSent] = await db
-                .select({ lastAt: messages.createdAt })
-                .from(messages)
-                .where(eq(messages.role, "assistant"))
-                .orderBy(desc(messages.createdAt))
-                .limit(1);
+            // Anti-ban: verificar quando foi o último disparo de QUALQUER lead via Redis
+            const { redis } = await import("@/lib/redis");
+            let lastSentAt: Date | null = null;
+            
+            if (redis) {
+                const cachedLastSent = await redis.get("outreach:last_sent_at");
+                if (cachedLastSent) {
+                    lastSentAt = new Date(parseInt(cachedLastSent));
+                }
+            }
 
-            if (lastSent?.lastAt) {
+            // Fallback para o banco se o Redis não tiver a info ou estiver desativado
+            if (!lastSentAt) {
+                const [lastSent] = await db
+                    .select({ lastAt: messages.createdAt })
+                    .from(messages)
+                    .where(eq(messages.role, "assistant"))
+                    .orderBy(desc(messages.createdAt))
+                    .limit(1);
+                
+                if (lastSent?.lastAt) {
+                    lastSentAt = new Date(lastSent.lastAt);
+                    // Popula o cache para a próxima vez
+                    if (redis) await redis.set("outreach:last_sent_at", lastSentAt.getTime().toString(), "EX", 86400);
+                }
+            }
+
+            if (lastSentAt) {
                 const gap = getRandomGapMs();
-                const elapsed = Date.now() - new Date(lastSent.lastAt).getTime();
+                const elapsed = Date.now() - lastSentAt.getTime();
                 if (elapsed < gap) {
                     console.log(`⏳ [Outreach] Anti-ban: Last dispatch was ${(elapsed/60000).toFixed(1)}min ago. Gap: ${(gap/60000).toFixed(1)}min. Aguardando...`);
                     return;
@@ -107,6 +126,9 @@ export const OutreachService = {
                 pendingLead.phone!,
                 messageBody
             );
+
+            // Atualiza o anti-ban no Redis
+            if (redis) await redis.set("outreach:last_sent_at", Date.now().toString(), "EX", 86400);
 
             // 6. Buscar estágio de atendimento no CRM
             const targetStageId = await CRMRepository.getStageByName(org.id, "Atendimento");
