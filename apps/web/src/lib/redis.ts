@@ -9,24 +9,46 @@ if (!redisUrl && !redisHost) {
     console.warn("⚠️ REDIS_URL ou REDISHOST não configurada. Cache e sessões via Redis estarão desativados.");
 }
 
-// Configuração de conexão flexível: tenta variáveis individuais primeiro por serem mais estáveis
+// Helper para extrair opções puras da URL se necessário
+const parseRedisUrl = (urlStr: string) => {
+    try {
+        const url = new URL(urlStr);
+        return {
+            host: url.hostname,
+            port: Number(url.port),
+            password: decodeURIComponent(url.password),
+            username: url.username || "default",
+        };
+    } catch (e) {
+        return null;
+    }
+};
+
+const urlOptions = redisUrl ? parseRedisUrl(redisUrl) : null;
+
+// Configuração de conexão flexível
 const connectionOptions: any = redisHost 
     ? {
         host: redisHost,
         password: env.REDISPASSWORD,
         port: Number(env.REDISPORT || 6379),
         username: env.REDISUSER || "default",
-        family: 4,
     }
-    : redisUrl;
+    : urlOptions || redisUrl;
 
 export const redis = (redisUrl || redisHost) 
     ? new Redis(connectionOptions, {
-        tls: (redisUrl?.startsWith("rediss://") || env.REDISPORT === "29508") ? { rejectUnauthorized: false } : undefined,
+        // Habilita TLS se for a porta pública do Railway ou esquema rediss
+        tls: (
+            redisUrl?.startsWith("rediss://") || 
+            env.REDISPORT === "29508" || 
+            (urlOptions?.port === 29508)
+        ) ? { rejectUnauthorized: false } : undefined,
         maxRetriesPerRequest: null,
-        connectTimeout: 15000,
+        connectTimeout: 20000,
+        family: 4, // Forçar IPv4 para consistência
         retryStrategy: (times) => {
-            const delay = Math.min(times * 100, 3000);
+            const delay = Math.min(times * 200, 5000);
             return delay;
         },
         reconnectOnError: (err) => {
@@ -39,21 +61,28 @@ export const redis = (redisUrl || redisHost)
 
 // Diagnóstico inicial
 if (redis) {
-    const maskedUrl = redisHost 
-        ? `host: ${redisHost}:${env.REDISPORT} (Variáveis Individuais)`
-        : redisUrl?.replace(/:[^:@]+@/, ":****@") + " (URL)";
-        
-    console.log(`🔌 [Redis] Tentando conectar via ${maskedUrl}`);
+    const isUrlMode = !redisHost;
+    const hostInfo = redisHost || urlOptions?.host || "desconhecido";
+    const portInfo = env.REDISPORT || urlOptions?.port || "desconhecido";
     
+    console.log(`🔌 [Redis] Estratégia: ${isUrlMode ? "URL Parsing" : "Variáveis Diretas"}`);
+    console.log(`🔌 [Redis] Host Alvo: ${hostInfo}:${portInfo}`);
+    
+    if (isUrlMode && redisUrl?.includes("crossover.proxy.rlwy.net")) {
+        console.log("💡 [Dica] Usando proxy público do Railway. Recomenda-se usar a rede interna para maior estabilidade.");
+    }
+
     redis.on("connect", () => {
         console.log("✅ [Redis] Evento: Connect");
         redis.ping()
             .then(pong => console.log("🏓 [Redis] Ping result:", pong))
             .catch(e => {
                 if (e.message.includes("WRONGPASS")) {
-                    console.error("❌ [Redis] ERRO CRÍTICO: Senha incorreta ou usuário desativado (WRONGPASS). Certifique-se que REDISPASSWORD está correta.");
+                    const passToTest = redisHost ? env.REDISPASSWORD : urlOptions?.password;
+                    console.error(`❌ [Redis] ERRO DE SENHA (WRONGPASS). Tamanho da senha detectada: ${passToTest?.length || 0} caracteres.`);
+                    console.error("❌ Verifique se há espaços extras no final da variável no painel do Railway.");
                 } else {
-                    console.error("❌ [Redis] Ping falhou:", e.message);
+                    console.error("❌ [Redis] Falha no teste de conexão:", e.message);
                 }
             });
     });
