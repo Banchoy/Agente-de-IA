@@ -6,8 +6,8 @@
  * Ideal para ambientes com memória limitada como Railway (512MB).
  */
 
-const MEMORY_THRESHOLD_WARNING = 0.70;  // 70% do heap — começa a limpar
-const MEMORY_THRESHOLD_CRITICAL = 0.85; // 85% do heap — limpeza agressiva
+const MEMORY_THRESHOLD_WARNING = 350;  // 350MB — começa a limpar
+const MEMORY_THRESHOLD_CRITICAL = 450; // 450MB — limpeza agressiva
 
 export const MemoryGuard = {
     /**
@@ -25,8 +25,8 @@ export const MemoryGuard = {
             heapTotalMB,
             rssMB,
             heapRatio,
-            isWarning: heapRatio >= MEMORY_THRESHOLD_WARNING,
-            isCritical: heapRatio >= MEMORY_THRESHOLD_CRITICAL,
+            isWarning: heapUsedMB >= MEMORY_THRESHOLD_WARNING,
+            isCritical: heapUsedMB >= MEMORY_THRESHOLD_CRITICAL,
         };
     },
 

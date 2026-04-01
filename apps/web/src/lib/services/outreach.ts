@@ -20,7 +20,6 @@ export const OutreachService = {
      * Verifica e processa a fila de prospecção.
      */
     processQueue: async () => {
-        console.log("📨 [Outreach] Verificando fila de prospecção...");
         let pendingLead: any = null;
         
         try {

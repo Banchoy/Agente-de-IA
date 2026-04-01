@@ -131,29 +131,32 @@ Você está na **ETAPA / FASE ${currentPhase}** de ${totalPhases}.
   /**
    * Determina o próximo estado da conversa.
    */
-  advanceState: (currentState: string, lead?: any) => {
+  advanceState: (currentState: string, lead?: any, aiResult?: any) => {
     const isOutbound = lead?.source === "Outreach" || lead?.source === "Google Maps";
     const rawPhase = parseFloat(currentState) || 1;
     const currentPhase = Math.floor(rawPhase);
     const maxPhase = isOutbound ? 11 : 8;
 
-    // Lógica de Sub-fases para Mini Diagnóstico (Outbound Fase 9 - 3 perguntas)
+    // --- AUTONOMIA: SALTO DE ESTADO POR INTENÇÃO ---
+    // Se a IA detectar que o cliente quer agendar ou tem alto interesse, pula direto pro CTA/MEETING
+    if (aiResult?.action === "SCHEDULE_MEETING" || aiResult?.nextState === "MEETING" || (aiResult?.interestLevel === "ALTO" && currentPhase < 7)) {
+        console.log(`🚀 [ScriptService] Salto de estado detectado: ${currentState} -> CTA/MEETING`);
+        return isOutbound ? "11" : "8"; // Vai para a fase de fechamento
+    }
+
+    // Lógica de Sub-fases para Mini Diagnóstico (Outbound Fase 9)
     if (isOutbound && currentPhase === 9) {
-        if (rawPhase < 9.3) {
-            return (rawPhase + 0.1).toFixed(1);
-        }
+        if (rawPhase < 9.3) return (rawPhase + 0.1).toFixed(1);
         return "10";
     }
 
-    // Lógica de Sub-fases para Mini Diagnóstico (Inbound Fase 4 - 2 perguntas)
+    // Lógica de Sub-fases para Mini Diagnóstico (Inbound Fase 4)
     if (!isOutbound && currentPhase === 4) {
-        if (rawPhase < 4.2) {
-            return (rawPhase + 0.1).toFixed(1);
-        }
+        if (rawPhase < 4.2) return (rawPhase + 0.1).toFixed(1);
         return "5";
     }
 
-    // Lógica de avanço simples por número para as outras fases
+    // Lógica de avanço simples
     if (currentPhase < maxPhase) {
         return (currentPhase + 1).toString();
     }

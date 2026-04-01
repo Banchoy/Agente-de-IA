@@ -130,8 +130,11 @@ export async function POST(req: NextRequest) {
         }
 
         // 10. Update Lead
+        const { ScriptService } = await import("./script");
+        const nextConversationState = await ScriptService.advanceState(lead.conversationState, lead, structuredResult);
+        
         await LeadRepository.updateSystem(lead.id, {
-            conversationState: nextState,
+            conversationState: nextConversationState,
             lastIntent: intent,
             stageId: stageToUpdate,
             metaData: {
