@@ -69,11 +69,19 @@ Use a informação do [NICHO] ("${leadNiche}") para mostrar que você conhece o 
    */
   getInstruction: (state: string, lead?: any) => {
     const isOutbound = lead?.source !== "WhatsApp (Inbound)";
-    const currentPhase = parseInt(state) || 1;
+    const rawPhase = parseFloat(state) || 1;
+    const currentPhase = Math.floor(rawPhase);
     const totalPhases = isOutbound ? 11 : 8;
 
     // Se a fase for de Mini Diagnóstico (9 no Outbound, 4 no Inbound)
     const isDiagnosis = (isOutbound && currentPhase === 9) || (!isOutbound && currentPhase === 4);
+    
+    // Identificar qual pergunta do diagnóstico estamos (se houver)
+    let diagnosisTip = "";
+    if (isDiagnosis) {
+        const subPhase = Math.round((rawPhase - currentPhase) * 10);
+        diagnosisTip = `\n- [ MINI DIAGNÓSTICO ]: Você está na PERGUNTA ${subPhase || 1} das perguntas listadas na ${currentPhase === 9 ? 'Fase 9' : 'Fase 4'}. Faça APENAS essa pergunta agora. Não avance para a próxima fase.`;
+    }
 
     return `
     ### ESTADO DA CONVERSA:
@@ -82,9 +90,8 @@ Use a informação do [NICHO] ("${leadNiche}") para mostrar que você conhece o 
     
     ### INSTRUÇÃO:
     - Verifique no seu roteiro o conteúdo da "Fase ${currentPhase}".
-    - Você deve agora executar exatamente o objetivo dessa fase.
-    ${isDiagnosis ? "- [ MINI DIAGNÓSTICO ]: Faça UMA PERGUNTA POR VEZ no final da mensagem. Não avance para a próxima fase do roteiro até que todas as perguntas do diagnóstico sejam concluídas." : ""}
-    - Se o cliente responder algo fora do assunto, responda de forma humanizada e tente voltar para o objetivo da "Fase ${currentPhase}".
+    - Você deve agora executar exatamente o objetivo dessa fase.${diagnosisTip}
+    - Se o cliente responder algo fora do assunto, responda de forma humanizada e tente voltar para o objetivo atual.
     `.trim();
   },
 
@@ -93,10 +100,27 @@ Use a informação do [NICHO] ("${leadNiche}") para mostrar que você conhece o 
    */
   advanceState: (currentState: string, lead?: any) => {
     const isOutbound = lead?.source !== "WhatsApp (Inbound)";
-    const currentPhase = parseInt(currentState) || 1;
+    const rawPhase = parseFloat(currentState) || 1;
+    const currentPhase = Math.floor(rawPhase);
     const maxPhase = isOutbound ? 11 : 8;
 
-    // Lógica de avanço simples por número
+    // Lógica de Sub-fases para Mini Diagnóstico (Outbound Fase 9 - 3 perguntas)
+    if (isOutbound && currentPhase === 9) {
+        if (rawPhase < 9.3) {
+            return (rawPhase + 0.1).toFixed(1);
+        }
+        return "10";
+    }
+
+    // Lógica de Sub-fases para Mini Diagnóstico (Inbound Fase 4 - 2 perguntas)
+    if (!isOutbound && currentPhase === 4) {
+        if (rawPhase < 4.2) {
+            return (rawPhase + 0.1).toFixed(1);
+        }
+        return "5";
+    }
+
+    // Lógica de avanço simples por número para as outras fases
     if (currentPhase < maxPhase) {
         return (currentPhase + 1).toString();
     }
