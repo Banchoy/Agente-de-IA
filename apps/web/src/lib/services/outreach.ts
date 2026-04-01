@@ -153,6 +153,7 @@ export const OutreachService = {
                 lastOutreachAt: new Date(),
                 status: "CONTACTED",
                 conversationState: "1", 
+                source: "Outreach", // MARCAÇÃO CRÍTICA PARA SEPARAÇÃO DE SCRIPTS
                 stageId: targetStageId || pendingLead.stageId
             });
 

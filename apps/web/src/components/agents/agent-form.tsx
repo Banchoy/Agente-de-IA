@@ -200,9 +200,13 @@ export function AgentForm({ availableSessions, freeModels, defaultInstanceName }
                     </div>
                 </div>
 
-                <div className="space-y-3 relative group">
+                {/* Outbound Script */}
+                <div className="space-y-4 p-6 bg-primary/5 rounded-[2rem] border border-primary/20 relative group transition-all hover:bg-primary/[0.08]">
                     <div className="flex items-center justify-between px-1">
-                        <label htmlFor="systemPrompt" className="text-xs font-black text-muted-foreground uppercase tracking-widest">Prompt do Sistema (Prospecção / Outbound)</label>
+                        <div className="flex items-center gap-2">
+                            <label htmlFor="systemPrompt" className="text-xs font-black text-primary uppercase tracking-widest">Roteiro de Prospecção (Outbound)</label>
+                            <span className="bg-primary/20 text-primary text-[8px] font-black px-1.5 py-0.5 rounded-full uppercase">Ativo nas Listas</span>
+                        </div>
                         <button 
                             type="button" 
                             onClick={(e) => {
@@ -210,52 +214,78 @@ export function AgentForm({ availableSessions, freeModels, defaultInstanceName }
                                 const el = document.getElementById('systemPrompt') as HTMLTextAreaElement;
                                 if(el) el.value = OUTBOUND_TEMPLATE;
                             }}
-                            className="text-[10px] font-bold text-primary bg-primary/10 hover:bg-primary/20 px-2 py-1 rounded cursor-pointer transition-colors"
+                            className="text-[10px] font-bold text-primary bg-primary/10 hover:bg-primary/20 px-3 py-1.5 rounded-xl cursor-pointer transition-colors flex items-center gap-2 border border-primary/20"
                         >
-                            <Wand2 size={12} className="inline mr-1" />
-                            Template Bruno (Outbound)
+                            <Wand2 size={12} />
+                            Carregar Template Bruno
                         </button>
                     </div>
                     <textarea
                         name="systemPrompt"
                         id="systemPrompt"
-                        placeholder="ex: você é um representante comercial do Grupo Dream Store..."
+                        placeholder="Ex: ## 1️⃣ ABERTURA..."
                         rows={10}
                         defaultValue={OUTBOUND_TEMPLATE}
                         required
-                        className="w-full rounded-3xl border border-border bg-background px-6 py-5 text-sm font-bold text-foreground focus:border-primary focus:outline-none transition-all resize-none shadow-inner placeholder:text-muted-foreground/30 font-mono"
+                        className="w-full rounded-2xl border border-primary/10 bg-background/50 px-6 py-5 text-sm font-bold text-foreground focus:border-primary focus:outline-none transition-all resize-none shadow-inner placeholder:text-muted-foreground/30 font-mono leading-relaxed"
                     ></textarea>
-                    <p className="text-[10px] text-muted-foreground px-1 leading-relaxed lowercase italic">
-                        instrua o agente detalhadamente sobre como ele deve se comportar na prospecção ativa.
-                    </p>
+                    <div className="flex items-center gap-2 px-1">
+                        <Sparkles size={12} className="text-primary" />
+                        <p className="text-[10px] text-muted-foreground font-medium lowercase italic leading-relaxed">
+                            Este script será usado quando você iniciar a conversa com o cliente através de uma lista.
+                        </p>
+                    </div>
                 </div>
 
-                <div className="space-y-3 relative group">
+                {/* Inbound Script */}
+                <div className="space-y-4 p-6 bg-muted/20 rounded-[2rem] border border-border relative group transition-all hover:bg-muted/30">
                     <div className="flex items-center justify-between px-1">
-                        <label htmlFor="inboundPrompt" className="text-xs font-black text-muted-foreground uppercase tracking-widest">Script de Receptivo (Inbound - Opcional)</label>
-                        <button 
-                            type="button" 
-                            onClick={(e) => {
-                                e.preventDefault();
-                                const el = document.getElementById('inboundPrompt') as HTMLTextAreaElement;
-                                if(el) el.value = INBOUND_TEMPLATE;
-                            }}
-                            className="text-[10px] font-bold text-primary bg-primary/10 hover:bg-primary/20 px-2 py-1 rounded cursor-pointer transition-colors"
-                        >
-                            <Wand2 size={12} className="inline mr-1" />
-                            Template Bruno (Inbound)
-                        </button>
+                        <div className="flex items-center gap-2">
+                            <label htmlFor="inboundPrompt" className="text-xs font-black text-muted-foreground uppercase tracking-widest">Roteiro de Receptivo (Inbound)</label>
+                            <span className="bg-muted text-muted-foreground text-[8px] font-black px-1.5 py-0.5 rounded-full uppercase">Cliente te chamou</span>
+                        </div>
+                        <div className="flex gap-2">
+                            <button 
+                                type="button" 
+                                onClick={(e) => {
+                                    e.preventDefault();
+                                    const out = document.getElementById('systemPrompt') as HTMLTextAreaElement;
+                                    const inb = document.getElementById('inboundPrompt') as HTMLTextAreaElement;
+                                    if(out && inb) inb.value = out.value;
+                                    toast.info("Roteiro de prospecção copiado para o receptivo!");
+                                }}
+                                className="text-[10px] font-bold text-muted-foreground bg-muted hover:bg-muted-foreground/10 px-3 py-1.5 rounded-xl cursor-pointer transition-colors flex items-center gap-2 border border-border"
+                            >
+                                <Bot size={12} />
+                                Copiar do Outbound
+                            </button>
+                            <button 
+                                type="button" 
+                                onClick={(e) => {
+                                    e.preventDefault();
+                                    const el = document.getElementById('inboundPrompt') as HTMLTextAreaElement;
+                                    if(el) el.value = INBOUND_TEMPLATE;
+                                }}
+                                className="text-[10px] font-bold text-primary bg-primary/10 hover:bg-primary/20 px-3 py-1.5 rounded-xl cursor-pointer transition-colors flex items-center gap-2 border border-primary/20"
+                            >
+                                <Wand2 size={12} />
+                                Template Bruno
+                            </button>
+                        </div>
                     </div>
                     <textarea
                         name="inboundPrompt"
                         id="inboundPrompt"
-                        placeholder="Deixe vazio para usar o prompt padrão ou defina como responder quando o cliente chamar primeiro..."
+                        placeholder="Deixe vazio para usar o mesmo script de prospecção..."
                         rows={8}
-                        className="w-full rounded-3xl border border-border bg-background px-6 py-5 text-sm font-bold text-foreground focus:border-primary focus:outline-none transition-all resize-none shadow-inner placeholder:text-muted-foreground/30 font-mono"
+                        className="w-full rounded-2xl border border-border bg-background/50 px-6 py-5 text-sm font-bold text-foreground focus:border-primary focus:outline-none transition-all resize-none shadow-inner placeholder:text-muted-foreground/30 font-mono leading-relaxed"
                     ></textarea>
-                    <p className="text-[10px] text-muted-foreground px-1 leading-relaxed lowercase italic">
-                        instruções específicas para receptivo.
-                    </p>
+                    <div className="flex items-center gap-2 px-1">
+                        <Sparkles size={12} className="text-muted-foreground" />
+                        <p className="text-[10px] text-muted-foreground font-medium lowercase italic leading-relaxed">
+                            Este script será usado quando o cliente entrar em contato primeiro. Use se o fluxo de atendimento for diferente.
+                        </p>
+                    </div>
                 </div>
             </div>
 

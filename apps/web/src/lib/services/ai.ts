@@ -95,23 +95,15 @@ Your response MUST be a valid JSON object with the following keys:
         scriptInstruction: string,
         temperature: number = 0.7
     ) => {
-        // Nome Real do Agente prioritário: Se o usuário definiu Bruno, use Bruno. Fallback Tayná.
         const agentName = agentConfig.agentRealName || agentConfig.name || "Bruno";
-        const businessName = agentConfig.businessName || "Sua Agência";
         const leadNiche = lead?.metaData?.niche || "seu negócio";
         
-        // Detectar gênero dinamicamente (Bruno = male)
         let gender = agentConfig.gender;
         if (!gender) {
             const lowName = agentName.toLowerCase();
             gender = (lowName.endsWith("o") || lowName === "bruno" || lowName.includes("vendedor")) ? "male" : "female";
         }
         
-        // Ajuste gramatical por gênero do agente
-        const article = gender === "male" ? "o" : "a";
-        const preposition = gender === "male" ? "do" : "da";
-        const roleName = gender === "male" ? "assistente comercial humano" : "assistente comercial humana";
-
         let opportunities = agentConfig.marketOportunities;
         let reasoningInstruction = "";
 
@@ -121,85 +113,74 @@ Your response MUST be a valid JSON object with the following keys:
             ### EXEMPLOS DE ARGUMENTAÇÃO POR NICHO:
             - **Consórcio**: Focar em leads qualificados vs. listas frias, atraso no atendimento e perda de clientes por demora.
             - **Imóveis**: Pessoas realmente interessadas em comprar vs. curiosos, aparecer para o público certo.
-            - **Restaurantes**: Baixo movimento durante a semana (segunda a quinta).
-            - **Odonto/Estética**: Falta de agendamentos/agenda vazia, fidelização de pacientes.
             
             Use sua inteligência para identificar as maiores dores desse mercado específico.`.trim();
-            
             opportunities = "Você identificou oportunidades específicas para aumentar o faturamento no setor de " + leadNiche;
         }
 
         const successCase = agentConfig.successCase || `
 Olha, para você ter uma ideia, a gente tem um cliente desse mesmo segmento que triplicou as vendas usando nossa automação.`.trim();
 
+        const isOutreach = lead?.source === "Outreach";
         const isInbound = lead?.source === "WhatsApp (Inbound)";
-        const systemPromptBase = (isInbound && agentConfig.inboundPrompt)
-            ? agentConfig.inboundPrompt
-            : (agentConfig.prompt || agentConfig.systemPrompt || "Siga a lógica de argumentação e venda de forma humanizada.");
+        
+        let systemPromptBase = "";
+        if (isOutreach) {
+            systemPromptBase = agentConfig.prompt || agentConfig.systemPrompt || "Siga o roteiro de prospecção ativa.";
+        } else if (isInbound) {
+            systemPromptBase = agentConfig.inboundPrompt || agentConfig.prompt || agentConfig.systemPrompt || "Siga o roteiro de receptivo.";
+        } else {
+            systemPromptBase = agentConfig.prompt || agentConfig.systemPrompt || "Atendimento humanizado.";
+        }
 
-        // Detecção de Robô/Mensagem Automática do Cliente
         const lastMessage = messages[messages.length - 1]?.content?.toLowerCase() || "";
         const autoReplyKeywords = ["estou ausente", "responderemos em breve", "mensagem automática", "estamos fora", "horário de atendimento"];
         const isAutoReply = autoReplyKeywords.some(kw => lastMessage.includes(kw));
 
         const brunoRules = `
-### IDENTIDADE E ESTILO (O SEU NÚCLEO):
+### IDENTIDADE E ESTILO:
 - Você é o Bruno, um especialista em vendas experiente.
-- Tom de voz: Simples, Direto, Natural (Estilo WhatsApp). NUNCA pareça um vendedor chato ou um robô.
+- Tom de voz: Simples, Direto, Natural (Estilo WhatsApp). NUNCA pareça um vendedor chato ou robô.
 - Use linguagem atual do Brasil.
 
-### REGRAS CRÍTICAS DE COMPORTAMENTO:
+### REGRAS CRÍTICAS:
 1. MÁXIMO DE 2 MENSAGENS: Nunca envie mais de 2 fragmentos de mensagem seguidos.
-2. SEMPRE TERMINE COM PERGUNTA: O fluxo de mensagens deve OBRIGATORIAMENTE terminar com uma pergunta curta e aberta para manter o engajamento.
+2. SEMPRE TERMINE COM PERGUNTA: O fluxo de mensagens deve OBRIGATORIAMENTE terminar com uma pergunta curta e aberta (exceto fechamento final).
 3. AGUARDAR REPOSTA: NUNCA explique tudo de uma vez. Mande um pouco, pergunte algo, e espere.
 4. TAMANHO: Mensagens curtas (máximo 3-4 linhas por bloco).
-5. PROIBIÇÕES: Não comece vendendo, não fale preço no início, não insista agressivamente.
+
+### [REGRA SUPREMA] ADERÊNCIA VERBATIM:
+- Se o roteiro da etapa contiver um texto entre ASPAS (ex: "Oi, tudo bem?"), você deve enviar EXATAMENTE as palavras dentro das aspas.
+- NUNCA parafraseie textos que estão entre aspas. Use-os como sua resposta final.
 
 ### DETECÇÃO DE IA/BOT:
-${isAutoReply ? "- [ALERTA]: A última mensagem do cliente parece ser uma RESPOSTA AUTOMÁTICA. Responda apenas com algo como: 'Opa, tudo bem? Fico no aguardo então!' e pare por aí até que um humano responda de fato." : ""}
+${isAutoReply ? "- [ALERTA]: Responda apenas com: 'Opa, tudo bem? Fico no aguardo!' e pare por aí." : ""}
         `.trim();
 
         const systemPrompt = `
 ${brunoRules}
 
-### SEU ROTEIRO CUSTOMIZADO (DEFINIDO PELO USUÁRIO):
+### SEU ROTEIRO CUSTOMIZADO:
 """
 ${systemPromptBase}
 """
 
-### CONTEXTO GERAL E DO LEAD:
-- Horário Local Agora (São Paulo): ${new Date().toLocaleString("pt-BR", { timeZone: "America/Sao_Paulo" })}
+### CONTEXTO:
 - Nome do Lead: ${lead?.name || "Desconhecido"}
-- Tag de Nicho (CRM): [NICHO] = "${leadNiche}"
-- Origem do Contato: ${isInbound ? "RECEPTIVO (Cliente chamou primeiro)" : "PROSPECÇÃO (Você iniciou o contato)"}
-- [CRÍTICO] Sempre que se referir ao setor, negócio ou mercado do cliente, utilize o termo exato definido na tag [NICHO]. 
-- [REGRA DE OURO]: Se o [NICHO] for "${leadNiche}" e não for genérico ("seu negócio"), NUNCA pergunte ao cliente qual o segmento dele. AJA como quem já sabe e use isso para puxar assunto.
+- Tag de Nicho: [NICHO] = "${leadNiche}"
+- Fluxo Atual: ${isOutreach ? "OUTBOUND (PROSPECÇÃO)" : "INBOUND (RECEPTIVO)"}
 - [INSTRUÇÃO DO ESTADO ATUAL]: ${scriptInstruction}
 
-### SEU DIFERENCIAL (OFERTA):
+### OFERTA:
 ${opportunities}
 ${reasoningInstruction}
 
-### LÓGICA E CONTROLE DE ETAPAS (ROTEIRO):
-- O roteiro numerado está no bloco 'ROTEIRO CUSTOMIZADO' acima.
-- [INSTRUÇÃO DE ESTADO]: ${scriptInstruction}
-- Siga RIGOROSAMENTE a instrução de estado atual.
-- NUNCA pule etapas nem envie mais de uma por vez.
-- NUNCA inicie mensagens com saudações genéricas se o roteiro não pedir.
-${temperature < 0.5 ? `- [CRÍTICO] MODO ESTRITO ATIVADO (Temperatura Zero/Baixa):
-Sua precisão deve ser cirúrgica. Copie o texto definido na etapa do roteiro e ajuste apenas o essencial. A aderência ao script é sua DIRETRIZ SUPREMA.` 
-: 
-`- O Roteiro é o seu guia mestre. Mantenha o tom do Bruno e o objetivo da etapa atual com fluidez natural.`}
+### LÓGICA:
+- Siga RIGOROSAMENTE a instrução de estado atual: ${scriptInstruction}
+- NUNCA pule etapas.
+- PRIORIZE SEMPRE O TEXTO ENTRE ASPAS SE ELE EXISTIR NA ETAPA ATUAL.
 
-### FORMATO DE SAÍDA OBRIGATÓRIO (JSON):
-Sua resposta DEVE DEVE DEVE ser um JSON válido sem nenhum wrapper markdown ao redor, seguindo o formato:
-{
-  "body": "A mensagem curta e natural",
-  "detectedName": "o nome do lead detectado (se houver)",
-  "detectedNiche": "o setor do lead detectado (se houver)",
-  "interestLevel": "ALTO | MÉDIO | BAIXO",
-  "isDecisor": true | false | "unknown"
-}
+${temperature < 0.4 ? `- [CRÍTICO] MODO ESTRITO: Repita o texto do script e preencha variáveis.` : `- Mantenha o tom do Bruno e o objetivo da etapa.`}
 `.trim();
 
         const response = await AIService.generateResilientResponse(systemPrompt, messages, temperature);
