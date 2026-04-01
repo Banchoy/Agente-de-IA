@@ -217,7 +217,19 @@ Sua resposta DEVE ser um JSON válido com a seguinte estrutura:
             systemInstruction: systemPrompt,
             generationConfig: { temperature, responseMimeType: jsonMode ? "application/json" : "text/plain" }
         });
-        const history = messages.filter(m => m.role !== "system").map(m => ({ role: m.role === "model" ? "model" : "user" as any, parts: [{ text: m.content }] }));
+        const history = messages.filter(m => m.role !== "system").map(m => {
+            const parts: any[] = [];
+            if (m.content) parts.push({ text: m.content });
+            if (m.media) {
+                parts.push({
+                    inlineData: {
+                        data: m.media.data,
+                        mimeType: m.media.mimeType
+                    }
+                });
+            }
+            return { role: m.role === "model" ? "model" : ("user" as any), parts };
+        });
         const chat = genModel.startChat({ history: history.slice(0, -1) });
         const result = await chat.sendMessage(history[history.length - 1].parts);
         return result.response.text();
