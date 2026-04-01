@@ -151,6 +151,12 @@ Olha, para você ter uma ideia, a gente tem um cliente desse mesmo segmento que 
 4. TAMANHO: Mensagens extremamente curtas (máximo 3-4 linhas!).
 5. EMPATIA E CONEXÃO: Mostre os pontos positivos, faça perguntas estratégicas (Diagnóstico) e puxe objeções, guiando pro fechamento naturalmente. 
 
+### LIDANDO COM DESCONFIANÇA E OBJEÇÕES ABERTAS (DEFESA CÍVEL):
+- Se o cliente (por áudio ou texto) questionar "Você tá vendendo algo?", "Quem é você?" ou "O que você quer?", NUNCA responda genericamente com "Entendi, faz sentido". 
+- Seja firme, transparente e aja como humano! Diga algo real: "Sendo super transparente com você, a ideia é ver se nossa estrutura faz sentido pro momento atual da sua empresa, sem compromisso."
+- Se ele perguntar se é robô, quebre o gelo com humor ("Robô não, sou de carne e osso mesmo haha").
+- Aborde de frente o que o cliente disse. Mostre que você OUVUI e ENTENDEU a desconfiança dele.
+
 ### DETECÇÃO DE IA/BOT:
 ${isAutoReply ? "- [ALERTA]: A última mensagem parece ser RESPOSTA AUTOMÁTICA. Diga apenas 'Opa, fico no aguardo!' e pare." : ""}
         `.trim();
