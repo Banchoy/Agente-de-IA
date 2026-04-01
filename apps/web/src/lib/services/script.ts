@@ -13,11 +13,23 @@ export const ScriptService = {
     const leadNiche = lead?.metaData?.niche || "seu negócio";
     const targetName = lead?.name?.split(" ")[0] || "";
     const temperature = agentConfig.temperature !== undefined ? parseFloat(agentConfig.temperature) : 0.7;
+    const isOutbound = lead?.source === "Outreach" || lead?.source === "Google Maps";
 
     // Identificar o período do dia para saudações usando o fuso horário de São Paulo
     const spTime = new Date().toLocaleString("en-US", { timeZone: "America/Sao_Paulo" });
     const hour = new Date(spTime).getHours();
     const timeOfDay = hour < 12 ? "bom dia" : hour < 18 ? "boa tarde" : "boa noite";
+
+    // REGRA DE OURO: Para Outbound, o primeiro passo é SEMPRE uma saudação curta e SEM NOME.
+    if (isOutbound) {
+        const greetings = [
+            `Olá, ${timeOfDay}, tudo bem?`,
+            `${timeOfDay.charAt(0).toUpperCase() + timeOfDay.slice(1)}, tudo bem?`,
+            `Olá, tudo bem?`,
+            `Oi, ${timeOfDay}, tudo certo por aí?`
+        ];
+        return greetings[Math.floor(Math.random() * greetings.length)];
+    }
     
     const systemPrompt = `
 Você é um agente de vendas pelo WhatsApp seguindo um roteiro ESTRITO.
@@ -68,10 +80,34 @@ Use a informação do [NICHO] ("${leadNiche}") para mostrar que você conhece o 
    * Retorna a "Instrução de Comportamento" para a IA baseado nas etapas do roteiro.
    */
   getInstruction: (state: string, lead?: any) => {
-    const isOutbound = lead?.source !== "WhatsApp (Inbound)";
+    const isOutbound = lead?.source === "Outreach" || lead?.source === "Google Maps";
     const rawPhase = parseFloat(state) || 1;
     const currentPhase = Math.floor(rawPhase);
     const totalPhases = isOutbound ? 11 : 8;
+    const leadNiche = lead?.metaData?.niche || "seu negócio";
+
+    // --- ESTRATÉGIA DE ABERTURA DESARMADA (OUTBOUND FASES 1-3) ---
+    if (isOutbound) {
+        if (currentPhase === 1) {
+            return `### OBJETIVO: APENAS SAUDAÇÃO.
+            Você acabou de enviar "Olá, tudo bem?". Se o cliente respondeu, seu único objetivo agora é ir para a FASE 2.`;
+        }
+        if (currentPhase === 2) {
+            return `### OBJETIVO: PEDIR ORIENTAÇÃO (ESTRATÉGIA DESARMADA)
+            1. Se apresente (Bruno da DreamStore).
+            2. Use o nicho: "Vi que você trabalha com ${leadNiche} e preciso de uma ajuda sua...".
+            3. Use o gancho: "Não sei se é com você mesmo que consigo essa orientação... posso te explicar rapidinho?".
+            4. FOCO: Não tente vender nada ainda. Apenas peça a permissão para explicar.`;
+        }
+        if (currentPhase === 3) {
+            return `### OBJETIVO: APRESENTAR ANÁLISE E VALOR
+            1. Valide o "posso" do cliente.
+            2. "Tava analisando a empresa de vocês e vi que fazem coisas legais para captar clientes para ${leadNiche}...".
+            3. O Problema: "Mas notei pontos onde vocês estão perdendo faturamento...".
+            4. A Solução: "Preparei um material com esses pontos e gostaria de apresentar para o responsável".
+            5. Finalize perguntando quem seria essa pessoa ou se ele mesmo cuida dessa parte comercial.`;
+        }
+    }
 
     const isDiagnosis = (isOutbound && currentPhase === 9) || (!isOutbound && currentPhase === 4);
     
@@ -88,6 +124,7 @@ Você está na **ETAPA / FASE ${currentPhase}** de ${totalPhases}.
 2. Compreenda o OBJETIVO dessa fase e formule sua resposta para alcançá-lo.
 3. ADAPTAÇÃO HUMANA: Não leia o treinamento como um robô. Use as informações como base e escreva sua mensagem de forma empática, contextualizada com o que o cliente acabou de dizer.${diagnosisTip}
 4. Se o cliente tiver feito uma pergunta técnica ou saído do script, tire a dúvida dele PRIMEIRO com máxima presteza. Só depois volte ao fluxo natural.
+5. [REGRA DE OURO]: Se você já sabe o NICHO ([NICHO] = "${leadNiche}"), NUNCA pergunte qual é o segmento do cliente. Use essa informação para construir autoridade.
     `.trim();
   },
 
@@ -95,7 +132,7 @@ Você está na **ETAPA / FASE ${currentPhase}** de ${totalPhases}.
    * Determina o próximo estado da conversa.
    */
   advanceState: (currentState: string, lead?: any) => {
-    const isOutbound = lead?.source !== "WhatsApp (Inbound)";
+    const isOutbound = lead?.source === "Outreach" || lead?.source === "Google Maps";
     const rawPhase = parseFloat(currentState) || 1;
     const currentPhase = Math.floor(rawPhase);
     const maxPhase = isOutbound ? 11 : 8;

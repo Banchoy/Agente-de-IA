@@ -36,34 +36,36 @@ export const LeadRepository = {
     },
 
     getByPhoneSystem: async (phone: string, organizationId: string) => {
-        // 1. Tenta busca exata
+        // 1. Sanitização rigorosa do telefone de entrada
+        const cleanPhone = phone.replace(/\D/g, "");
+        
+        // 2. Tenta busca exata com o número limpo
         let lead = await db.query.leads.findFirst({
             where: and(
-                eq(leads.phone, phone),
+                eq(leads.phone, cleanPhone),
                 eq(leads.organizationId, organizationId)
             )
         });
 
         if (lead) return lead;
 
-        // 2. Busca Resiliente para Números do Brasil (Divergência de 9º dígito)
-        // Se o número começa com 55 (Brasil) e tem 12 ou 13 dígitos
-        if (phone.startsWith("55") && (phone.length === 12 || phone.length === 13)) {
-            const ddd = phone.substring(2, 4);
-            const body = phone.substring(4);
+        // 3. Busca Resiliente para Números do Brasil (Divergência de 9º dígito)
+        if (cleanPhone.startsWith("55") && (cleanPhone.length === 12 || cleanPhone.length === 13)) {
+            const ddd = cleanPhone.substring(2, 4);
+            const body = cleanPhone.substring(4);
             
             let alternativePhone: string | null = null;
             
-            if (phone.length === 13 && body.startsWith("9")) {
+            if (cleanPhone.length === 13 && body.startsWith("9")) {
                 // Tem 9 dígito, tenta sem
                 alternativePhone = `55${ddd}${body.substring(1)}`;
-            } else if (phone.length === 12) {
+            } else if (cleanPhone.length === 12) {
                 // Não tem 9 dígito, tenta com
                 alternativePhone = `55${ddd}9${body}`;
             }
 
             if (alternativePhone) {
-                console.log(`🔍 [LeadRepository] Tentando busca resiliente para ${phone} -> ${alternativePhone}`);
+                console.log(`🔍 [LeadRepository] Tentando busca resiliente: ${cleanPhone} -> ${alternativePhone}`);
                 lead = await db.query.leads.findFirst({
                     where: and(
                         eq(leads.phone, alternativePhone),

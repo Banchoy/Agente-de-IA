@@ -44,7 +44,9 @@ export async function POST(req: NextRequest) {
         }
 
         // 3. Find or Create Lead
-        const phone = remoteJid.split("@")[0];
+        const rawPhone = remoteJid.split("@")[0];
+        const phone = rawPhone.replace(/\D/g, ""); // Garante que buscamos apenas números
+        
         let lead = await LeadRepository.getByPhoneSystem(phone, org.id);
         
         if (!lead) {
@@ -62,6 +64,8 @@ export async function POST(req: NextRequest) {
                 conversationState: "START",
                 aiActive: "true"
             });
+        } else {
+            console.log(`✅ Existing lead found: ${lead.name} [Source: ${lead.source}]`);
         }
 
         // 4. Check if AI is active for this lead

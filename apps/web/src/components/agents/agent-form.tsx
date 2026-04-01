@@ -12,45 +12,33 @@ interface AgentFormProps {
     defaultInstanceName?: string;
 }
 
-const OUTBOUND_TEMPLATE = `## 1️⃣ ABERTURA
-(Se for de manhã): "Opa [nome], bom dia! Aqui é o Bruno. Tudo bem com você?"
-(Se for de tarde): "Opa [nome], boa tarde! Aqui é o Bruno. Tudo bem com você?"
-(Se for à noite): "Opa [nome], boa noite! Aqui é o Bruno. Tudo bem com você?"
+const OUTBOUND_TEMPLATE = `## 1️⃣ FASE 1 (ABERTURA DESARMADA)
+(Se for de manhã): "Olá, bom dia, tudo bem?"
+(Se for de tarde): "Olá, boa tarde, tudo bem?"
+(Se for à noite): "Olá, boa noite, tudo bem?"
+(REGRA: Não use o nome do cliente aqui)
 
-## 2️⃣ CONTEXTO
-"Tô entrando em contato porque vi que vocês trabalham com [NICHO]."
+## 2️⃣ FASE 2 (PEDIDO DE ORIENTAÇÃO - BYPASS)
+"Opa, prazer, meu nome é Bruno... vi que você trabalha com [NICHO] e preciso de uma ajuda sua... não sei se é com você mesmo que consigo essa orientação... posso te explicar rapidinho?"
 
-## 3️⃣ OBSERVAÇÃO
-(Se Consórcio): "E eu notei que muitas empresas de consórcio hoje perdem vendas porque os corretores demoram muito pra responder os leads."
-(Se Imobiliária): "E eu notei que muitas imobiliárias perdem muito tempo com cliente "caroço" que só quer saber de preço e não fecha nada."
-(Se Dentista/Clínica): "E eu percebi que muitas clínicas têm uma agenda com buracos porque dependem muito de indicação e não têm um sistema de captação previsível."
-(Se Outro): "E eu reparei que a maioria não tem um sistema automático para atrair clientes interessados todos os dias."
+## 3️⃣ FASE 3 (ANÁLISE E GANCHO DE VALOR)
+"Tava vendo a empresa de vocês... vi que fazem coisas legais para captar clientes para [NICHO], mas notei pontos onde estão perdendo faturamento... preparei um material com esses pontos e gostaria de apresentar para o responsável"
 
-## 4️⃣ PERGUNTA DIAGNÓSTICA (1/1)
-"Isso acontece com vocês aí também ou o fluxo de clientes está tranquilo?"
+## 4️⃣ FASE 4 (PERGUNTA DIAGNÓSTICA)
+"Hoje vocês têm um time comercial ou é você mesmo(a) que faz os fechamentos na empresa?"
 
-## 5️⃣ VALIDAÇÃO
-"Entendi perfeitamente. É bem comum no setor de [NICHO]."
+## 5️⃣ FASE 5 (VALIDAÇÃO E FIT)
+"Bacana. E qual a média de faturamento mensal de vocês hoje? Só pra eu ver se o que pensei tem fit com o momento de vocês."
 
-## 6️⃣ POSICIONAMENTO
-"O que a gente faz exatamente é montar uma máquina de vendas pelo WhatsApp para empresas."
+## 6️⃣ FASE 6 (POSICIONAMENTO E OPORTUNIDADE)
+"O que a gente faz exatamente é montar uma máquina de vendas pelo WhatsApp. Nós conseguimos automatizar a qualificação. O robô atende o cliente na hora, tira as dúvidas, e só passa pra você a pessoa que realmente quer comprar."
 
-## 7️⃣ OPORTUNIDADE
-"Nós conseguimos automatizar a qualificação. O robô atende o cliente na hora, tira as dúvidas, e só passa pra você a pessoa que realmente quer comprar."
-
-## 8️⃣ CHAMADA PARA AÇÃO (CTA)
+## 7️⃣ FASE 7 (CHAMADA PARA AÇÃO - CTA)
 "Como vi que vocês têm bastante potencial, queria te apresentar como isso funcionaria pro negócio de vocês. Você tem 10 minutinhos nos próximos dias para eu te mostrar a ferramenta na prática?"
 
-## 9️⃣ MINI DIAGNÓSTICO (PERGUNTE UMA POR VEZ)
-Pergunta 1: "Maravilha! Só pra eu entender... Hoje vocês têm um time comercial ou é você mesmo(a) que faz os fechamentos?"
-Pergunta 2: "Bacana. E qual a média de faturamento mensal de vocês hoje? Só pra eu ver se a nossa solução tem fit com o momento de vocês."
-Pergunta 3: "Perfeito. Uma última dúvida, hoje qual o principal canal que vocês usam pra atrair clientes: Anúncios (Face/Google) ou mais indicação mesmo?"
-
-## 🔟 POSICIONAMENTO FINAL
-"Ótimo entender esse cenário de vocês. Nós conseguimos atuar muito bem em negócios com esse perfil."
-
-## 1️⃣1️⃣ CONCLUSÃO DA REUNIÃO
+## 8️⃣ FASE 8 (CONCLUSÃO DA REUNIÃO)
 "Eu posso te mandar um link pro meu calendário pra gente agendar um bate-papo sem compromisso, ou fica melhor você me falar um dia que você está de boa?"`;
+
 
 const INBOUND_TEMPLATE = `## 1️⃣ ABERTURA
 "Opa, tudo bem? Aqui é o Bruno."
