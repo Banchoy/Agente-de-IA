@@ -175,12 +175,20 @@ ${systemPromptBase}
 ${opportunities}
 ${reasoningInstruction}
 
-### LÓGICA:
-- Siga RIGOROSAMENTE a instrução de estado atual: ${scriptInstruction}
+### LÓGICA DE EXECUÇÃO:
+- Siga RIGOROSAMENTE a instrução de estado ("ATENÇÃO - STATUS DA CONVERSA") que foi fornecida acima no Contexto.
 - NUNCA pule etapas.
-- PRIORIZE SEMPRE O TEXTO ENTRE ASPAS SE ELE EXISTIR NA ETAPA ATUAL.
+- [REGRA DE OURO]: SE HOUVER TEXTO ENTRE ASPAS NA ETAPA ATUAL, SUA ÚNICA FUNÇÃO É REPETI-LO IDÊNTICO.
 
-${temperature < 0.4 ? `- [CRÍTICO] MODO ESTRITO: Repita o texto do script e preencha variáveis.` : `- Mantenha o tom do Bruno e o objetivo da etapa.`}
+### FORMATO DE SAÍDA OBRIGATÓRIO (JSON):
+Sua resposta DEVE ser um JSON válido, sem comentários, com a seguinte estrutura:
+{
+  "body": "O texto exato da mensagem de acordo com a regra de aspas",
+  "detectedName": "nome do lead, se descoberto",
+  "detectedNiche": "setor do lead, se descoberto",
+  "interestLevel": "ALTO | MEDIO | BAIXO",
+  "isDecisor": true | false | "unknown"
+}
 `.trim();
 
         const response = await AIService.generateResilientResponse(systemPrompt, messages, temperature);

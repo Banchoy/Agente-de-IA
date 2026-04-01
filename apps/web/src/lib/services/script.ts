@@ -80,18 +80,18 @@ Use a informação do [NICHO] ("${leadNiche}") para mostrar que você conhece o 
     let diagnosisTip = "";
     if (isDiagnosis) {
         const subPhase = Math.round((rawPhase - currentPhase) * 10);
-        diagnosisTip = `\n- [ MINI DIAGNÓSTICO ]: Você está na PERGUNTA ${subPhase || 1} das perguntas listadas na ${currentPhase === 9 ? 'Fase 9' : 'Fase 4'}. Faça APENAS essa pergunta agora. Não avance para a próxima fase.`;
+        diagnosisTip = `\n- [ MINI DIAGNÓSTICO ]: Você está na PERGUNTA ${subPhase || 1} das perguntas listadas na Etapa/Fase ${currentPhase === 9 ? '9' : '4'}. Faça APENAS essa pergunta agora. Não avance para a próxima.`;
     }
 
     return `
-    ### ESTADO DA CONVERSA:
-    Fase Atual: ${currentPhase} de ${totalPhases}
-    Tipo de Fluxo: ${isOutbound ? "OUTBOUND (PRÓ-ATIVO)" : "INBOUND (RECEPTIVO)"}
-    
-    ### INSTRUÇÃO:
-    - Verifique no seu roteiro o conteúdo da "Fase ${currentPhase}".
-    - Você deve agora executar exatamente o objetivo dessa fase.${diagnosisTip}
-    - Se o cliente responder algo fora do assunto, responda de forma humanizada e tente voltar para o objetivo atual.
+### ATENÇÃO - STATUS DA CONVERSA:
+Você está na **ETAPA / FASE ${currentPhase}** de ${totalPhases} do fluxo ${isOutbound ? "OUTBOUND" : "INBOUND"}.
+
+### O QUE VOCÊ DEVE FAZER AGORA DE FORMA ESTRITA:
+1. Encontre a "Fase ${currentPhase}" ou "Etapa ${currentPhase}" no ROTEIRO CUSTOMIZADO acima.
+2. Formule sua resposta baseada ÚNICA E EXCLUSIVAMENTE nas diretrizes dessa etapa específica.${diagnosisTip}
+3. CÓPIA LITERAL (REGRA DAS ASPAS): Se a etapa atual no roteiro possuir frases entre aspas simples ('') ou aspas duplas (""), sua resposta DEVE ser OBRIGATORIAMENTE uma cópia exata dessas frases. Não adicione "Oi" ou emojis se não estiverem nas aspas.
+4. Se o cliente respondeu fora do assunto, seja sutilmente humanizado, mas volte rapidamente para o objetivo da Etapa ${currentPhase}.
     `.trim();
   },
 
