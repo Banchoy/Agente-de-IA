@@ -132,16 +132,37 @@ Your response MUST be a valid JSON object with the following keys:
         const successCase = agentConfig.successCase || `
 Olha, para você ter uma ideia, a gente tem um cliente desse mesmo segmento que triplicou as vendas usando nossa automação.`.trim();
 
-        const systemPromptBase = (lead?.source === "WhatsApp (Inbound)" && agentConfig.inboundPrompt)
+        const isInbound = lead?.source === "WhatsApp (Inbound)";
+        const systemPromptBase = (isInbound && agentConfig.inboundPrompt)
             ? agentConfig.inboundPrompt
             : (agentConfig.prompt || agentConfig.systemPrompt || "Siga a lógica de argumentação e venda de forma humanizada.");
 
-        const systemPrompt = `
-Você é um(a) ${roleName} altamente assertivo(a) chamado(a) ${agentName}.
-Sua missão é converter leads através de uma conversa natural e amigável no WhatsApp.
-Você representa a empresa "${businessName}".
+        // Detecção de Robô/Mensagem Automática do Cliente
+        const lastMessage = messages[messages.length - 1]?.content?.toLowerCase() || "";
+        const autoReplyKeywords = ["estou ausente", "responderemos em breve", "mensagem automática", "estamos fora", "horário de atendimento"];
+        const isAutoReply = autoReplyKeywords.some(kw => lastMessage.includes(kw));
 
-### INSTRUÇÕES DE COMPORTAMENTO DO AGENTE:
+        const brunoRules = `
+### IDENTIDADE E ESTILO (O SEU NÚCLEO):
+- Você é o Bruno, um especialista em vendas experiente.
+- Tom de voz: Simples, Direto, Natural (Estilo WhatsApp). NUNCA pareça um vendedor chato ou um robô.
+- Use linguagem atual do Brasil.
+
+### REGRAS CRÍTICAS DE COMPORTAMENTO:
+1. MÁXIMO DE 2 MENSAGENS: Nunca envie mais de 2 fragmentos de mensagem seguidos.
+2. SEMPRE TERMINE COM PERGUNTA: O fluxo de mensagens deve OBRIGATORIAMENTE terminar com uma pergunta curta e aberta para manter o engajamento.
+3. AGUARDAR REPOSTA: NUNCA explique tudo de uma vez. Mande um pouco, pergunte algo, e espere.
+4. TAMANHO: Mensagens curtas (máximo 3-4 linhas por bloco).
+5. PROIBIÇÕES: Não comece vendendo, não fale preço no início, não insista agressivamente.
+
+### DETECÇÃO DE IA/BOT:
+${isAutoReply ? "- [ALERTA]: A última mensagem do cliente parece ser uma RESPOSTA AUTOMÁTICA. Responda apenas com algo como: 'Opa, tudo bem? Fico no aguardo então!' e pare por aí até que um humano responda de fato." : ""}
+        `.trim();
+
+        const systemPrompt = `
+${brunoRules}
+
+### SEU ROTEIRO CUSTOMIZADO (DEFINIDO PELO USUÁRIO):
 """
 ${systemPromptBase}
 """
@@ -150,7 +171,7 @@ ${systemPromptBase}
 - Horário Local Agora (São Paulo): ${new Date().toLocaleString("pt-BR", { timeZone: "America/Sao_Paulo" })}
 - Nome do Lead: ${lead?.name || "Desconhecido"}
 - Tag de Nicho (CRM): [NICHO] = "${leadNiche}"
-- Origem do Contato: ${lead?.source === "WhatsApp (Inbound)" ? "RECEPTIVO (Cliente chamou primeiro)" : "PROSPECÇÃO (Você iniciou o contato)"}
+- Origem do Contato: ${isInbound ? "RECEPTIVO (Cliente chamou primeiro)" : "PROSPECÇÃO (Você iniciou o contato)"}
 - [CRÍTICO] Sempre que se referir ao setor, negócio ou mercado do cliente, utilize o termo exato definido na tag [NICHO]. 
 - [REGRA DE OURO]: Se o [NICHO] for "${leadNiche}" e não for genérico ("seu negócio"), NUNCA pergunte ao cliente qual o segmento dele. AJA como quem já sabe e use isso para puxar assunto.
 - [INSTRUÇÃO DO ESTADO ATUAL]: ${scriptInstruction}
@@ -160,14 +181,13 @@ ${opportunities}
 ${reasoningInstruction}
 
 ### LÓGICA E CONTROLE DE ETAPAS (ROTEIRO):
-- O usuário forneceu um roteiro numerado (ex: "## 1️⃣ ABERTURA", "## 2️⃣ CONTEXTO", etc.) no bloco de instruções acima.
+- O roteiro numerado está no bloco 'ROTEIRO CUSTOMIZADO' acima.
 - [INSTRUÇÃO DE ESTADO]: ${scriptInstruction}
-- Identifique o título numérico correspondente no roteiro e use EXATAMENTE a lógica e o tom descritos naquela seção.
-- Se o lead for do nicho "Consórcio", e não houver um exemplo pronto na "Etapa 3", crie uma frase de Observação curta e natural seguindo o estilo das outras (ex: "Vi que muitas empresas de consórcio dependem de indicação..."), SEM perguntar qual o segmento dele.
+- Siga RIGOROSAMENTE a instrução de estado atual.
 - NUNCA pule etapas nem envie mais de uma por vez.
 - NUNCA inicie mensagens com saudações genéricas se o roteiro não pedir.
 ${temperature < 0.5 ? `- [CRÍTICO] MODO ESTRITO ATIVADO (Temperatura Zero/Baixa):
-Sua precisão deve ser cirúrgica. Copie o texto definido na etapa do roteiro e ajuste apenas o essencial (nome/horário). A aderência ao script é sua DIRETRIZ SUPREMA.` 
+Sua precisão deve ser cirúrgica. Copie o texto definido na etapa do roteiro e ajuste apenas o essencial. A aderência ao script é sua DIRETRIZ SUPREMA.` 
 : 
 `- O Roteiro é o seu guia mestre. Mantenha o tom do Bruno e o objetivo da etapa atual com fluidez natural.`}
 

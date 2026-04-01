@@ -68,40 +68,39 @@ Use a informação do [NICHO] ("${leadNiche}") para mostrar que você conhece o 
    * Retorna a "Instrução de Comportamento" para a IA baseado nas etapas do roteiro.
    */
   getInstruction: (state: string, lead?: any) => {
-    const isOutreach = lead?.source !== "WhatsApp (Inbound)";
+    const isOutbound = lead?.source !== "WhatsApp (Inbound)";
+    const currentPhase = parseInt(state) || 1;
+    const totalPhases = isOutbound ? 11 : 8;
+
+    // Se a fase for de Mini Diagnóstico (9 no Outbound, 4 no Inbound)
+    const isDiagnosis = (isOutbound && currentPhase === 9) || (!isOutbound && currentPhase === 4);
+
+    return `
+    ### ESTADO DA CONVERSA:
+    Fase Atual: ${currentPhase} de ${totalPhases}
+    Tipo de Fluxo: ${isOutbound ? "OUTBOUND (PRÓ-ATIVO)" : "INBOUND (RECEPTIVO)"}
     
-    // Mapeamento dinâmico para as etapas do prompt do usuário
-    const stageMap: Record<string, string> = {
-      "WAITING_REPLY": isOutreach ? "Etapa 2️⃣: CONTEXTO" : "Etapa 1️⃣: ABERTURA",
-      "INTRO": "Etapa 2️⃣: CONTEXTO",
-      "CONTEXT": "Etapa 3️⃣: OBSERVAÇÃO",
-      "DIAGNOSIS": "Etapa 4️⃣: PERGUNTA DIAGNÓSTICA",
-      "VALIDATION": "Etapa 5️⃣: VALIDAÇÃO",
-      "POSITIONING": "Etapa 6️⃣: POSICIONAMENTO",
-      "OPPORTUNITY": "Etapa 7️⃣: OPORTUNIDADE",
-      "CTA": "Etapa 8️⃣: CHAMADA PARA AÇÃO"
-    };
-
-    const currentStage = stageMap[state] || "Próxima Etapa Lógica";
-
-    return `Siga RIGOROSAMENTE o roteiro fornecido. Você deve executar agora o conteúdo da: ${currentStage}.
-    REGRA DE NICHO: Se o nicho do lead for Consórcio, adapte a etapa de OBSERVAÇÃO seguindo o padrão usado para os outros setores no roteiro.`.trim();
+    ### INSTRUÇÃO:
+    - Verifique no seu roteiro o conteúdo da "Fase ${currentPhase}".
+    - Você deve agora executar exatamente o objetivo dessa fase.
+    ${isDiagnosis ? "- [ MINI DIAGNÓSTICO ]: Faça UMA PERGUNTA POR VEZ no final da mensagem. Não avance para a próxima fase do roteiro até que todas as perguntas do diagnóstico sejam concluídas." : ""}
+    - Se o cliente responder algo fora do assunto, responda de forma humanizada e tente voltar para o objetivo da "Fase ${currentPhase}".
+    `.trim();
   },
 
   /**
    * Determina o próximo estado da conversa.
    */
-  advanceState: (currentState: string) => {
-    switch (currentState) {
-      case "WAITING_REPLY": return "INTRO";
-      case "INTRO": return "CONTEXT";
-      case "CONTEXT": return "DIAGNOSIS";
-      case "DIAGNOSIS": return "VALIDATION";
-      case "VALIDATION": return "POSITIONING";
-      case "POSITIONING": return "OPPORTUNITY";
-      case "OPPORTUNITY": return "CTA";
-      case "CTA": return "DECISION_MAKER";
-      default: return currentState;
+  advanceState: (currentState: string, lead?: any) => {
+    const isOutbound = lead?.source !== "WhatsApp (Inbound)";
+    const currentPhase = parseInt(currentState) || 1;
+    const maxPhase = isOutbound ? 11 : 8;
+
+    // Lógica de avanço simples por número
+    if (currentPhase < maxPhase) {
+        return (currentPhase + 1).toString();
     }
+
+    return currentState;
   }
 };

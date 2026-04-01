@@ -152,13 +152,11 @@ export const OutreachService = {
                 outreachStatus: "completed",
                 lastOutreachAt: new Date(),
                 status: "CONTACTED",
-                conversationState: "WAITING_REPLY", 
+                conversationState: "1", 
                 stageId: targetStageId || pendingLead.stageId
             });
 
             // 8. O salvamento no histórico é tratado automaticamente pelo hook de recebimento/envio (messages.upsert) do próprio baileys.
-
-            console.log(`✅ [Outreach] Mensagem enviada para ${pendingLead.name} com sucesso!`);
 
             console.log(`✅ [Outreach] Mensagem enviada para ${pendingLead.name} com sucesso!`);
 

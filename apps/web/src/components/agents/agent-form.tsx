@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Bot, ArrowLeft, Sparkles, Phone, Loader2 } from "lucide-react";
+import { Bot, ArrowLeft, Sparkles, Phone, Loader2, Wand2 } from "lucide-react";
 import Link from "next/link";
 import { createAgent } from "@/app/dashboard/agents/actions";
 import { toast } from "sonner";
@@ -11,6 +11,73 @@ interface AgentFormProps {
     freeModels: string[];
     defaultInstanceName?: string;
 }
+
+const OUTBOUND_TEMPLATE = `## 1️⃣ ABERTURA
+(Se for de manhã): "Opa [nome], bom dia! Aqui é o Bruno. Tudo bem com você?"
+(Se for de tarde): "Opa [nome], boa tarde! Aqui é o Bruno. Tudo bem com você?"
+(Se for à noite): "Opa [nome], boa noite! Aqui é o Bruno. Tudo bem com você?"
+
+## 2️⃣ CONTEXTO
+"Tô entrando em contato porque vi que vocês trabalham com [NICHO]."
+
+## 3️⃣ OBSERVAÇÃO
+(Se Consórcio): "E eu notei que muitas empresas de consórcio hoje perdem vendas porque os corretores demoram muito pra responder os leads."
+(Se Imobiliária): "E eu notei que muitas imobiliárias perdem muito tempo com cliente "caroço" que só quer saber de preço e não fecha nada."
+(Se Dentista/Clínica): "E eu percebi que muitas clínicas têm uma agenda com buracos porque dependem muito de indicação e não têm um sistema de captação previsível."
+(Se Outro): "E eu reparei que a maioria não tem um sistema automático para atrair clientes interessados todos os dias."
+
+## 4️⃣ PERGUNTA DIAGNÓSTICA (1/1)
+"Isso acontece com vocês aí também ou o fluxo de clientes está tranquilo?"
+
+## 5️⃣ VALIDAÇÃO
+"Entendi perfeitamente. É bem comum no setor de [NICHO]."
+
+## 6️⃣ POSICIONAMENTO
+"O que a gente faz exatamente é montar uma máquina de vendas pelo WhatsApp para empresas."
+
+## 7️⃣ OPORTUNIDADE
+"Nós conseguimos automatizar a qualificação. O robô atende o cliente na hora, tira as dúvidas, e só passa pra você a pessoa que realmente quer comprar."
+
+## 8️⃣ CHAMADA PARA AÇÃO (CTA)
+"Como vi que vocês têm bastante potencial, queria te apresentar como isso funcionaria pro negócio de vocês. Você tem 10 minutinhos nos próximos dias para eu te mostrar a ferramenta na prática?"
+
+## 9️⃣ MINI DIAGNÓSTICO (PERGUNTE UMA POR VEZ)
+Pergunta 1: "Maravilha! Só pra eu entender... Hoje vocês têm um time comercial ou é você mesmo(a) que faz os fechamentos?"
+Pergunta 2: "Bacana. E qual a média de faturamento mensal de vocês hoje? Só pra eu ver se a nossa solução tem fit com o momento de vocês."
+Pergunta 3: "Perfeito. Uma última dúvida, hoje qual o principal canal que vocês usam pra atrair clientes: Anúncios (Face/Google) ou mais indicação mesmo?"
+
+## 🔟 POSICIONAMENTO FINAL
+"Ótimo entender esse cenário de vocês. Nós conseguimos atuar muito bem em negócios com esse perfil."
+
+## 1️⃣1️⃣ CONCLUSÃO DA REUNIÃO
+"Eu posso te mandar um link pro meu calendário pra gente agendar um bate-papo sem compromisso, ou fica melhor você me falar um dia que você está de boa?"`;
+
+const INBOUND_TEMPLATE = `## 1️⃣ ABERTURA
+"Opa, tudo bem? Aqui é o Bruno."
+"[NOME], pra eu te direcionar pro melhor especialista aqui do nosso time, me fala rapidinho: qual o seu ramo de atuação (nicho) hoje?"
+
+## 2️⃣ PERCEPÇÃO DE VALOR
+"Show! Nós temos bastante experiência ajudando empresas desse setor."
+
+## 3️⃣ PROMESSA
+"A gente monta operações de vendas automáticas via WhatsApp. Basicamente, ajudamos [NICHO] a triplicar as vendas atendendo os clientes em segundos, 24h por dia."
+
+## 4️⃣ DIAGNÓSTICO CURTO (PERGUNTE UMA POR VEZ)
+Pergunta 1: "Hoje você tem uma equipe atendendo o WhatsApp ou é você mesmo(a) que faz as vendas?"
+Pergunta 2: "Bacana. E em qual faixa de faturamento mensal a sua empresa está hoje? (Ex: até 10k, 10k a 50k, 50k+)"
+
+## 5️⃣ GERAÇÃO DE CONEXÃO
+"Legal entender isso. Como nossa ferramenta precisa de um investimento pra rodar, eu pergunto isso pra garantir que nossa solução cabe no seu fluxo e realmente vai te dar retorno rápido."
+
+## 6️⃣ CALL TO ACTION (CTA)
+"Pra eu te mostrar como nosso robô funcionaria exatamente pro seu negócio no dia a dia, você teria uns 15 minutinhos hoje ou amanhã pra uma rápida chamada de vídeo?"
+
+## 7️⃣ LIDANDO COM OBJEÇÕES
+Se o cliente achar caro / Sem tempo:
+"Entendo totalmente, [nome]. Mas me fala uma coisa, quanto de dinheiro você acha que deixou na mesa esse mês por clientes que desistiram porque demorou pra ter uma resposta? Nosso foco é tapar esse vazamento."
+
+## 8️⃣ FINALIZAÇÃO E AGENDAMENTO
+"Maravilha. Pega o link da minha agenda aqui embaixo e escolhe o horário que ficar melhor pra você. Chegando lá, a gente bate esse papo rápido. Fechado?"`;
 
 export function AgentForm({ availableSessions, freeModels, defaultInstanceName }: AgentFormProps) {
     const [isPending, setIsPending] = useState(false);
@@ -133,39 +200,61 @@ export function AgentForm({ availableSessions, freeModels, defaultInstanceName }
                     </div>
                 </div>
 
-                <div className="space-y-3">
-                    <label htmlFor="systemPrompt" className="text-xs font-black text-muted-foreground uppercase tracking-widest px-1">Prompt do Sistema (Prospecção)</label>
+                <div className="space-y-3 relative group">
+                    <div className="flex items-center justify-between px-1">
+                        <label htmlFor="systemPrompt" className="text-xs font-black text-muted-foreground uppercase tracking-widest">Prompt do Sistema (Prospecção / Outbound)</label>
+                        <button 
+                            type="button" 
+                            onClick={(e) => {
+                                e.preventDefault();
+                                const el = document.getElementById('systemPrompt') as HTMLTextAreaElement;
+                                if(el) el.value = OUTBOUND_TEMPLATE;
+                            }}
+                            className="text-[10px] font-bold text-primary bg-primary/10 hover:bg-primary/20 px-2 py-1 rounded cursor-pointer transition-colors"
+                        >
+                            <Wand2 size={12} className="inline mr-1" />
+                            Template Bruno (Outbound)
+                        </button>
+                    </div>
                     <textarea
                         name="systemPrompt"
                         id="systemPrompt"
                         placeholder="ex: você é um representante comercial do Grupo Dream Store..."
-                        rows={6}
-                        defaultValue={`Sua missão é atuar como um representante humano do Grupo Dream Store.
-
-DIRETRIZES:
-1. Identifique o nome do cliente o quanto antes e utilize-o em suas respostas para um atendimento personalizado.
-2. Identifique o nicho de atuação da empresa do cliente.
-3. Use um tom de voz consultivo, prestativo e natural (evite termos técnicos complexos).
-4. O objetivo final é qualificar o interesse e agendar uma breve conversa com o time comercial.`}
+                        rows={10}
+                        defaultValue={OUTBOUND_TEMPLATE}
                         required
-                        className="w-full rounded-3xl border border-border bg-background px-6 py-5 text-sm font-bold text-foreground focus:border-primary focus:outline-none transition-all resize-none shadow-inner placeholder:text-muted-foreground/30"
+                        className="w-full rounded-3xl border border-border bg-background px-6 py-5 text-sm font-bold text-foreground focus:border-primary focus:outline-none transition-all resize-none shadow-inner placeholder:text-muted-foreground/30 font-mono"
                     ></textarea>
                     <p className="text-[10px] text-muted-foreground px-1 leading-relaxed lowercase italic">
                         instrua o agente detalhadamente sobre como ele deve se comportar na prospecção ativa.
                     </p>
                 </div>
 
-                <div className="space-y-3">
-                    <label htmlFor="inboundPrompt" className="text-xs font-black text-muted-foreground uppercase tracking-widest px-1">Script de Receptivo (Inbound - Opcional)</label>
+                <div className="space-y-3 relative group">
+                    <div className="flex items-center justify-between px-1">
+                        <label htmlFor="inboundPrompt" className="text-xs font-black text-muted-foreground uppercase tracking-widest">Script de Receptivo (Inbound - Opcional)</label>
+                        <button 
+                            type="button" 
+                            onClick={(e) => {
+                                e.preventDefault();
+                                const el = document.getElementById('inboundPrompt') as HTMLTextAreaElement;
+                                if(el) el.value = INBOUND_TEMPLATE;
+                            }}
+                            className="text-[10px] font-bold text-primary bg-primary/10 hover:bg-primary/20 px-2 py-1 rounded cursor-pointer transition-colors"
+                        >
+                            <Wand2 size={12} className="inline mr-1" />
+                            Template Bruno (Inbound)
+                        </button>
+                    </div>
                     <textarea
                         name="inboundPrompt"
                         id="inboundPrompt"
                         placeholder="Deixe vazio para usar o prompt padrão ou defina como responder quando o cliente chamar primeiro..."
-                        rows={6}
-                        className="w-full rounded-3xl border border-border bg-background px-6 py-5 text-sm font-bold text-foreground focus:border-primary focus:outline-none transition-all resize-none shadow-inner placeholder:text-muted-foreground/30"
+                        rows={8}
+                        className="w-full rounded-3xl border border-border bg-background px-6 py-5 text-sm font-bold text-foreground focus:border-primary focus:outline-none transition-all resize-none shadow-inner placeholder:text-muted-foreground/30 font-mono"
                     ></textarea>
                     <p className="text-[10px] text-muted-foreground px-1 leading-relaxed lowercase italic">
-                        instruções específicas para quando o cliente iniciar a conversa. se vazio, usará o prompt de prospecção.
+                        instruções específicas para receptivo.
                     </p>
                 </div>
             </div>
