@@ -84,9 +84,8 @@ export const MemoryGuard = {
             if (global.gc) {
                 global.gc();
                 console.log("✅ [MemoryGuard] Garbage collection forçado executado.");
-            } else {
-                console.log("ℹ️ [MemoryGuard] global.gc não disponível. Considere --expose-gc no NODE_OPTIONS.");
             }
+            // Silenciado aviso de GC não disponível para limpar logs
         }
 
         const afterStats = this.getStats();

@@ -55,11 +55,15 @@ export async function POST(req: NextRequest) {
             await CRMRepository.ensureDefaultPipeline(org.id);
             const initialStageId = await CRMRepository.getStageByName(org.id, "Novo Lead");
             
+            // Lógica de detecção de fonte: se o nome ou conteúdo sugere prospecção, podemos marcar como Outreach
+            const nameLower = (data.pushName || "").toLowerCase();
+            const isLikelyOutreach = nameLower.includes("vendas") || nameLower.includes("comercial") || nameLower.includes("negócios");
+
             lead = await LeadRepository.createSystem({
                 organizationId: org.id,
                 name: data.pushName || phone,
                 phone: phone,
-                source: "WhatsApp (Inbound)",
+                source: isLikelyOutreach ? "Outreach" : "WhatsApp (Inbound)",
                 stageId: initialStageId,
                 conversationState: "START",
                 aiActive: "true"
@@ -105,7 +109,12 @@ export async function POST(req: NextRequest) {
             systemPromptToUse,
             [...formattedHistory, { role: "user", content: text }],
             lead.conversationState || "START",
-            lead.metaData,
+            { 
+                name: lead.name, 
+                phone: lead.phone, 
+                source: lead.source,
+                ...(lead.metaData as object) 
+            },
             config.temperature || 0.7
         );
 
