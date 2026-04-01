@@ -73,25 +73,21 @@ Use a informação do [NICHO] ("${leadNiche}") para mostrar que você conhece o 
     const currentPhase = Math.floor(rawPhase);
     const totalPhases = isOutbound ? 11 : 8;
 
-    // Se a fase for de Mini Diagnóstico (9 no Outbound, 4 no Inbound)
     const isDiagnosis = (isOutbound && currentPhase === 9) || (!isOutbound && currentPhase === 4);
     
-    // Identificar qual pergunta do diagnóstico estamos (se houver)
     let diagnosisTip = "";
     if (isDiagnosis) {
         const subPhase = Math.round((rawPhase - currentPhase) * 10);
-        diagnosisTip = `\n- [ MINI DIAGNÓSTICO ]: Você está na PERGUNTA ${subPhase || 1} das perguntas listadas na Etapa/Fase ${currentPhase === 9 ? '9' : '4'}. Faça APENAS essa pergunta agora. Não avance para a próxima.`;
+        diagnosisTip = `\n- [ MINI DIAGNÓSTICO ]: Você está na PERGUNTA ${subPhase || 1} do diagnóstico. Faça APENAS essa pergunta agora de forma natural. Aguarde a resposta do cliente antes de fazer outra pergunta.`;
     }
 
     return `
-### ATENÇÃO - STATUS DA CONVERSA:
-Você está na **ETAPA / FASE ${currentPhase}** de ${totalPhases} do fluxo ${isOutbound ? "OUTBOUND" : "INBOUND"}.
-
-### O QUE VOCÊ DEVE FAZER AGORA DE FORMA ESTRITA:
-1. Encontre a "Fase ${currentPhase}" ou "Etapa ${currentPhase}" no ROTEIRO CUSTOMIZADO acima.
-2. Formule sua resposta baseada ÚNICA E EXCLUSIVAMENTE nas diretrizes dessa etapa específica.${diagnosisTip}
-3. CÓPIA LITERAL (REGRA DAS ASPAS): Se a etapa atual no roteiro possuir frases entre aspas simples ('') ou aspas duplas (""), sua resposta DEVE ser OBRIGATORIAMENTE uma cópia exata dessas frases. Não adicione "Oi" ou emojis se não estiverem nas aspas.
-4. Se o cliente respondeu fora do assunto, seja sutilmente humanizado, mas volte rapidamente para o objetivo da Etapa ${currentPhase}.
+### O SEU OBJETIVO NESTE EXATO MOMENTO:
+Você está na **ETAPA / FASE ${currentPhase}** de ${totalPhases}.
+1. Leia a diretriz da "Fase ${currentPhase}" no SEU TREINAMENTO (acima).
+2. Compreenda o OBJETIVO dessa fase e formule sua resposta para alcançá-lo.
+3. ADAPTAÇÃO HUMANA: Não leia o treinamento como um robô. Use as informações como base e escreva sua mensagem de forma empática, contextualizada com o que o cliente acabou de dizer.${diagnosisTip}
+4. Se o cliente tiver feito uma pergunta técnica ou saído do script, tire a dúvida dele PRIMEIRO com máxima presteza. Só depois volte ao fluxo natural.
     `.trim();
   },
 
