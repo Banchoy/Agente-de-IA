@@ -98,10 +98,7 @@ export async function POST(req: NextRequest) {
         // 7. Generate Structured AI Response
         console.log(`🤖 Agent "${whatsappAgent.name}" processing logic for state: ${lead.conversationState}`);
         
-        // Select prompt: Use inboundPrompt if lead is Inbound and it exists, else fallback to systemPrompt
-        const systemPromptToUse = (lead.source === "WhatsApp (Inbound)" && config.inboundPrompt) 
-            ? config.inboundPrompt 
-            : (config.systemPrompt || "Você é um assistente útil.");
+        const systemPromptToUse = config.systemPrompt || "Você é o Bruno, um especialista em vendas experiente.";
 
         const structuredResult = await AIService.generateStructuredResponse(
             config.provider || "google",
@@ -139,7 +136,7 @@ export async function POST(req: NextRequest) {
         }
 
         // 10. Update Lead
-        const { ScriptService } = await import("./script");
+        const { ScriptService } = await import("@/lib/services/script");
         const nextConversationState = await ScriptService.advanceState(lead.conversationState, lead, structuredResult);
         
         await LeadRepository.updateSystem(lead.id, {

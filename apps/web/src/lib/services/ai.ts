@@ -152,16 +152,7 @@ Your response MUST be a valid JSON object with the following keys:
 Olha, para você ter uma ideia, a gente tem um cliente desse mesmo segmento que triplicou as vendas usando nossa automação.`.trim();
 
         const isOutreach = lead?.source === "Outreach";
-        const isInbound = lead?.source === "WhatsApp (Inbound)";
-        
-        let systemPromptBase = "";
-        if (isOutreach) {
-            systemPromptBase = agentConfig.prompt || agentConfig.systemPrompt || "Siga o roteiro de prospecção ativa.";
-        } else if (isInbound) {
-            systemPromptBase = agentConfig.inboundPrompt || agentConfig.prompt || agentConfig.systemPrompt || "Siga o roteiro de receptivo.";
-        } else {
-            systemPromptBase = agentConfig.prompt || agentConfig.systemPrompt || "Atendimento humanizado.";
-        }
+        const systemPromptBase = agentConfig.prompt || agentConfig.systemPrompt || "Siga o roteiro de prospecção ativa.";
 
         const lastMessage = messages[messages.length - 1]?.content?.toLowerCase() || "";
         const autoReplyKeywords = ["estou ausente", "responderemos em breve", "mensagem automática", "estamos fora", "horário de atendimento"];

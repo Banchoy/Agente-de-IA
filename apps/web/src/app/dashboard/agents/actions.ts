@@ -43,7 +43,6 @@ export async function createAgent(formData: FormData) {
             marketOportunities,
             successCase,
             gender,
-            inboundPrompt,
             temperature,
             whatsappResponse: true
         }

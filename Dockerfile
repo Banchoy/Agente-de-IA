@@ -77,5 +77,5 @@ ENV PORT 3000
 # set hostname to localhost
 ENV HOSTNAME "0.0.0.0"
 
-# Start the web server
-CMD node apps/web/server.js
+# Start the web server com Garbage Collector exposto para o MemoryGuard
+CMD ["node", "--expose-gc", "apps/web/server.js"]

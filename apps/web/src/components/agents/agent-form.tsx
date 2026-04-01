@@ -40,32 +40,6 @@ const OUTBOUND_TEMPLATE = `## 1️⃣ FASE 1 (ABERTURA DESARMADA)
 "Eu posso te mandar um link pro meu calendário pra gente agendar um bate-papo sem compromisso, ou fica melhor você me falar um dia que você está de boa?"`;
 
 
-const INBOUND_TEMPLATE = `## 1️⃣ ABERTURA
-"Opa, tudo bem? Aqui é o Bruno."
-"[NOME], pra eu te direcionar pro melhor especialista aqui do nosso time, me fala rapidinho: qual o seu ramo de atuação (nicho) hoje?"
-
-## 2️⃣ PERCEPÇÃO DE VALOR
-"Show! Nós temos bastante experiência ajudando empresas desse setor."
-
-## 3️⃣ PROMESSA
-"A gente monta operações de vendas automáticas via WhatsApp. Basicamente, ajudamos [NICHO] a triplicar as vendas atendendo os clientes em segundos, 24h por dia."
-
-## 4️⃣ DIAGNÓSTICO CURTO (PERGUNTE UMA POR VEZ)
-Pergunta 1: "Hoje você tem uma equipe atendendo o WhatsApp ou é você mesmo(a) que faz as vendas?"
-Pergunta 2: "Bacana. E em qual faixa de faturamento mensal a sua empresa está hoje? (Ex: até 10k, 10k a 50k, 50k+)"
-
-## 5️⃣ GERAÇÃO DE CONEXÃO
-"Legal entender isso. Como nossa ferramenta precisa de um investimento pra rodar, eu pergunto isso pra garantir que nossa solução cabe no seu fluxo e realmente vai te dar retorno rápido."
-
-## 6️⃣ CALL TO ACTION (CTA)
-"Pra eu te mostrar como nosso robô funcionaria exatamente pro seu negócio no dia a dia, você teria uns 15 minutinhos hoje ou amanhã pra uma rápida chamada de vídeo?"
-
-## 7️⃣ LIDANDO COM OBJEÇÕES
-Se o cliente achar caro / Sem tempo:
-"Entendo totalmente, [nome]. Mas me fala uma coisa, quanto de dinheiro você acha que deixou na mesa esse mês por clientes que desistiram porque demorou pra ter uma resposta? Nosso foco é tapar esse vazamento."
-
-## 8️⃣ FINALIZAÇÃO E AGENDAMENTO
-"Maravilha. Pega o link da minha agenda aqui embaixo e escolhe o horário que ficar melhor pra você. Chegando lá, a gente bate esse papo rápido. Fechado?"`;
 
 export function AgentForm({ availableSessions, freeModels, defaultInstanceName }: AgentFormProps) {
     const [isPending, setIsPending] = useState(false);
@@ -221,57 +195,6 @@ export function AgentForm({ availableSessions, freeModels, defaultInstanceName }
                         <Sparkles size={12} className="text-primary" />
                         <p className="text-[10px] text-muted-foreground font-medium lowercase italic leading-relaxed">
                             Este script será usado quando você iniciar a conversa com o cliente através de uma lista.
-                        </p>
-                    </div>
-                </div>
-
-                {/* Inbound Script */}
-                <div className="space-y-4 p-6 bg-muted/20 rounded-[2rem] border border-border relative group transition-all hover:bg-muted/30">
-                    <div className="flex items-center justify-between px-1">
-                        <div className="flex items-center gap-2">
-                            <label htmlFor="inboundPrompt" className="text-xs font-black text-muted-foreground uppercase tracking-widest">Roteiro de Receptivo (Inbound)</label>
-                            <span className="bg-muted text-muted-foreground text-[8px] font-black px-1.5 py-0.5 rounded-full uppercase">Cliente te chamou</span>
-                        </div>
-                        <div className="flex gap-2">
-                            <button 
-                                type="button" 
-                                onClick={(e) => {
-                                    e.preventDefault();
-                                    const out = document.getElementById('systemPrompt') as HTMLTextAreaElement;
-                                    const inb = document.getElementById('inboundPrompt') as HTMLTextAreaElement;
-                                    if(out && inb) inb.value = out.value;
-                                    toast.info("Roteiro de prospecção copiado para o receptivo!");
-                                }}
-                                className="text-[10px] font-bold text-muted-foreground bg-muted hover:bg-muted-foreground/10 px-3 py-1.5 rounded-xl cursor-pointer transition-colors flex items-center gap-2 border border-border"
-                            >
-                                <Bot size={12} />
-                                Copiar do Outbound
-                            </button>
-                            <button 
-                                type="button" 
-                                onClick={(e) => {
-                                    e.preventDefault();
-                                    const el = document.getElementById('inboundPrompt') as HTMLTextAreaElement;
-                                    if(el) el.value = INBOUND_TEMPLATE;
-                                }}
-                                className="text-[10px] font-bold text-primary bg-primary/10 hover:bg-primary/20 px-3 py-1.5 rounded-xl cursor-pointer transition-colors flex items-center gap-2 border border-primary/20"
-                            >
-                                <Wand2 size={12} />
-                                Template Bruno
-                            </button>
-                        </div>
-                    </div>
-                    <textarea
-                        name="inboundPrompt"
-                        id="inboundPrompt"
-                        placeholder="Deixe vazio para usar o mesmo script de prospecção..."
-                        rows={8}
-                        className="w-full rounded-2xl border border-border bg-background/50 px-6 py-5 text-sm font-bold text-foreground focus:border-primary focus:outline-none transition-all resize-none shadow-inner placeholder:text-muted-foreground/30 font-mono leading-relaxed"
-                    ></textarea>
-                    <div className="flex items-center gap-2 px-1">
-                        <Sparkles size={12} className="text-muted-foreground" />
-                        <p className="text-[10px] text-muted-foreground font-medium lowercase italic leading-relaxed">
-                            Este script será usado quando o cliente entrar em contato primeiro. Use se o fluxo de atendimento for diferente.
                         </p>
                     </div>
                 </div>
