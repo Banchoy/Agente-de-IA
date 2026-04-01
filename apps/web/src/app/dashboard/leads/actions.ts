@@ -141,9 +141,12 @@ export async function createLead(data: any) {
         const org = await OrganizationRepository.getByClerkId(clerkOrgId);
         if (!org) throw new Error("Organization not found");
 
+        const cleanPhone = data.phone ? String(data.phone).replace(/\D/g, "") : "";
+
         const newLead = await LeadRepository.create({
             ...data,
             organizationId: org.id,
+            phone: cleanPhone,
             aiActive: "true"
         });
 
@@ -163,16 +166,19 @@ export async function importLeads(leadsData: any[]) {
         const org = await OrganizationRepository.getByClerkId(clerkOrgId);
         if (!org) throw new Error("Organization not found");
 
-        const leadsToInsert = leadsData.map(data => ({
-            organizationId: org.id,
-            name: data.name || "Lead Importado",
-            phone: data.phone || "",
-            email: data.email || "",
-            stageId: data.stageId || "prospecting",
-            source: data.source || "Importação",
-            metaData: data.metaData || {},
-            aiActive: "true"
-        }));
+        const leadsToInsert = leadsData.map(data => {
+            const cleanPhone = data.phone ? String(data.phone).replace(/\D/g, "") : "";
+            return {
+                organizationId: org.id,
+                name: data.name || "Lead Importado",
+                phone: cleanPhone,
+                email: data.email || "",
+                stageId: data.stageId || "prospecting",
+                source: data.source || "Importação",
+                metaData: data.metaData || {},
+                aiActive: "true"
+            };
+        });
 
         await LeadRepository.createMany(leadsToInsert);
         revalidatePath("/dashboard");

@@ -801,7 +801,6 @@ export const WhatsappService = {
             console.warn(`⚠️ [Baileys] Sessão ${sessionId} não encontrada ou inativa. Tentando auto-recuperação...`);
             
             try {
-                // Buscar as credenciais no banco para descobrir o organizationId
                 const [sessionRow] = await db
                     .select({ organizationId: whatsappSessions.organizationId })
                     .from(whatsappSessions)
@@ -815,7 +814,6 @@ export const WhatsappService = {
                     console.log(`🔄 [Baileys] Credenciais encontradas no banco. Reconectando ${sessionId}...`);
                     await WhatsappService.connect(sessionRow.organizationId, sessionId);
                     
-                    // Aguardar até 15 segundos pela conexão ficar pronta
                     for (let i = 0; i < 15; i++) {
                         await new Promise(r => setTimeout(r, 1000));
                         session = WhatsappService.sessions.get(sessionId);
@@ -829,7 +827,6 @@ export const WhatsappService = {
                 console.error(`❌ [Baileys] Falha na auto-recuperação de ${sessionId}:`, recoveryErr);
             }
             
-            // Tentar novamente após recuperação
             session = WhatsappService.sessions.get(sessionId);
             if (!session || session.status !== "open" || !session.sock) {
                 console.error(`❌ [Baileys] Sessão ${sessionId} não recuperável. Abortando envio.`);
@@ -838,8 +835,11 @@ export const WhatsappService = {
         }
 
         try {
+            // Limpa o número removendo espaços, mais, traços, etc
+            const cleanNumber = number.replace(/\D/g, "");
+            
             // Normalização de JID para garantir sincronização style "WhatsApp Web" e entrega real
-            let targetJid = number.includes("@s.whatsapp.net") ? number : `${number}@s.whatsapp.net`;
+            let targetJid = `${cleanNumber}@s.whatsapp.net`;
             
             // Tenta obter o JID exato via onWhatsApp (resolve problemas de 9º dígito no Brasil)
             const [check] = await session.sock.onWhatsApp(targetJid);
