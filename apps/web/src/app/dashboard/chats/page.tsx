@@ -5,10 +5,60 @@ import { MessageRepository } from "@/lib/repositories/message";
 import { LeadRepository } from "@/lib/repositories/lead";
 import { Search, MessageSquare, User, Bot, Clock, ShieldCheck, MoreVertical, Phone, Video } from "lucide-react";
 import { OrganizationRepository } from "@/lib/repositories/organization";
+import { TagRepository } from "@/lib/repositories/tag";
 import { ChatPolling } from "./ChatPolling";
 import ChatInputClient from "./ChatInputClient";
 import ChatSidebarClient from "./ChatSidebarClient";
 import ChatContainerClient from "./ChatContainerClient";
+import { useDroppable } from "@dnd-kit/core";
+
+function DroppableMessage({ msg, isMe, tags }: { msg: any, isMe: boolean, tags: any[] }) {
+    const { setNodeRef, isOver } = useDroppable({
+        id: `msg-${msg.id}`,
+    });
+
+    return (
+        <div 
+            ref={setNodeRef}
+            className={`flex ${isMe ? 'justify-end' : 'justify-start'} mb-1.5 transition-all ${isOver ? 'scale-105' : ''}`}
+        >
+            <div 
+                className={`
+                    relative px-3 py-1.5 rounded-lg text-[13px] leading-[19px] shadow-sm max-w-[65%]
+                    ${isMe 
+                        ? 'bg-[#005c4b] text-[#e9edef] rounded-tr-none' 
+                        : 'bg-[#202c33] text-[#e9edef] rounded-tl-none'}
+                    ${isOver ? 'ring-2 ring-[#00a884] ring-inset' : ''}
+                `}
+            >
+                {/* Tags Indicators */}
+                {tags && tags.length > 0 && (
+                    <div className="flex flex-wrap gap-1 mb-1">
+                        {tags.map((tag: any) => (
+                            <div 
+                                key={tag.id} 
+                                title={tag.name}
+                                className="w-2 h-2 rounded-full shadow-sm border border-white/10"
+                                style={{ backgroundColor: tag.color }}
+                            />
+                        ))}
+                    </div>
+                )}
+                {/* Tail */}
+                <div className={`absolute top-0 w-3 h-3 ${isMe ? '-right-2 bg-[#005c4b]' : '-left-2 bg-[#202c33]'}`} 
+                     style={{ clipPath: isMe ? 'polygon(0 0, 0 100%, 100% 0)' : 'polygon(100% 0, 100% 100%, 0 0)' }} />
+                
+                <div className="whitespace-pre-wrap">{msg.content}</div>
+                <div className="flex items-center justify-end gap-1 mt-1">
+                    <span className="text-[9px] text-[#8696a0] uppercase">
+                        {new Date(msg.createdAt).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
+                    </span>
+                    {isMe && <ShieldCheck size={10} className="text-[#53bdeb]" />}
+                </div>
+            </div>
+        </div>
+    );
+}
 
 export default async function ChatsPage({
     searchParams,
@@ -39,9 +89,14 @@ export default async function ChatsPage({
         await LeadRepository.update(activeLeadId, { lastReadAt: new Date() });
     }
 
+    const customTags = await TagRepository.listByOrg(org.id);
+    const messageTagsMap = activeMessages.length > 0
+        ? await TagRepository.listForMessages(activeMessages.map((m: any) => m.id)) as Record<string, any[]>
+        : {} as Record<string, any[]>;
+
     return (
         <div className="h-[calc(100vh-120px)] bg-[#111b21] rounded-2xl overflow-hidden shadow-2xl flex flex-col border border-white/5">
-            <ChatContainerClient>
+            <ChatContainerClient customTags={customTags}>
                 {/* Sidebar */}
                 <div className="w-[30%] min-w-[320px] max-w-[450px] border-r border-[#222d34] flex flex-col bg-[#111b21]">
                     <div className="p-4 bg-[#202c33] flex items-center justify-between">
@@ -65,7 +120,11 @@ export default async function ChatsPage({
                     </div>
                     
                     <div className="flex-1 overflow-y-auto no-scrollbar">
-                        <ChatSidebarClient conversations={conversations} activeLeadId={activeLeadId} />
+                        <ChatSidebarClient 
+                            conversations={conversations} 
+                            activeLeadId={activeLeadId} 
+                            customTags={customTags}
+                        />
                     </div>
                 </div>
 
@@ -127,30 +186,14 @@ export default async function ChatsPage({
                             >
                                 {[...activeMessages].reverse().map((msg: any) => {
                                     const isMe = msg.role === 'assistant';
+                                    const tags = messageTagsMap[msg.id as string] || [];
                                     return (
-                                        <div 
+                                        <DroppableMessage 
                                             key={msg.id} 
-                                            className={`flex ${isMe ? 'justify-end' : 'justify-start'} mb-1.5`}
-                                        >
-                                            <div className={`
-                                                relative px-3 py-1.5 rounded-lg text-[13px] leading-[19px] shadow-sm max-w-[65%]
-                                                ${isMe 
-                                                    ? 'bg-[#005c4b] text-[#e9edef] rounded-tr-none' 
-                                                    : 'bg-[#202c33] text-[#e9edef] rounded-tl-none'}
-                                            `}>
-                                                {/* Tail */}
-                                                <div className={`absolute top-0 w-3 h-3 ${isMe ? '-right-2 bg-[#005c4b]' : '-left-2 bg-[#202c33]'}`} 
-                                                     style={{ clipPath: isMe ? 'polygon(0 0, 0 100%, 100% 0)' : 'polygon(100% 0, 100% 100%, 0 0)' }} />
-                                                
-                                                <div className="whitespace-pre-wrap">{msg.content}</div>
-                                                <div className="flex items-center justify-end gap-1 mt-1">
-                                                    <span className="text-[9px] text-[#8696a0] uppercase">
-                                                        {new Date(msg.createdAt).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
-                                                    </span>
-                                                    {isMe && <ShieldCheck size={10} className="text-[#53bdeb]" />}
-                                                </div>
-                                            </div>
-                                        </div>
+                                            msg={msg} 
+                                            isMe={isMe} 
+                                            tags={tags} 
+                                        />
                                     );
                                 })}
                                 

@@ -26,14 +26,16 @@ interface ChatItem {
 interface Props {
     conversations: ChatItem[];
     activeLeadId?: string;
+    customTags?: any[];
 }
 
-function DroppableChatItem({ chat, activeLeadId, selectMode, isSelected, onToggleSelect }: { 
+function DroppableChatItem({ chat, activeLeadId, selectMode, isSelected, onToggleSelect, customTags }: { 
     chat: ChatItem; 
     activeLeadId?: string; 
     selectMode: boolean; 
     isSelected: boolean;
     onToggleSelect: (id: string) => void;
+    customTags: any[];
 }) {
     const { setNodeRef, isOver } = useDroppable({
         id: `drop-${chat.leadId}`,
@@ -43,6 +45,9 @@ function DroppableChatItem({ chat, activeLeadId, selectMode, isSelected, onToggl
     const isUnread = !chat.lead?.lastReadAt || new Date(chat.createdAt) > new Date(chat.lead.lastReadAt);
     const metadata = chat.lead?.metaData || {};
     const hasTimer = !!metadata.nextActionAt;
+    
+    // Filtramos as etiquetas que este lead possui
+    const leadTagIds = metadata.tags || [];
 
     return (
         <div ref={setNodeRef} className={`relative transition-all ${isOver ? 'scale-105 z-20 shadow-2xl ring-2 ring-primary bg-primary/5' : ''}`}>
@@ -90,9 +95,26 @@ function DroppableChatItem({ chat, activeLeadId, selectMode, isSelected, onToggl
                     </div>
                     <div className="flex-1 min-w-0">
                         <div className="flex justify-between items-baseline mb-1">
-                            <h4 className={`text-xs font-black truncate uppercase ${isUnread ? "text-foreground" : "text-muted-foreground"}`}>
-                                {chat.lead?.name}
-                            </h4>
+                            <div className="flex items-center gap-2 overflow-hidden">
+                                <h4 className={`text-xs font-black truncate uppercase ${isUnread ? "text-foreground" : "text-muted-foreground"}`}>
+                                    {chat.lead?.name}
+                                </h4>
+                                {/* Mini-tags ao lado do nome */}
+                                <div className="flex gap-0.5">
+                                    {leadTagIds.map((tagId: string) => {
+                                        const tag = customTags.find(t => t.id === tagId);
+                                        if (!tag) return null;
+                                        return (
+                                            <div 
+                                                key={tag.id}
+                                                className="w-1.5 h-1.5 rounded-full"
+                                                style={{ backgroundColor: tag.color }}
+                                                title={tag.name}
+                                            />
+                                        );
+                                    })}
+                                </div>
+                            </div>
                             <span className="text-[8px] font-bold text-muted-foreground uppercase">
                                 {new Date(chat.createdAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
                             </span>
@@ -119,7 +141,7 @@ function DroppableChatItem({ chat, activeLeadId, selectMode, isSelected, onToggl
     );
 }
 
-export default function ChatSidebarClient({ conversations, activeLeadId }: Props) {
+export default function ChatSidebarClient({ conversations, activeLeadId, customTags = [] }: Props) {
     const router = useRouter();
     const [selectMode, setSelectMode] = useState(false);
     const [selected, setSelected] = useState<Set<string>>(new Set());
@@ -231,6 +253,7 @@ export default function ChatSidebarClient({ conversations, activeLeadId }: Props
                         selectMode={selectMode}
                         isSelected={selected.has(chat.leadId)}
                         onToggleSelect={toggleSelect}
+                        customTags={customTags}
                     />
                 ))}
             </div>

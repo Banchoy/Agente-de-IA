@@ -219,3 +219,86 @@ export const messagesRelations = relations(messages, ({ one }) => ({
         references: [leads.id],
     }),
 }));
+// -----------------------------------------------------------------------------
+// Tags Table (Custom Labels)
+// -----------------------------------------------------------------------------
+export const tags = pgTable("tags", {
+    id: uuid("id").defaultRandom().primaryKey(),
+    organizationId: uuid("organization_id")
+        .notNull()
+        .references(() => organizations.id, { onDelete: "cascade" }),
+    name: text("name").notNull(),
+    color: text("color").default("#3b82f6").notNull(), // hex color
+    iconName: text("icon_name").default("Tag").notNull(), // lucide icon name
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+}, (table) => {
+    return {
+        organizationIdIdx: index("tags_organization_id_idx").on(table.organizationId),
+    }
+});
+
+// -----------------------------------------------------------------------------
+// Lead Tags (Many-to-Many)
+// -----------------------------------------------------------------------------
+export const leadTags = pgTable("lead_tags", {
+    id: uuid("id").defaultRandom().primaryKey(),
+    leadId: uuid("lead_id")
+        .notNull()
+        .references(() => leads.id, { onDelete: "cascade" }),
+    tagId: uuid("tag_id")
+        .notNull()
+        .references(() => tags.id, { onDelete: "cascade" }),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+}, (table) => {
+    return {
+        leadTagUnique: uniqueIndex("lead_tag_unique").on(table.leadId, table.tagId),
+    }
+});
+
+// -----------------------------------------------------------------------------
+// Message Tags (Many-to-Many)
+// -----------------------------------------------------------------------------
+export const messageTags = pgTable("message_tags", {
+    id: uuid("id").defaultRandom().primaryKey(),
+    messageId: uuid("message_id")
+        .notNull()
+        .references(() => messages.id, { onDelete: "cascade" }),
+    tagId: uuid("tag_id")
+        .notNull()
+        .references(() => tags.id, { onDelete: "cascade" }),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+}, (table) => {
+    return {
+        messageTagUnique: uniqueIndex("message_tag_unique").on(table.messageId, table.tagId),
+    }
+});
+
+// -----------------------------------------------------------------------------
+// RELATIONS
+// -----------------------------------------------------------------------------
+export const tagsRelations = relations(tags, ({ many }) => ({
+    leadTags: many(leadTags),
+    messageTags: many(messageTags),
+}));
+
+export const leadTagsRelations = relations(leadTags, ({ one }) => ({
+    lead: one(leads, {
+        fields: [leadTags.leadId],
+        references: [leads.id],
+    }),
+    tag: one(tags, {
+        fields: [leadTags.tagId],
+        references: [tags.id],
+    }),
+}));
+
+export const messageTagsRelations = relations(messageTags, ({ one }) => ({
+    message: one(messages, {
+        fields: [messageTags.messageId],
+        references: [messages.id],
+    }),
+    tag: one(tags, {
+        fields: [messageTags.tagId],
+        references: [tags.id],
+    }),
+}));

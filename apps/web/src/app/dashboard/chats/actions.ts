@@ -3,9 +3,13 @@
 import { db } from "@/lib/db";
 import { leads, messages } from "@/lib/db/schema";
 import { eq, inArray } from "drizzle-orm";
-import { revalidatePath } from "next/cache";
+import { MessageRepository } from "@/lib/repositories/message";
 import { LeadRepository } from "@/lib/repositories/lead";
+import { TagRepository } from "@/lib/repositories/tag";
+import { OrganizationRepository } from "@/lib/repositories/organization";
+import { auth } from "@clerk/nextjs/server";
 import { withOrgContext } from "@/lib/repositories/base";
+import { revalidatePath } from "next/cache";
 
 export async function toggleLeadAI(leadId: string, active: boolean) {
     try {
@@ -121,4 +125,60 @@ export async function applyCardAction(leadId: string, type: "IA" | "AGENDADO" | 
         console.error("Erro ao aplicar card:", error);
         return { success: false, error };
     }
+}
+
+// -----------------------------------------------------------------------------
+// Tag Actions
+// -----------------------------------------------------------------------------
+
+export async function createTag(data: { name: string, color: string, iconName: string }) {
+    const { orgId: clerkOrgId } = await auth();
+    if (!clerkOrgId) return { success: false, error: "Não autorizado." };
+
+    const org = await OrganizationRepository.getByClerkId(clerkOrgId);
+    if (!org) return { success: false, error: "Organização não encontrada." };
+
+    const tag = await TagRepository.create({
+        ...data,
+        organizationId: org.id
+    });
+
+    revalidatePath("/dashboard/chats");
+    return { success: true, tag };
+}
+
+export async function deleteTag(tagId: string) {
+    const { orgId: clerkOrgId } = await auth();
+    if (!clerkOrgId) return { success: false, error: "Não autorizado." };
+
+    await TagRepository.delete(tagId);
+    revalidatePath("/dashboard/chats");
+    return { success: true };
+}
+
+export async function assignTagToLead(leadId: string, tagId: string) {
+    const { orgId: clerkOrgId } = await auth();
+    if (!clerkOrgId) return { success: false, error: "Não autorizado." };
+
+    await TagRepository.assignToLead(leadId, tagId);
+    revalidatePath("/dashboard/chats");
+    return { success: true };
+}
+
+export async function assignTagToMessage(messageId: string, tagId: string) {
+    const { orgId: clerkOrgId } = await auth();
+    if (!clerkOrgId) return { success: false, error: "Não autorizado." };
+
+    await TagRepository.assignToMessage(messageId, tagId);
+    revalidatePath("/dashboard/chats");
+    return { success: true };
+}
+
+export async function removeTagFromLead(leadId: string, tagId: string) {
+    const { orgId: clerkOrgId } = await auth();
+    if (!clerkOrgId) return { success: false, error: "Não autorizado." };
+
+    await TagRepository.removeFromLead(leadId, tagId);
+    revalidatePath("/dashboard/chats");
+    return { success: true };
 }

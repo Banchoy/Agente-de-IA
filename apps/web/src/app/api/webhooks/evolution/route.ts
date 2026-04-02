@@ -72,18 +72,26 @@ export async function POST(req: NextRequest) {
             console.log(`✅ Existing lead found: ${lead.name} [Source: ${lead.source}]`);
         }
 
-        // 4. Check if AI is active for this lead
+        // 4. Salvar Mensagem no Histórico (Sempre, mesmo se a IA estiver desativada)
+        await MessageRepository.createSystem({
+            organizationId: org.id,
+            leadId: lead.id,
+            role: "user",
+            content: text
+        });
+
+        // 5. Check if AI is active for this lead
         const metadata = (lead.metaData as any) || {};
         const now = new Date();
         const nextAction = metadata.nextActionAt ? new Date(metadata.nextActionAt) : null;
 
         if (lead.aiActive === "false") {
-            console.log(`🔇 AI inactive for lead: ${phone}`);
+            console.log(`🔇 AI inactive for lead: ${phone}. Histórico salvo.`);
             return NextResponse.json({ received: true });
         }
 
         if (nextAction && now < nextAction) {
-            console.log(`⏳ AI paused for lead ${phone} until ${nextAction.toISOString()}`);
+            console.log(`⏳ AI paused for lead ${phone} until ${nextAction.toISOString()}. Histórico salvo.`);
             return NextResponse.json({ received: true });
         }
 
@@ -126,13 +134,7 @@ export async function POST(req: NextRequest) {
 
         const { body: aiBody, nextState, intent, action, extractedInfo } = structuredResult;
 
-        // 8. Save User Message
-        await MessageRepository.createSystem({
-            organizationId: org.id,
-            leadId: lead.id,
-            role: "user",
-            content: text
-        });
+        // Mensagem já salva no início do processamento para garantir histórico total
 
         // 9. Automated Actions (CRM Movement)
         let stageToUpdate = lead.stageId;

@@ -156,7 +156,15 @@ export const OutreachService = {
                 stageId: targetStageId || pendingLead.stageId
             });
 
-            // 8. O salvamento no histórico é tratado automaticamente pelo hook de recebimento/envio (messages.upsert) do próprio baileys.
+            // 8. Registrar explicitamente a primeira mensagem no histórico
+            // Já que o webhook ignora mensagens enviadas pelo próprio bot (fromMe: true)
+            await MessageRepository.createSystem({
+                organizationId: org.id,
+                leadId: pendingLead.id,
+                role: "assistant",
+                content: messageBody,
+                whatsappMessageId: `outreach_${Date.now()}`
+            });
 
             console.log(`✅ [Outreach] Mensagem enviada para ${pendingLead.name} com sucesso!`);
 
