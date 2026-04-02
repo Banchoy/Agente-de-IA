@@ -553,8 +553,8 @@ export const WhatsappService = {
                                     formattedHistory = [{ role: "user", content: text }];
                                 }
 
-                                // Delay simulado para leitura: 5 a 10 segundos
-                                const leituraDelay = 5000 + Math.random() * 5000;
+                                // Delay simulado para leitura: 1.5 a 3 segundos
+                                const leituraDelay = 1500 + Math.random() * 1500;
                                 console.log(`⏳ [Baileys] Simulando leitura... Aguardando ${(leituraDelay/1000).toFixed(1)}s.`);
                                 await new Promise(resolve => setTimeout(resolve, leituraDelay));
 
@@ -700,8 +700,8 @@ export const WhatsappService = {
                                             }
                                         } else {
                                             await sock.sendPresenceUpdate('composing', jid);
-                                            // Digitando: base de 2s + 50ms por caractere (máx 10s)
-                                            const typingDelay = Math.min(2000 + (msg.content.length * 50), 10000);
+                                            // Digitando: base de 1s + 30ms por caractere (máx 3.5s)
+                                            const typingDelay = Math.min(1000 + (msg.content.length * 30), 3500);
                                             console.log(`💬 [Baileys] Simulando digitação para "${msg.content.substring(0, 20)}..." por ${(typingDelay/1000).toFixed(1)}s...`);
                                             await new Promise(resolve => setTimeout(resolve, typingDelay));
                                             const cleanText = msg.content.replace(/\[\/?(?:AUDIO|ÁUDIO)\]/gi, "").trim();

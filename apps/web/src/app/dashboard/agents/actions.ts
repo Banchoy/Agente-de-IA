@@ -20,7 +20,6 @@ export async function createAgent(formData: FormData) {
     const marketOportunities = formData.get("marketOportunities") as string;
     const successCase = formData.get("successCase") as string;
     const gender = formData.get("gender") as string || "female";
-    const inboundPrompt = formData.get("inboundPrompt") as string;
     const temperature = formData.get("temperature") ? parseFloat(formData.get("temperature") as string) : 0.7;
 
     if (!name || !provider || !model || !systemPrompt) {
@@ -71,7 +70,6 @@ export async function updateAgent(id: string, formData: FormData) {
     const marketOportunities = formData.get("marketOportunities") as string;
     const successCase = formData.get("successCase") as string;
     const gender = formData.get("gender") as string || "female";
-    const inboundPrompt = formData.get("inboundPrompt") as string;
 
     await AgentRepository.update(id, {
         name,
@@ -86,7 +84,6 @@ export async function updateAgent(id: string, formData: FormData) {
             marketOportunities,
             successCase,
             gender,
-            inboundPrompt,
             temperature,
             testMode,
             testNumber,

@@ -79,3 +79,46 @@ export async function deleteChats(leadIds: string[]) {
         return { success: false, error };
     }
 }
+
+export async function applyCardAction(leadId: string, type: "IA" | "AGENDADO" | "AMANHA" | "PAUSA_2H") {
+    try {
+        const lead = await LeadRepository.getByIdSystem(leadId);
+        if (!lead) return { success: false, error: "Lead não encontrado." };
+
+        const metadata = (lead.metaData as any) || {};
+        let updateData: any = {};
+
+        switch (type) {
+            case "IA":
+                const currentAI = lead.aiActive === "true";
+                updateData.aiActive = currentAI ? "false" : "true";
+                break;
+            
+            case "AGENDADO":
+                const { CRMRepository } = await import("@/lib/repositories/crm");
+                const stage = await CRMRepository.getStageByName(lead.organizationId, "Reunião") || 
+                              await CRMRepository.getStageByName(lead.organizationId, "Agendado");
+                if (stage) updateData.stageId = stage;
+                break;
+
+            case "AMANHA":
+                const tomorrow = new Date();
+                tomorrow.setDate(tomorrow.getDate() + 1);
+                updateData.metaData = { ...metadata, nextActionAt: tomorrow.toISOString(), aiPaused: "true" };
+                break;
+
+            case "PAUSA_2H":
+                const in2h = new Date();
+                in2h.setHours(in2h.getHours() + 2);
+                updateData.metaData = { ...metadata, nextActionAt: in2h.toISOString(), aiPaused: "true" };
+                break;
+        }
+
+        await LeadRepository.updateSystem(leadId, updateData);
+        revalidatePath("/dashboard/chats");
+        return { success: true };
+    } catch (error) {
+        console.error("Erro ao aplicar card:", error);
+        return { success: false, error };
+    }
+}

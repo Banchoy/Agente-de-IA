@@ -2,22 +2,121 @@
 
 import React, { useState } from "react";
 import Link from "next/link";
-import { Trash2, CheckSquare, Square, X, AlertCircle, Bot } from "lucide-react";
+import { Trash2, CheckSquare, Square, X, AlertCircle, Bot, Zap, Calendar, Clock, Pause } from "lucide-react";
 import { deleteChats } from "./actions";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
+import { useDroppable } from "@dnd-kit/core";
 
 interface ChatItem {
     leadId: string;
     content: string;
     role: string;
     createdAt: string;
-    lead: { name: string; phone: string; lastReadAt?: string; isTyping?: string };
+    lead: { 
+        name: string; 
+        phone: string; 
+        lastReadAt?: string; 
+        isTyping?: string;
+        aiActive?: string;
+        metaData?: any;
+    };
 }
 
 interface Props {
     conversations: ChatItem[];
     activeLeadId?: string;
+}
+
+function DroppableChatItem({ chat, activeLeadId, selectMode, isSelected, onToggleSelect }: { 
+    chat: ChatItem; 
+    activeLeadId?: string; 
+    selectMode: boolean; 
+    isSelected: boolean;
+    onToggleSelect: (id: string) => void;
+}) {
+    const { setNodeRef, isOver } = useDroppable({
+        id: `drop-${chat.leadId}`,
+        data: { leadId: chat.leadId }
+    });
+
+    const isUnread = !chat.lead?.lastReadAt || new Date(chat.createdAt) > new Date(chat.lead.lastReadAt);
+    const metadata = chat.lead?.metaData || {};
+    const hasTimer = !!metadata.nextActionAt;
+
+    return (
+        <div ref={setNodeRef} className={`relative transition-all ${isOver ? 'scale-105 z-20 shadow-2xl ring-2 ring-primary bg-primary/5' : ''}`}>
+            {selectMode ? (
+                <button
+                    onClick={() => onToggleSelect(chat.leadId)}
+                    className={`w-full flex items-center gap-4 p-5 hover:bg-card transition-all border-b border-border/50 text-left ${
+                        isSelected ? "bg-destructive/10 border-l-4 border-l-destructive" : ""
+                    }`}
+                >
+                    <div className="flex-shrink-0">
+                        {isSelected
+                            ? <CheckSquare size={16} className="text-destructive" />
+                            : <Square size={16} className="text-muted-foreground" />
+                        }
+                    </div>
+                    <div className="h-12 w-12 rounded-full bg-primary/10 flex items-center justify-center text-primary font-black border border-primary/20 shadow-sm">
+                        {chat.lead?.name?.charAt(0) || "?"}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                        <h4 className="text-xs font-black truncate uppercase text-muted-foreground">{chat.lead?.name}</h4>
+                        <p className="text-[10px] truncate font-medium lowercase italic text-muted-foreground">
+                            {chat.content}
+                        </p>
+                    </div>
+                </button>
+            ) : (
+                <Link
+                    href={`/dashboard/chats?leadId=${chat.leadId}`}
+                    scroll={false}
+                    className={`flex items-center gap-4 p-5 hover:bg-card transition-all border-b border-border/50 group relative ${
+                        activeLeadId === chat.leadId ? "bg-card border-l-4 border-l-primary" : ""
+                    }`}
+                >
+                    <div className="h-12 w-12 rounded-full bg-primary/10 flex items-center justify-center text-primary font-black border border-primary/20 shadow-sm group-hover:scale-110 transition-transform relative">
+                        {chat.lead?.name?.charAt(0) || "?"}
+                        {isUnread && (
+                            <div className="absolute -top-1 -right-1 h-4 w-4 bg-primary border-2 border-card rounded-full shadow-lg animate-pulse" />
+                        )}
+                        {chat.lead?.aiActive === "true" && (
+                            <div className="absolute -bottom-1 -right-1 h-5 w-5 bg-foreground text-background rounded-full flex items-center justify-center border-2 border-card shadow-sm">
+                                <Bot size={10} />
+                            </div>
+                        )}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                        <div className="flex justify-between items-baseline mb-1">
+                            <h4 className={`text-xs font-black truncate uppercase ${isUnread ? "text-foreground" : "text-muted-foreground"}`}>
+                                {chat.lead?.name}
+                            </h4>
+                            <span className="text-[8px] font-bold text-muted-foreground uppercase">
+                                {new Date(chat.createdAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
+                            </span>
+                        </div>
+                        <div className="flex items-center justify-between gap-2">
+                            <p className={`text-[10px] truncate font-medium lowercase italic leading-tight flex-1 ${isUnread ? "text-primary font-bold" : "text-muted-foreground"}`}>
+                                {chat.lead?.isTyping === "true" ? (
+                                    <span className="flex items-center gap-1 text-primary animate-pulse">
+                                        digitando... <Bot size={10} />
+                                    </span>
+                                ) : (
+                                    <>{chat.role === "assistant" ? "🤖 " : ""}{chat.content}</>
+                                )}
+                            </p>
+                            <div className="flex gap-1">
+                                {hasTimer && <Clock size={10} className="text-amber-500 animate-pulse" />}
+                                {metadata.aiPaused === "true" && <Pause size={10} className="text-purple-500" />}
+                            </div>
+                        </div>
+                    </div>
+                </Link>
+            )}
+        </div>
+    );
 }
 
 export default function ChatSidebarClient({ conversations, activeLeadId }: Props) {
@@ -59,7 +158,6 @@ export default function ChatSidebarClient({ conversations, activeLeadId }: Props
                 toast.success(`${result.deleted} conversa(s) apagada(s) com sucesso!`);
                 cancelSelect();
                 router.refresh();
-                // Se o lead ativo foi deletado, voltar para a lista
                 if (activeLeadId && selected.has(activeLeadId)) {
                     router.push("/dashboard/chats");
                 }
@@ -78,7 +176,7 @@ export default function ChatSidebarClient({ conversations, activeLeadId }: Props
     return (
         <>
             {/* Header actions */}
-            <div className="flex items-center justify-between mt-4 mb-1 px-1">
+            <div className="flex items-center justify-between mt-4 mb-2 px-6">
                 {selectMode ? (
                     <>
                         <button
@@ -100,14 +198,14 @@ export default function ChatSidebarClient({ conversations, activeLeadId }: Props
                         onClick={() => setSelectMode(true)}
                         className="flex items-center gap-1.5 text-[10px] font-bold text-muted-foreground hover:text-destructive transition-colors uppercase ml-auto"
                     >
-                        <Trash2 size={12} /> Apagar
+                        <Trash2 size={12} /> Limpar
                     </button>
                 )}
             </div>
 
             {/* Delete confirm bar */}
             {selectMode && selected.size > 0 && (
-                <div className="mx-2 mb-2 p-3 bg-destructive/10 border border-destructive/20 rounded-xl flex items-center justify-between gap-2">
+                <div className="mx-6 mb-4 p-3 bg-destructive/10 border border-destructive/20 rounded-xl flex items-center justify-between gap-2">
                     <div className="flex items-center gap-2 text-destructive text-[10px] font-bold uppercase">
                         <AlertCircle size={12} />
                         {selected.size} selecionada(s)
@@ -124,73 +222,18 @@ export default function ChatSidebarClient({ conversations, activeLeadId }: Props
             )}
 
             {/* Conversation list */}
-            {conversations.map((chat) => {
-                const isUnread = !chat.lead?.lastReadAt || new Date(chat.createdAt) > new Date(chat.lead.lastReadAt);
-                const isSelected = selected.has(chat.leadId);
-
-                return (
-                    <div key={chat.leadId} className="relative">
-                        {selectMode ? (
-                            <button
-                                onClick={() => toggleSelect(chat.leadId)}
-                                className={`w-full flex items-center gap-4 p-5 hover:bg-card transition-all border-b border-border/50 text-left ${
-                                    isSelected ? "bg-destructive/10 border-l-4 border-l-destructive" : ""
-                                }`}
-                            >
-                                <div className="flex-shrink-0">
-                                    {isSelected
-                                        ? <CheckSquare size={16} className="text-destructive" />
-                                        : <Square size={16} className="text-muted-foreground" />
-                                    }
-                                </div>
-                                <div className="h-12 w-12 rounded-full bg-primary/10 flex items-center justify-center text-primary font-black border border-primary/20 shadow-sm">
-                                    {chat.lead?.name?.charAt(0) || "?"}
-                                </div>
-                                <div className="flex-1 min-w-0">
-                                    <h4 className="text-xs font-black truncate uppercase text-muted-foreground">{chat.lead?.name}</h4>
-                                    <p className="text-[10px] truncate font-medium lowercase italic text-muted-foreground">
-                                        {chat.content}
-                                    </p>
-                                </div>
-                            </button>
-                        ) : (
-                            <Link
-                                href={`/dashboard/chats?leadId=${chat.leadId}`}
-                                scroll={false}
-                                className={`flex items-center gap-4 p-5 hover:bg-card transition-all border-b border-border/50 group relative ${
-                                    activeLeadId === chat.leadId ? "bg-card border-l-4 border-l-primary" : ""
-                                }`}
-                            >
-                                <div className="h-12 w-12 rounded-full bg-primary/10 flex items-center justify-center text-primary font-black border border-primary/20 shadow-sm group-hover:scale-110 transition-transform relative">
-                                    {chat.lead?.name?.charAt(0) || "?"}
-                                    {isUnread && (
-                                        <div className="absolute -top-1 -right-1 h-4 w-4 bg-primary border-2 border-card rounded-full shadow-lg animate-pulse" />
-                                    )}
-                                </div>
-                                <div className="flex-1 min-w-0">
-                                    <div className="flex justify-between items-baseline mb-1">
-                                        <h4 className={`text-xs font-black truncate uppercase ${isUnread ? "text-foreground" : "text-muted-foreground"}`}>
-                                            {chat.lead?.name}
-                                        </h4>
-                                        <span className="text-[8px] font-bold text-muted-foreground uppercase">
-                                            {new Date(chat.createdAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
-                                        </span>
-                                    </div>
-                                    <p className={`text-[10px] truncate font-medium lowercase italic leading-tight ${isUnread ? "text-primary font-bold" : "text-muted-foreground"}`}>
-                                        {chat.lead?.isTyping === "true" ? (
-                                            <span className="flex items-center gap-1 text-primary animate-pulse">
-                                                digitando... <Bot size={10} />
-                                            </span>
-                                        ) : (
-                                            <>{chat.role === "assistant" ? "🤖 " : ""}{chat.content}</>
-                                        )}
-                                    </p>
-                                </div>
-                            </Link>
-                        )}
-                    </div>
-                );
-            })}
+            <div className="flex-1 overflow-y-auto no-scrollbar">
+                {conversations.map((chat) => (
+                    <DroppableChatItem 
+                        key={chat.leadId} 
+                        chat={chat} 
+                        activeLeadId={activeLeadId}
+                        selectMode={selectMode}
+                        isSelected={selected.has(chat.leadId)}
+                        onToggleSelect={toggleSelect}
+                    />
+                ))}
+            </div>
         </>
     );
 }

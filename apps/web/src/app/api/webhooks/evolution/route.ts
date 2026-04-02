@@ -73,8 +73,17 @@ export async function POST(req: NextRequest) {
         }
 
         // 4. Check if AI is active for this lead
+        const metadata = (lead.metaData as any) || {};
+        const now = new Date();
+        const nextAction = metadata.nextActionAt ? new Date(metadata.nextActionAt) : null;
+
         if (lead.aiActive === "false") {
             console.log(`🔇 AI inactive for lead: ${phone}`);
+            return NextResponse.json({ received: true });
+        }
+
+        if (nextAction && now < nextAction) {
+            console.log(`⏳ AI paused for lead ${phone} until ${nextAction.toISOString()}`);
             return NextResponse.json({ received: true });
         }
 

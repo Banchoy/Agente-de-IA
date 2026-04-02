@@ -147,8 +147,34 @@ export const LeadRepository = {
     },
 
     updateSystem: async (id: string, data: Partial<typeof leads.$inferInsert>) => {
+        // 1. Busca o estado atual para o merge de metadados
+        const current = await db.query.leads.findFirst({
+            where: eq(leads.id, id)
+        });
+
+        const currentMetadata = (current?.metaData as any) || {};
+        const newMetadata = (data.metaData as any) || {};
+
+        // 2. Trava de Contexto: Não sobrescrever Nicho/Nome real com placeholders genéricos da IA
+        const mergedMetadata = { ...currentMetadata };
+        
+        for (const [key, value] of Object.entries(newMetadata)) {
+            const lowValue = String(value).toLowerCase();
+            const isGeneric = lowValue.includes("seu negócio") || lowValue.includes("desconhecido") || !value;
+            
+            if (isGeneric && mergedMetadata[key]) {
+                // Se o novo valor for genérico e já temos algo bom, IGNORA o novo
+                continue;
+            }
+            mergedMetadata[key] = value;
+        }
+
         const [updatedLead] = await db.update(leads)
-            .set({ ...data, updatedAt: new Date() })
+            .set({ 
+                ...data, 
+                metaData: mergedMetadata,
+                updatedAt: new Date() 
+            })
             .where(eq(leads.id, id))
             .returning();
         return updatedLead;

@@ -171,7 +171,7 @@ export const EvolutionService = {
             body: JSON.stringify({
                 number,
                 text,
-                delay: 1200,
+                delay: 600,
                 linkPreview: false
             })
         });
@@ -188,7 +188,7 @@ export const EvolutionService = {
             body: JSON.stringify({
                 number,
                 audio: audioUrl,
-                delay: 1200,
+                delay: 600,
                 ptt: true
             })
         });
