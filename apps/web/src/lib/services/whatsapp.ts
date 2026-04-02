@@ -214,8 +214,8 @@ export const WhatsappService = {
                     printQRInTerminal: false,
                     logger,
                     browser: ["Chrome (Windows)", "Chrome", "115.0.0"],
-                    generateHighQualityLinkPreview: true,
-                    syncFullHistory: true, // HABILITADO para melhorar sincronização com o celular
+                    generateHighQualityLinkPreview: false,
+                    syncFullHistory: false, // Desabilitado pro-ativamente para evitar Out Of Memory no contêiner com RAM limitada
                     markOnlineOnConnect: true, // Garante que a sessão apareça como ativa
                     // Sem store local (usando apenas auth state)
                     getMessage: async () => undefined
