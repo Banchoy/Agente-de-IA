@@ -136,6 +136,16 @@ export const OutreachService = {
                 if (jidNumber !== pendingLead.phone) {
                     console.log(`🔄 [Outreach] Telefone do lead ${pendingLead.name} sincronizado: ${pendingLead.phone} -> ${jidNumber}`);
                     finalPhone = jidNumber;
+
+                    // 🛡️ DEDUPLICAÇÃO: Verificar se já existe OUTRO lead com o número normalizado
+                    // para evitar violação da constraint única (leads_phone_org_unique)
+                    const existingLead = await LeadRepository.getByPhoneSystem(jidNumber, org.id);
+                    if (existingLead && existingLead.id !== pendingLead.id) {
+                        console.warn(`⚠️ [Outreach] Conflito de JID: Lead duplicado encontrado (ID: ${existingLead.id}) com phone ${jidNumber}. Removendo duplicata...`);
+                        // Deleta o lead duplicado (o pending tem o histórico correto de outreach)
+                        await LeadRepository.deleteSystem(existingLead.id);
+                        console.log(`🗑️ [Outreach] Lead duplicado ${existingLead.id} removido com sucesso.`);
+                    }
                 }
             }
 
