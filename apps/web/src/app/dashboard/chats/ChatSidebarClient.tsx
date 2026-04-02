@@ -2,7 +2,7 @@
 
 import React, { useState } from "react";
 import Link from "next/link";
-import { Trash2, CheckSquare, Square, X, AlertCircle, Bot, Zap, Calendar, Clock, Pause } from "lucide-react";
+import { Trash2, CheckSquare, Square, X, AlertCircle, Bot, Zap, Calendar, Clock, Pause, BotOff } from "lucide-react";
 import { deleteChats } from "./actions";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
@@ -45,6 +45,17 @@ function DroppableChatItem({ chat, activeLeadId, selectMode, isSelected, onToggl
     const isUnread = !chat.lead?.lastReadAt || new Date(chat.createdAt) > new Date(chat.lead.lastReadAt);
     const metadata = chat.lead?.metaData || {};
     const hasTimer = !!metadata.nextActionAt;
+    const activeCard = metadata.activeCard as string | undefined;
+
+    // Configuração visual de cada card ativo
+    const CARD_VISUAL: Record<string, { icon: React.ReactNode; label: string; cls: string }> = {
+        "IA":        { icon: <Zap size={9} className="fill-current" />, label: "IA Ativa",   cls: "bg-emerald-500/20 text-emerald-400 border-emerald-500/30" },
+        "PARAR_IA":  { icon: <BotOff size={9} />,                        label: "IA Parada",  cls: "bg-red-500/20 text-red-400 border-red-500/30" },
+        "PAUSA_2H":  { icon: <Pause size={9} />,                         label: "Pausado 2h", cls: "bg-purple-500/20 text-purple-400 border-purple-500/30" },
+        "AMANHA":    { icon: <Clock size={9} />,                         label: "Amanhã",     cls: "bg-amber-500/20 text-amber-400 border-amber-500/30" },
+        "AGENDADO":  { icon: <Calendar size={9} />,                      label: "Agendado",   cls: "bg-blue-500/20 text-blue-400 border-blue-500/30" },
+    };
+    const cardVisual = activeCard ? CARD_VISUAL[activeCard] : null;
     
     // Filtramos as etiquetas que este lead possui
     const leadTagIds = metadata.tags || [];
@@ -99,6 +110,13 @@ function DroppableChatItem({ chat, activeLeadId, selectMode, isSelected, onToggl
                                 <h4 className={`text-xs font-black truncate uppercase ${isUnread ? "text-foreground" : "text-muted-foreground"}`}>
                                     {chat.lead?.name}
                                 </h4>
+                                {/* Card ativo (tag de status) */}
+                                {cardVisual && (
+                                    <span className={`flex items-center gap-0.5 px-1.5 py-0.5 rounded-full text-[8px] font-black uppercase border ${cardVisual.cls} shrink-0`}>
+                                        {cardVisual.icon}
+                                        {cardVisual.label}
+                                    </span>
+                                )}
                                 {/* Mini-tags ao lado do nome */}
                                 <div className="flex gap-0.5">
                                     {leadTagIds.map((tagId: string) => {

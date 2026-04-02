@@ -471,14 +471,17 @@ export const WhatsappService = {
                                 }
                             }
                             
-                            // Trava de idempotência Temporal: Ignorar se enviamos algo nos últimos 10s
+                            // Trava de idempotência Temporal: Ignorar se enviamos algo nos últimos 45s
+                            // (45s cobre o tempo de geração da IA + envio de múltiplas partes)
+                            let recentAssistantMessages: any[] = [];
                             try {
-                                const lastMessages = await (MessageRepository as any).listByLeadSystem(lead.id, 1);
-                                const lastAssistantMsg = lastMessages[0];
-                                if (lastAssistantMsg && lastAssistantMsg.role === "assistant") {
+                                const lastMessages = await (MessageRepository as any).listByLeadSystem(lead.id, 5);
+                                recentAssistantMessages = lastMessages.filter((m: any) => m.role === "assistant");
+                                const lastAssistantMsg = recentAssistantMessages[0];
+                                if (lastAssistantMsg) {
                                     const diff = Date.now() - new Date(lastAssistantMsg.createdAt).getTime();
-                                    if (diff < 10000) {
-                                        console.log(`⏩ [Baileys] Lead ${lead.id} recebeu resposta há ${diff}ms. Bloqueando duplicidade.`);
+                                    if (diff < 45000) {
+                                        console.log(`⏩ [Baileys] Lead ${lead.id} recebeu resposta há ${(diff/1000).toFixed(1)}s (< 45s). Bloqueando duplicidade.`);
                                         if (redis) await redis.del(`lock:lead:${lead.id}`);
                                         continue;
                                     }
@@ -561,6 +564,15 @@ export const WhatsappService = {
                                 // 4. Generate AI Response (Adaptive or Generic)
                                 const { ScriptService } = await import("./script");
                                 const scriptInstruction = ScriptService.getInstruction(lead.conversationState, lead);
+
+                                // Construir contexto do que JÁ foi enviado para evitar repetição
+                                const lastSentTexts = recentAssistantMessages
+                                    .slice(0, 2)
+                                    .map((m: any) => `- "${m.content.substring(0, 120)}${m.content.length > 120 ? '...' : ''}"`)
+                                    .join("\n");
+                                const noRepeatInstruction = lastSentTexts
+                                    ? `${scriptInstruction}\n\n### ⚠️ MENSAGENS JÁ ENVIADAS — NÃO REPITA:\n${lastSentTexts}\nREGRA ABSOLUTA: Nunca repita, parafraseie ou reuse as frases acima. Continue a conversa avançando naturalmente.`
+                                    : scriptInstruction;
                                 
                                 console.log(`🤖 [Baileys] Chamando AIService (Adaptativo: ${!!scriptInstruction}) para: ${agent.name}`);
 
@@ -568,7 +580,7 @@ export const WhatsappService = {
                                     config,
                                     lead,
                                     formattedHistory,
-                                    scriptInstruction,
+                                    noRepeatInstruction,
                                     config.temperature !== undefined ? parseFloat(config.temperature) : 0.7
                                 );
 

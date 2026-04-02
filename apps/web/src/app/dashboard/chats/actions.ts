@@ -84,7 +84,7 @@ export async function deleteChats(leadIds: string[]) {
     }
 }
 
-export async function applyCardAction(leadId: string, type: "IA" | "AGENDADO" | "AMANHA" | "PAUSA_2H") {
+export async function applyCardAction(leadId: string, type: "IA" | "PARAR_IA" | "AGENDADO" | "AMANHA" | "PAUSA_2H") {
     try {
         const lead = await LeadRepository.getByIdSystem(leadId);
         if (!lead) return { success: false, error: "Lead não encontrado." };
@@ -94,27 +94,35 @@ export async function applyCardAction(leadId: string, type: "IA" | "AGENDADO" | 
 
         switch (type) {
             case "IA":
-                const currentAI = lead.aiActive === "true";
-                updateData.aiActive = currentAI ? "false" : "true";
+                // Arrastar "Ligar IA" sempre ATIVA a IA
+                updateData.aiActive = "true";
+                updateData.metaData = { ...metadata, aiPaused: "false", activeCard: "IA" };
                 break;
             
+            case "PARAR_IA":
+                // Arrastar "Parar IA" sempre DESATIVA a IA (handover humano)
+                updateData.aiActive = "false";
+                updateData.metaData = { ...metadata, aiPaused: "true", activeCard: "PARAR_IA" };
+                break;
+
             case "AGENDADO":
                 const { CRMRepository } = await import("@/lib/repositories/crm");
                 const stage = await CRMRepository.getStageByName(lead.organizationId, "Reunião") || 
                               await CRMRepository.getStageByName(lead.organizationId, "Agendado");
                 if (stage) updateData.stageId = stage;
+                updateData.metaData = { ...metadata, activeCard: "AGENDADO" };
                 break;
 
             case "AMANHA":
                 const tomorrow = new Date();
                 tomorrow.setDate(tomorrow.getDate() + 1);
-                updateData.metaData = { ...metadata, nextActionAt: tomorrow.toISOString(), aiPaused: "true" };
+                updateData.metaData = { ...metadata, nextActionAt: tomorrow.toISOString(), aiPaused: "true", activeCard: "AMANHA" };
                 break;
 
             case "PAUSA_2H":
                 const in2h = new Date();
                 in2h.setHours(in2h.getHours() + 2);
-                updateData.metaData = { ...metadata, nextActionAt: in2h.toISOString(), aiPaused: "true" };
+                updateData.metaData = { ...metadata, nextActionAt: in2h.toISOString(), aiPaused: "true", activeCard: "PAUSA_2H" };
                 break;
         }
 

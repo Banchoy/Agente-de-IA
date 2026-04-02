@@ -2,10 +2,10 @@
 
 import React, { useState } from 'react';
 import { useDraggable } from '@dnd-kit/core';
-import { Bot, Calendar, Clock, Pause, Zap, Plus, Tag as TagIcon, Star, Info, AlertCircle, Heart } from 'lucide-react';
+import { Bot, Calendar, Clock, Pause, Zap, Plus, Tag as TagIcon, Star, Info, AlertCircle, Heart, BotOff } from 'lucide-react';
 import CreateTagModal from './CreateTagModal';
 
-export type CardType = 'IA' | 'AGENDADO' | 'AMANHA' | 'PAUSA_2H' | string;
+export type CardType = 'IA' | 'PARAR_IA' | 'AGENDADO' | 'AMANHA' | 'PAUSA_2H' | string;
 
 const ICON_MAP: Record<string, React.ReactNode> = {
   Tag: <TagIcon size={12} />,
@@ -75,6 +75,12 @@ export default function CardBank({ customTags = [] }: CardBankProps) {
         label="Ligar IA" 
         icon={<Zap size={12} className="fill-current" />} 
         color="bg-emerald-500/10 text-emerald-500 border-emerald-500/20"
+      />
+      <DraggableCard 
+        type="PARAR_IA" 
+        label="Parar IA" 
+        icon={<BotOff size={12} />} 
+        color="bg-red-500/10 text-red-500 border-red-500/20"
       />
       <DraggableCard 
         type="AGENDADO" 

@@ -1,10 +1,11 @@
 "use client";
 
-import React from "react";
-import { DndContext, DragEndEvent, MouseSensor, TouchSensor, useSensor, useSensors } from "@dnd-kit/core";
+import React, { useCallback, useOptimistic, useTransition } from "react";
+import { DndContext, DragEndEvent, MouseSensor, TouchSensor, useSensor, useSensors, closestCorners } from "@dnd-kit/core";
 import { applyCardAction, assignTagToLead, assignTagToMessage } from "./actions";
 import { toast } from "sonner";
 import CardBank, { CardType } from "@/components/chat/CardBank";
+import { useRouter } from "next/navigation";
 
 interface Props {
     children: React.ReactNode;
@@ -12,13 +13,15 @@ interface Props {
 }
 
 export default function ChatContainerClient({ children, customTags = [] }: Props) {
+    const router = useRouter();
     const mouseSensor = useSensor(MouseSensor, {
-        activationConstraint: { distance: 10 },
+        activationConstraint: { distance: 8 },
     });
     const touchSensor = useSensor(TouchSensor, {
-        activationConstraint: { delay: 250, tolerance: 5 },
+        activationConstraint: { delay: 200, tolerance: 5 },
     });
     const sensors = useSensors(mouseSensor, touchSensor);
+    const [isPending, startTransition] = useTransition();
 
     const handleDragEnd = async (event: DragEndEvent) => {
         const { active, over } = event;
@@ -41,13 +44,22 @@ export default function ChatContainerClient({ children, customTags = [] }: Props
                     success: "Etiqueta aplicada ao lead!",
                     error: "Erro ao aplicar etiqueta."
                 });
+                promise.then(() => startTransition(() => router.refresh()));
             } else {
                 const promise = applyCardAction(leadId, cardData.type as any);
+                const labels: Record<string, string> = {
+                    "IA": "Ligar/Desligar IA",
+                    "PARAR_IA": "Parar IA",
+                    "AGENDADO": "Marcar como Agendado",
+                    "AMANHA": "Adiar para Amanhã",
+                    "PAUSA_2H": "Pausar por 2h"
+                };
                 toast.promise(promise, {
-                    loading: `Aplicando ação ${cardData.label}...`,
-                    success: "Ação aplicada com sucesso!",
+                    loading: `Aplicando: ${labels[cardData.type] || cardData.label}...`,
+                    success: `${labels[cardData.type] || cardData.label} aplicado!`,
                     error: "Erro ao aplicar ação."
                 });
+                promise.then(() => startTransition(() => router.refresh()));
             }
         }
         
@@ -70,7 +82,7 @@ export default function ChatContainerClient({ children, customTags = [] }: Props
     };
 
     return (
-        <DndContext sensors={sensors} onDragEnd={handleDragEnd}>
+        <DndContext sensors={sensors} collisionDetection={closestCorners} onDragEnd={handleDragEnd}>
             <div className="flex flex-col h-full">
                 <CardBank customTags={customTags} />
                 <div className="flex-1 flex overflow-hidden">
