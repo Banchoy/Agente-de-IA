@@ -585,10 +585,14 @@ export const WhatsappService = {
                                 // Update Lead Profile with Learned Info
                                 const nextState = ScriptService.advanceState(lead.conversationState);
 
+                                const isGenericNiche = (n: string | undefined | null) => !n || n.toLowerCase().includes("seu negócio") || n.toLowerCase().includes("desconhecido");
+                                const newNiche = adaptiveResult.detectedNiche;
+                                const safeNiche = (!isGenericNiche(newNiche)) ? newNiche : leadMeta.niche;
+
                                 if (adaptiveResult.detectedNiche || adaptiveResult.interestLevel || adaptiveResult.detectedName || nextState !== lead.conversationState) {
                                     const updatedMeta = {
                                         ...leadMeta,
-                                        niche: adaptiveResult.detectedNiche || leadMeta.niche,
+                                        niche: safeNiche,
                                         interestLevel: adaptiveResult.interestLevel || leadMeta.interestLevel,
                                         isDecisor: adaptiveResult.isDecisor !== "unknown" ? adaptiveResult.isDecisor : leadMeta.isDecisor,
                                         detectedName: adaptiveResult.detectedName || leadMeta.detectedName

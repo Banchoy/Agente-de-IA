@@ -1,7 +1,7 @@
 "use server";
 
 import { db } from "@/lib/db";
-import { leads, messages } from "@/lib/db/schema";
+import { leads, messages, tags } from "@/lib/db/schema";
 import { eq, inArray } from "drizzle-orm";
 import { MessageRepository } from "@/lib/repositories/message";
 import { LeadRepository } from "@/lib/repositories/lead";
@@ -161,6 +161,13 @@ export async function assignTagToLead(leadId: string, tagId: string) {
     if (!clerkOrgId) return { success: false, error: "Não autorizado." };
 
     await TagRepository.assignToLead(leadId, tagId);
+
+    // Feature: Se a tag for "Parar IA", nós efetivamente pausamos o bot para esse lead.
+    const tag = await db.query.tags.findFirst({ where: eq(tags.id, tagId) });
+    if (tag && tag.name.toLowerCase().includes('parar ia')) {
+        await LeadRepository.updateSystem(leadId, { aiActive: "false" });
+    }
+
     revalidatePath("/dashboard/chats");
     return { success: true };
 }
