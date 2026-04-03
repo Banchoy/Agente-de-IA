@@ -118,17 +118,24 @@ function DroppableChatItem({ chat, activeLeadId, selectMode, isSelected, onToggl
                                     </span>
                                 )}
                                 {/* Mini-tags ao lado do nome */}
-                                <div className="flex gap-0.5">
+                                <div className="flex gap-0.5 flex-wrap">
                                     {leadTagIds.map((tagId: string) => {
                                         const tag = customTags.find(t => t.id === tagId);
                                         if (!tag) return null;
                                         return (
-                                            <div 
+                                            <span
                                                 key={tag.id}
-                                                className="w-1.5 h-1.5 rounded-full"
-                                                style={{ backgroundColor: tag.color }}
+                                                className="inline-flex items-center gap-0.5 px-1 py-0.5 rounded text-[7px] font-bold uppercase tracking-wide border shrink-0"
+                                                style={{
+                                                    backgroundColor: `${tag.color}22`,
+                                                    color: tag.color,
+                                                    borderColor: `${tag.color}44`
+                                                }}
                                                 title={tag.name}
-                                            />
+                                            >
+                                                <span className="w-1 h-1 rounded-full shrink-0" style={{ backgroundColor: tag.color }} />
+                                                {tag.name.substring(0, 8)}
+                                            </span>
                                         );
                                     })}
                                 </div>

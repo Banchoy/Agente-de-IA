@@ -451,24 +451,26 @@ export const WhatsappService = {
                             const { redis } = await import("@/lib/redis");
                             
                             if (redis) {
-                                // Lock de Lead (5 minutos) - Evita concorrência de processamento
-                                const isLocked = await redis.get(`lock:lead:${lead.id}`);
-                                if (isLocked) {
-                                    console.log(`⏩ [Baileys] Lead ${lead.id} já está sendo processado. Ignorando.`);
+                                // 🔒 LOCK ATÔMICO (SET NX): Padrão correto para distributed lock.
+                                // SET key value EX seconds NX = só seta se a chave NÃO existir (operação atômica).
+                                // Evita race condition entre threads que processam mensagens paralelas do mesmo lead.
+                                const lockAcquired = await redis.set(`lock:lead:${lead.id}`, "1", "EX", 300, "NX");
+                                if (!lockAcquired) {
+                                    console.log(`⏩ [Baileys] Lead ${lead.id} já está sendo processado (lock atômico). Ignorando.`);
                                     continue;
                                 }
-                                await redis.set(`lock:lead:${lead.id}`, "1", "EX", 300);
 
                                 // Trava de idempotência por mensagem específica (evita notify/append duplicado)
                                 if (whatsappMessageId) {
-                                    const isProcessed = await redis.get(`processed:msg:${whatsappMessageId}`);
-                                    if (isProcessed) {
+                                    const alreadyProcessed = await redis.set(`processed:msg:${whatsappMessageId}`, "1", "EX", 3600, "NX");
+                                    if (!alreadyProcessed) {
                                         console.log(`⏩ [Baileys] Mensagem ${whatsappMessageId} já foi processada. Ignorando.`);
                                         await redis.del(`lock:lead:${lead.id}`);
                                         continue;
                                     }
-                                    await redis.set(`processed:msg:${whatsappMessageId}`, "1", "EX", 3600); // 1 hora de retenção
                                 }
+                            } else {
+                                console.warn("⚠️ [Baileys] Redis indisponível. Lock não aplicado (risco de duplicata).");
                             }
                             
                             // Trava de idempotência Temporal: Ignorar se enviamos algo nos últimos 45s
