@@ -374,12 +374,38 @@ export const WhatsappService = {
 
                             console.log(`✨ [Baileys] MENSAGEM VÁLIDA: (${role}) de ${phone}. Texto: "${text.substring(0, 50)}..."`);
 
+                            // ⚡ COMANDOS DE CONTROLE (do dono da conta, fromMe=true)
+                            // Devem ser interceptados ANTES do filtro de isFromMe
+                            // para que o operador possa enviar /parar ia ou /ativar ia direto pelo WhatsApp
+                            const cleanTextCmd = text?.toLowerCase().trim();
+                            if (isFromMe && (cleanTextCmd === '/parar ia' || cleanTextCmd === '/ativar ia')) {
+                                const shouldActivate = cleanTextCmd === '/ativar ia';
+                                const org = await OrganizationRepository.getById(organizationId);
+                                if (org) {
+                                    const cmdLead = await (LeadRepository as any).getByPhoneSystem(phone, org.id);
+                                    if (cmdLead) {
+                                        await (LeadRepository as any).updateSystem(cmdLead.id, { 
+                                            aiActive: shouldActivate ? "true" : "false",
+                                            metaData: { ...(cmdLead.metaData || {}), activeCard: shouldActivate ? "IA" : "PARAR_IA" }
+                                        });
+                                        console.log(`${shouldActivate ? '✅' : '🚫'} [Baileys] Comando ${cleanTextCmd} aplicado ao lead ${cmdLead.id} (${cmdLead.name})`);
+                                        await sock.sendMessage(jid, { 
+                                            text: shouldActivate 
+                                                ? "🤖 IA REATIVADA para este contato." 
+                                                : "🤖 IA PAUSADA para este contato. (Modo Humano Ativado)" 
+                                        });
+                                    }
+                                }
+                                continue;
+                            }
+
                             // CRÍTICO: Mensagens enviadas pelo próprio sistema (fromMe=true) são ecos
                             // do que a IA já salvou manualmente antes de enviar. Ignorar para evitar duplicatas.
                             if (isFromMe) {
                                 console.log(`⏩ [Baileys] Mensagem fromMe (eco de envio da IA) ignorada para evitar duplicata.`);
                                 continue;
                             }
+
 
                             // 0. Get Organization
                             console.log(`🔍 [Baileys] Buscando organização ID: ${organizationId}`);
