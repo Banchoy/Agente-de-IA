@@ -30,7 +30,10 @@ export async function register() {
                 console.log("📨 [Instrumentation] Iniciando cron de prospecção...");
                 setInterval(async () => {
                     const { OutreachService } = await import('@/lib/services/outreach');
+                    const { PauseService } = await import('@/lib/services/pause');
+                    
                     await OutreachService.processQueue();
+                    await PauseService.processResumptions();
                 }, 60 * 1000); // 1 minuto
 
                 // Iniciar Limpeza de Leads (Arquivamento Supabase) a cada 6 horas

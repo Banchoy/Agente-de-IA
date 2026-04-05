@@ -34,11 +34,12 @@ export function DraggableCard({ type, label, icon, color, isCustom }: Props) {
     zIndex: 1000,
   } : undefined;
 
-  // Se for customizável, usamos a cor hexadecimal diretamente
+  // Estilo customizado com vidro/glossy
   const customStyle = isCustom ? {
-    backgroundColor: `${color}33`,
+    backgroundColor: `${color}15`,
     color: color,
-    borderColor: `${color}44`
+    borderColor: `${color}30`,
+    boxShadow: isDragging ? `0 0 20px ${color}40` : `0 0 10px ${color}10`
   } : {};
 
   return (
@@ -48,13 +49,15 @@ export function DraggableCard({ type, label, icon, color, isCustom }: Props) {
       {...listeners}
       {...attributes}
       className={`
-        flex items-center gap-2 px-3 py-2 rounded-xl text-[10px] font-black uppercase tracking-wider
-        cursor-grab active:cursor-grabbing select-none transition-all border shadow-sm
-        ${isDragging ? 'opacity-50 scale-95' : 'opacity-100 scale-100 hover:scale-105 active:scale-95'}
-        ${!isCustom ? color : ''}
+        flex items-center gap-2.5 px-4 py-2.5 rounded-2xl text-[10px] font-black uppercase tracking-widest
+        cursor-grab active:cursor-grabbing select-none transition-all border backdrop-blur-sm
+        ${isDragging ? 'opacity-50 scale-105 rotate-2 shadow-2xl' : 'opacity-100 scale-100 hover:scale-105 active:scale-95 hover:shadow-lg'}
+        ${!isCustom ? `${color} shadow-sm` : ''}
       `}
     >
-      {icon}
+      <div className={`${isDragging ? 'animate-bounce-subtle' : 'group-hover:scale-110 transition-transform'}`}>
+        {icon}
+      </div>
       {label}
     </div>
   );
