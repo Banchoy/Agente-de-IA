@@ -2,8 +2,9 @@
 
 import React, { useState } from 'react';
 import { useDraggable } from '@dnd-kit/core';
-import { Bot, Calendar, Clock, Pause, Zap, Plus, Tag as TagIcon, Star, Info, AlertCircle, Heart, BotOff } from 'lucide-react';
+import { Bot, Calendar, Clock, Pause, Zap, Plus, Tag as TagIcon, Star, Info, AlertCircle, Heart, BotOff, MoreVertical, Check } from 'lucide-react';
 import CreateTagModal from './CreateTagModal';
+import DeleteTagModal from '@/app/dashboard/chats/DeleteTagModal';
 
 export type CardType = 'IA' | 'PARAR_IA' | 'AGENDADO' | 'AMANHA' | 'PAUSA_2H' | string;
 
@@ -21,9 +22,10 @@ interface Props {
   icon: React.ReactNode;
   color: string;
   isCustom?: boolean;
+  isActive?: boolean;
 }
 
-export function DraggableCard({ type, label, icon, color, isCustom }: Props) {
+export function DraggableCard({ type, label, icon, color, isCustom, isActive }: Props) {
   const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({
     id: `card-${type}`,
     data: { type, isCustom, label }
@@ -36,10 +38,10 @@ export function DraggableCard({ type, label, icon, color, isCustom }: Props) {
 
   // Estilo customizado com vidro/glossy
   const customStyle = isCustom ? {
-    backgroundColor: `${color}15`,
+    backgroundColor: isActive ? `${color}40` : `${color}15`,
     color: color,
-    borderColor: `${color}30`,
-    boxShadow: isDragging ? `0 0 20px ${color}40` : `0 0 10px ${color}10`
+    borderColor: isActive ? color : `${color}30`,
+    boxShadow: isDragging ? `0 0 20px ${color}40` : isActive ? `0 0 15px ${color}20` : `0 0 10px ${color}10`
   } : {};
 
   return (
@@ -50,25 +52,32 @@ export function DraggableCard({ type, label, icon, color, isCustom }: Props) {
       {...attributes}
       className={`
         flex items-center gap-2.5 px-4 py-2.5 rounded-2xl text-[10px] font-black uppercase tracking-widest
-        cursor-grab active:cursor-grabbing select-none transition-all border backdrop-blur-sm
+        cursor-grab active:cursor-grabbing select-none transition-all border backdrop-blur-sm relative group
         ${isDragging ? 'opacity-50 scale-105 rotate-2 shadow-2xl' : 'opacity-100 scale-100 hover:scale-105 active:scale-95 hover:shadow-lg'}
-        ${!isCustom ? `${color} shadow-sm` : ''}
+        ${!isCustom ? `${color} shadow-sm ${isActive ? 'ring-2 ring-forest-500/50' : ''}` : ''}
       `}
     >
       <div className={`${isDragging ? 'animate-bounce-subtle' : 'group-hover:scale-110 transition-transform'}`}>
         {icon}
       </div>
       {label}
+      {isActive && (
+        <div className="absolute -top-1 -right-1 bg-foreground text-background rounded-full p-0.5 shadow-lg border border-background animate-in zoom-in duration-300">
+          <Check size={8} strokeWidth={4} />
+        </div>
+      )}
     </div>
   );
 }
 
 interface CardBankProps {
   customTags?: any[];
+  activeLeadTagIds?: string[];
 }
 
-export default function CardBank({ customTags = [] }: CardBankProps) {
+export default function CardBank({ customTags = [], activeLeadTagIds = [] }: CardBankProps) {
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
 
   return (
     <div className="flex items-center gap-2 p-4 bg-[#111b21] border-b border-[#222d34] shadow-inner overflow-x-auto no-scrollbar">
@@ -111,20 +120,36 @@ export default function CardBank({ customTags = [] }: CardBankProps) {
           type={tag.id}
           label={tag.name}
           isCustom={true}
+          isActive={activeLeadTagIds.includes(tag.id)}
           icon={ICON_MAP[tag.iconName] || <TagIcon size={12} />}
           color={tag.color}
         />
       ))}
 
-      {/* Add New Tag Button */}
-      <button 
-        onClick={() => setIsModalOpen(true)}
-        className="flex items-center justify-center p-2 rounded-xl bg-[#202c33] border border-[#222d34] text-[#8696a0] hover:text-[#e9edef] transition-all hover:scale-105 active:scale-95"
-      >
-        <Plus size={16} />
-      </button>
+      {/* Actions */}
+      <div className="flex items-center gap-1.5 ml-2 border-l border-white/5 pl-2">
+        <button 
+          onClick={() => setIsModalOpen(true)}
+          className="flex items-center justify-center p-2 rounded-xl bg-[#202c33] border border-[#222d34] text-[#8696a0] hover:text-[#e9edef] transition-all hover:scale-105 active:scale-95"
+          title="Nova Etiqueta"
+        >
+          <Plus size={16} />
+        </button>
+        <button 
+          onClick={() => setIsDeleteModalOpen(true)}
+          className="flex items-center justify-center p-2 rounded-xl bg-[#202c33] border border-[#222d34] text-[#8696a0] hover:text-red-500 transition-all hover:scale-105 active:scale-95"
+          title="Gerenciar Etiquetas"
+        >
+          <MoreVertical size={16} />
+        </button>
+      </div>
 
       <CreateTagModal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} />
+      <DeleteTagModal 
+        isOpen={isDeleteModalOpen} 
+        onClose={() => setIsDeleteModalOpen(false)} 
+        tags={customTags.map(t => ({ ...t, type: t.id }))}
+      />
     </div>
   );
 }

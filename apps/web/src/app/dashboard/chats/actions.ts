@@ -221,3 +221,38 @@ export async function removeTagFromLead(leadId: string, tagId: string) {
     revalidatePath("/dashboard/chats");
     return { success: true };
 }
+
+export async function deleteTags(tagIds: string[]) {
+    try {
+        const { orgId: clerkOrgId } = await auth();
+        if (!clerkOrgId) return { success: false, error: "Não autorizado." };
+
+        const org = await OrganizationRepository.getByClerkId(clerkOrgId);
+        if (!org) return { success: false, error: "Organização não encontrada." };
+
+        // 1. Remover as etiquetas do banco de dados (Bulk)
+        await TagRepository.deleteMany(tagIds, org.id);
+
+        // 2. Limpar as referências nas leads (remover IDs de tags que não existem mais)
+        const orgLeads = await LeadRepository.listByOrg();
+        
+        for (const lead of orgLeads) {
+            const metadata = (lead.metaData as any) || {};
+            const currentTags = metadata.tags || [];
+            
+            const hasDeletedTag = currentTags.some((id: string) => tagIds.includes(id));
+            if (hasDeletedTag) {
+                const newTags = currentTags.filter((id: string) => !tagIds.includes(id));
+                await LeadRepository.updateSystem(lead.id, {
+                    metaData: { ...metadata, tags: newTags }
+                });
+            }
+        }
+
+        revalidatePath("/dashboard/chats");
+        return { success: true };
+    } catch (error) {
+        console.error("Erro ao excluir etiquetas:", error);
+        return { success: false, error };
+    }
+}

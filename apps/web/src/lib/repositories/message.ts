@@ -36,7 +36,9 @@ export const MessageRepository = {
                         l.name as lead_name, 
                         l.phone as lead_phone,
                         l.last_read_at as last_read_at,
-                        l.is_typing as is_typing
+                        l.is_typing as is_typing,
+                        l.metadata as lead_metadata,
+                        l.ai_active as lead_ai_active
                     FROM messages m
                     JOIN leads l ON m.lead_id = l.id
                     WHERE l.organization_id = NULLIF(current_setting('app.current_org_id', true), '')::uuid
@@ -56,7 +58,9 @@ export const MessageRepository = {
                     name: row.lead_name,
                     phone: row.lead_phone,
                     lastReadAt: row.last_read_at,
-                    isTyping: row.is_typing
+                    isTyping: row.is_typing,
+                    metaData: row.lead_metadata || {},
+                    aiActive: row.lead_ai_active || "true"
                 }
             }));
         });

@@ -117,45 +117,45 @@ function DroppableChatItem({ chat, activeLeadId, selectMode, isSelected, onToggl
                     </div>
                     <div className="flex-1 min-w-0 ml-1">
                         <div className="flex justify-between items-baseline mb-1.5">
-                            <div className="flex items-center gap-2 overflow-hidden">
+                            <div className="flex items-center gap-1.5 overflow-hidden flex-wrap">
                                 <h4 className={`text-sm font-bold truncate ${isUnread ? "text-foreground" : "text-muted-foreground"}`}>
                                     {chat.lead?.name}
                                 </h4>
                                 
-                                {/* Card ativo (tag de status) */}
-                                {cardVisual && (
-                                    <span className={`flex items-center gap-1 px-2 py-0.5 rounded-full text-[9px] font-black uppercase border animate-in slide-in-from-left-2 duration-300 ${cardVisual.cls} shrink-0`}>
-                                        {cardVisual.icon}
-                                        {cardVisual.label}
-                                    </span>
-                                )}
+                                <div className="flex items-center gap-1 flex-wrap shrink-0">
+                                    {/* Card ativo (tag de status mágico) */}
+                                    {cardVisual && (
+                                        <span className={`flex items-center gap-1 px-1.5 py-0.5 rounded-md text-[8px] font-black uppercase border animate-in slide-in-from-left-2 duration-300 ${cardVisual.cls} shrink-0`}>
+                                            {cardVisual.icon}
+                                            {cardVisual.label}
+                                        </span>
+                                    )}
+
+                                    {/* Etiquetas customizadas - Versão Compacta Inline */}
+                                    {leadTagIds.map((tagId: string) => {
+                                        const tag = customTags.find(t => t.id === tagId);
+                                        if (!tag) return null;
+                                        return (
+                                            <span
+                                                key={tag.id}
+                                                className="inline-flex items-center gap-1 px-1 py-0.5 rounded-md text-[7px] font-black uppercase tracking-tighter border shadow-sm transition-transform hover:scale-105 shrink-0 animate-in zoom-in duration-300"
+                                                style={{
+                                                    backgroundColor: `${tag.color}15`,
+                                                    color: tag.color,
+                                                    borderColor: `${tag.color}30`
+                                                }}
+                                                title={tag.name}
+                                            >
+                                                <div className="w-1 h-1 rounded-full animate-pulse" style={{ backgroundColor: tag.color }} />
+                                                {tag.name.substring(0, 8)}
+                                            </span>
+                                        );
+                                    })}
+                                </div>
                             </div>
                             <span className="text-[9px] font-bold text-muted-foreground/50 uppercase whitespace-nowrap ml-2">
                                 {new Date(chat.createdAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
                             </span>
-                        </div>
-
-                        {/* Etiquetas customizadas - Estilo Badge Premium */}
-                        <div className="flex gap-1 flex-wrap mb-1">
-                            {leadTagIds.map((tagId: string) => {
-                                const tag = customTags.find(t => t.id === tagId);
-                                if (!tag) return null;
-                                return (
-                                    <span
-                                        key={tag.id}
-                                        className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md text-[8px] font-black uppercase tracking-tight border shadow-sm transition-transform hover:scale-105 shrink-0 animate-in zoom-in duration-300"
-                                        style={{
-                                            backgroundColor: `${tag.color}15`,
-                                            color: tag.color,
-                                            borderColor: `${tag.color}30`
-                                        }}
-                                        title={tag.name}
-                                    >
-                                        <div className="w-1.5 h-1.5 rounded-full shadow-inner animate-pulse" style={{ backgroundColor: tag.color }} />
-                                        {tag.name.substring(0, 12)}
-                                    </span>
-                                );
-                            })}
                         </div>
 
                         <div className="flex items-center justify-between gap-2">

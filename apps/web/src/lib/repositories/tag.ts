@@ -24,6 +24,16 @@ export const TagRepository = {
         await db.delete(tags).where(eq(tags.id, id));
     },
 
+    deleteMany: async (ids: string[], organizationId: string) => {
+        const { inArray, and } = await import("drizzle-orm");
+        await db.delete(tags).where(
+            and(
+                inArray(tags.id, ids),
+                eq(tags.organizationId, organizationId)
+            )
+        );
+    },
+
     // -------------------------------------------------------------------------
     // Lead Tags Association
     // -------------------------------------------------------------------------
