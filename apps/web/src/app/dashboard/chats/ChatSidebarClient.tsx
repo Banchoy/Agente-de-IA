@@ -7,6 +7,7 @@ import { deleteChats } from "./actions";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { useDroppable } from "@dnd-kit/core";
+import { useChat } from "./ChatContainerClient";
 
 interface ChatItem {
     leadId: string;
@@ -24,7 +25,7 @@ interface ChatItem {
 }
 
 interface Props {
-    conversations: ChatItem[];
+    conversations?: ChatItem[];
     activeLeadId?: string;
     customTags?: any[];
 }
@@ -142,7 +143,7 @@ function DroppableChatItem({ chat, activeLeadId, selectMode, isSelected, onToggl
                                 return (
                                     <span
                                         key={tag.id}
-                                        className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md text-[8px] font-black uppercase tracking-tight border shadow-sm transition-transform hover:scale-105 shrink-0"
+                                        className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md text-[8px] font-black uppercase tracking-tight border shadow-sm transition-transform hover:scale-105 shrink-0 animate-in zoom-in duration-300"
                                         style={{
                                             backgroundColor: `${tag.color}15`,
                                             color: tag.color,
@@ -150,7 +151,7 @@ function DroppableChatItem({ chat, activeLeadId, selectMode, isSelected, onToggl
                                         }}
                                         title={tag.name}
                                     >
-                                        <div className="w-1.5 h-1.5 rounded-full shadow-inner" style={{ backgroundColor: tag.color }} />
+                                        <div className="w-1.5 h-1.5 rounded-full shadow-inner animate-pulse" style={{ backgroundColor: tag.color }} />
                                         {tag.name.substring(0, 12)}
                                     </span>
                                 );
@@ -190,7 +191,10 @@ function DroppableChatItem({ chat, activeLeadId, selectMode, isSelected, onToggl
     );
 }
 
-export default function ChatSidebarClient({ conversations, activeLeadId, customTags = [] }: Props) {
+export default function ChatSidebarClient({ conversations: propConversations, activeLeadId, customTags = [] }: Props) {
+    const { conversations: contextConversations } = useChat();
+    const conversations = contextConversations || propConversations || [];
+    
     const router = useRouter();
     const [selectMode, setSelectMode] = useState(false);
     const [selected, setSelected] = useState<Set<string>>(new Set());

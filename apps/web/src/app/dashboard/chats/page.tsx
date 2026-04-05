@@ -48,7 +48,7 @@ export default async function ChatsPage({
 
     return (
         <div className="h-[calc(100vh-120px)] bg-[#111b21] rounded-2xl overflow-hidden shadow-2xl flex flex-col border border-white/5">
-            <ChatContainerClient customTags={customTags}>
+            <ChatContainerClient initialConversations={conversations} customTags={customTags}>
                 {/* Sidebar */}
                 <div className="w-[30%] min-w-[320px] max-w-[450px] border-r border-[#222d34] flex flex-col bg-[#111b21]">
                     <div className="p-4 bg-[#202c33] flex items-center justify-between">
@@ -73,7 +73,6 @@ export default async function ChatsPage({
                     
                     <div className="flex-1 overflow-y-auto no-scrollbar">
                         <ChatSidebarClient 
-                            conversations={conversations} 
                             activeLeadId={activeLeadId} 
                             customTags={customTags}
                         />
