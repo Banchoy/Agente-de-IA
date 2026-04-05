@@ -165,39 +165,43 @@ export async function deleteTag(tagId: string) {
 }
 
 export async function assignTagToLead(leadId: string, tagId: string) {
-    const { orgId: clerkOrgId } = await auth();
-    if (!clerkOrgId) return { success: false, error: "Não autorizado." };
+    try {
+        const { orgId: clerkOrgId } = await auth();
+        if (!clerkOrgId) return { success: false, error: "Não autorizado." };
 
-    await TagRepository.assignToLead(leadId, tagId);
+        // 1. Atribui a tag (já faz o merge automático no repositório)
+        await TagRepository.assignToLead(leadId, tagId);
 
-    // Feature: Se a tag for "Parar IA" ou termos similares, pausamos o bot.
-    const tag = await db.query.tags.findFirst({ where: eq(tags.id, tagId) });
-    if (tag) {
-        const tagName = tag.name.toLowerCase();
-        const lead = await LeadRepository.getByIdSystem(leadId);
-        const metadata = (lead?.metaData as any) || {};
-
-        if (tagName.includes('parar ia') || tagName.includes('parar atendimento')) {
-            await LeadRepository.updateSystem(leadId, { 
-                aiActive: "false",
-                metaData: { ...metadata, aiPaused: "true", activeCard: "PARAR_IA" }
-            });
-        } else if (tagName.includes('pausa 2h') || tagName.includes('pausar 2h')) {
-            const in2h = new Date();
-            in2h.setHours(in2h.getHours() + 2);
-            await LeadRepository.updateSystem(leadId, { 
-                metaData: { 
-                    ...metadata, 
-                    nextActionAt: in2h.toISOString(), 
-                    aiPaused: "true", 
-                    activeCard: "PAUSA_2H" 
-                } 
-            });
+        // 2. Busca a tag para verificar se é "mágica"
+        const tag = await db.query.tags.findFirst({ where: eq(tags.id, tagId) });
+        if (tag) {
+            const tagName = tag.name.toLowerCase();
+            
+            // 3. Aplica automações baseadas no nome da tag
+            if (tagName.includes('parar ia') || tagName.includes('parar atendimento')) {
+                await LeadRepository.updateSystem(leadId, { 
+                    aiActive: "false",
+                    metaData: { aiPaused: "true", activeCard: "PARAR_IA" }
+                });
+            } else if (tagName.includes('pausa 2h') || tagName.includes('pausar 2h')) {
+                const in2h = new Date();
+                in2h.setHours(in2h.getHours() + 2);
+                await LeadRepository.updateSystem(leadId, { 
+                    metaData: { 
+                        nextActionAt: in2h.toISOString(), 
+                        aiPaused: "true", 
+                        activeCard: "PAUSA_2H" 
+                    } 
+                });
+            }
         }
-    }
 
-    revalidatePath("/dashboard/chats");
-    return { success: true };
+        revalidatePath("/dashboard/chats");
+        return { success: true };
+    } catch (error) {
+        console.error("Erro ao atribuir tag:", error);
+        return { success: false, error };
+    }
 }
 
 export async function assignTagToMessage(messageId: string, tagId: string) {

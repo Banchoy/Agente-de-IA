@@ -31,14 +31,18 @@ export const TagRepository = {
         // 1. Insert in join table
         await db.insert(leadTags).values({ leadId, tagId }).onConflictDoNothing();
 
-        // 2. Sync to Metadata for fast FE rendering
+        // 2. Sync to Metadata for fast FE rendering (Merging)
         const lead = await db.query.leads.findFirst({ where: eq(leads.id, leadId) });
         if (lead) {
-            const metadata = (lead.metaData as any) || {};
-            const currentTags = metadata.tags || [];
+            const currentMetadata = (lead.metaData as any) || {};
+            const currentTags = currentMetadata.tags || [];
+            
             if (!currentTags.includes(tagId)) {
                 await db.update(leads)
-                    .set({ metaData: { ...metadata, tags: [...currentTags, tagId] } })
+                    .set({ 
+                        metaData: { ...currentMetadata, tags: [...currentTags, tagId] },
+                        updatedAt: new Date()
+                    })
                     .where(eq(leads.id, leadId));
             }
         }
@@ -50,13 +54,17 @@ export const TagRepository = {
             and(eq(leadTags.leadId, leadId), eq(leadTags.tagId, tagId))
         );
 
-        // 2. Sync to Metadata
+        // 2. Sync to Metadata (Merging)
         const lead = await db.query.leads.findFirst({ where: eq(leads.id, leadId) });
         if (lead) {
-            const metadata = (lead.metaData as any) || {};
-            const currentTags = metadata.tags || [];
+            const currentMetadata = (lead.metaData as any) || {};
+            const currentTags = currentMetadata.tags || [];
+            
             await db.update(leads)
-                .set({ metaData: { ...metadata, tags: currentTags.filter((id: string) => id !== tagId) } })
+                .set({ 
+                    metaData: { ...currentMetadata, tags: currentTags.filter((id: string) => id !== tagId) },
+                    updatedAt: new Date()
+                })
                 .where(eq(leads.id, leadId));
         }
     },

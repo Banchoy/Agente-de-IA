@@ -18,7 +18,7 @@ export const PauseService = {
             // 1. Buscar leads pausados com expiração vencida
             // Filtramos leads onde aiPaused é 'true' e nextActionAt <= agora
             const expiredLeads = await db.query.leads.findMany({
-                where: sql`meta_data->>'aiPaused' = 'true' AND meta_data->>'nextActionAt' <= ${now}`
+                where: sql`metadata->>'aiPaused' = 'true' AND metadata->>'nextActionAt' <= ${now}`
             });
 
             if (expiredLeads.length === 0) return;
