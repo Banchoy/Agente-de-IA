@@ -105,10 +105,10 @@ export const LeadRepository = {
             if (lead) return lead;
         }
 
-        // 6. BUSCA POR METADADOS (Caso o JID tenha sido salvo anteriormente)
+        // 6. BUSCA POR METADADOS (Flexível: Busca o número dentro da string do JID)
         lead = await db.query.leads.findFirst({
             where: and(
-                sql`leads.metadata->>'outreachJid' = ${phone} OR leads.metadata->>'remoteJid' = ${phone}`,
+                sql`leads.metadata->>'outreachJid' ILIKE ${'%' + phone + '%'} OR leads.metadata->>'remoteJid' ILIKE ${'%' + phone + '%'}`,
                 eq(leads.organizationId, organizationId)
             )
         });

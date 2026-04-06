@@ -6,7 +6,15 @@ export const ScriptService = {
     if (lead?.metaData?.initialMessage) {
         let msg = lead.metaData.initialMessage;
         const firstName = lead.name ? lead.name.split(" ")[0] : "";
-        return msg.replace(/\{nome\}/gi, firstName || "");
+        const spTime = new Date().toLocaleString("en-US", { timeZone: "America/Sao_Paulo" });
+        const hourNow = new Date(spTime).getHours();
+        const timeGreeting = hourNow < 12 ? "bom dia" : hourNow < 18 ? "boa tarde" : "boa noite";
+
+        return msg
+            .replace(/\{nome\}/gi, firstName || "")
+            .replace(/\[SAUDAÇÃO_HORARIO\]/gi, timeGreeting)
+            .replace(/\[SAUDACAO_HORARIO\]/gi, timeGreeting)
+            .replace(/\[NICHO\]/gi, lead?.metaData?.niche || "seu negócio");
     }
 
     // 2. IA Gerando saudação dinamicamente com base no 'prompt' do agente
@@ -69,6 +77,18 @@ Use a informação do [NICHO] ("${leadNiche}") para mostrar que você conhece o 
         if (cleaned.startsWith('"') && cleaned.endsWith('"')) {
             cleaned = cleaned.substring(1, cleaned.length - 1);
         }
+
+        // --- FILTRO DE PLACEHOLDERS (Bruno 2.5) ---
+        // Identificar o período do dia para saudações usando o fuso horário de São Paulo
+        const spTime = new Date().toLocaleString("en-US", { timeZone: "America/Sao_Paulo" });
+        const hourNow = new Date(spTime).getHours();
+        const timeGreeting = hourNow < 12 ? "bom dia" : hourNow < 18 ? "boa tarde" : "boa noite";
+        
+        cleaned = cleaned
+            .replace(/\[SAUDAÇÃO_HORARIO\]/gi, timeGreeting)
+            .replace(/\[SAUDACAO_HORARIO\]/gi, timeGreeting)
+            .replace(/\[NICHO\]/gi, leadNiche);
+
         return cleaned;
     } catch (e) {
         console.error("Erro ao gerar mensagem inicial via IA, usando fallback:", e);
