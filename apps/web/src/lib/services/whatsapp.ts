@@ -491,17 +491,25 @@ export const WhatsappService = {
                                 console.warn("⚠️ [Baileys] Redis indisponível. Lock não aplicado (risco de duplicata).");
                             }
                             
-                            // Trava de idempotência Temporal: Ignorar se enviamos algo nos últimos 45s
-                            // (45s cobre o tempo de geração da IA + envio de múltiplas partes)
+                            // Trava de redundância Temporal: Ignorar se enviamos algo nos últimos 10s
+                            // MAS permitir se a última mensagem no DB for do usuário (nova intenção)
                             let recentAssistantMessages: any[] = [];
                             try {
                                 const lastMessages = await (MessageRepository as any).listByLeadSystem(lead.id, 5);
+                                const latestMsg = lastMessages[0];
                                 recentAssistantMessages = lastMessages.filter((m: any) => m.role === "assistant");
                                 const lastAssistantMsg = recentAssistantMessages[0];
+                                
                                 if (lastAssistantMsg) {
                                     const diff = Date.now() - new Date(lastAssistantMsg.createdAt).getTime();
-                                    if (diff < 45000) {
-                                        console.log(`⏩ [Baileys] Lead ${lead.id} recebeu resposta há ${(diff/1000).toFixed(1)}s (< 45s). Bloqueando duplicidade.`);
+                                    
+                                    // Se a última mensagem ABSOLUTA no banco for do usuário, ignora o bloqueio temporal
+                                    // porque significa que o usuário respondeu à nossa última mensagem.
+                                    if (latestMsg?.role === "user") {
+                                        console.log(`✨ [Baileys] Nova mensagem do usuário detectada (${latestMsg.content.substring(0, 20)}...). Seguindo com a resposta.`);
+                                    } else if (diff < 10000) {
+                                        // Só bloqueia se o assistente falou MUITO rápido ( < 10s de intervalo )
+                                        console.log(`⏩ [Baileys] Lead ${lead.id} já respondeu há ${(diff/1000).toFixed(1)}s (< 10s). Bloqueando redundância.`);
                                         if (redis) await redis.del(`lock:lead:${lead.id}`);
                                         continue;
                                     }

@@ -102,6 +102,30 @@ export const TagRepository = {
         );
     },
 
+    /**
+     * Garante que uma etiqueta de sistema exista para a organização.
+     */
+    ensureSystemTag: async (organizationId: string, name: string, color: string = "#3b82f6", iconName: string = "Bot") => {
+        const { ilike, and } = await import("drizzle-orm");
+        
+        // 1. Tenta encontrar por nome (case insensitive)
+        let tag = await db.query.tags.findFirst({
+            where: and(ilike(tags.name, name), eq(tags.organizationId, organizationId))
+        });
+
+        if (!tag) {
+            // 2. Cria se não existir
+            [tag] = await db.insert(tags).values({
+                organizationId,
+                name,
+                color,
+                iconName
+            }).returning();
+        }
+
+        return tag;
+    },
+
     listForMessages: async (messageIds: string[]) => {
         if (messageIds.length === 0) return [];
         

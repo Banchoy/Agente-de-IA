@@ -1,7 +1,7 @@
 
 import { db } from "@/lib/db";
 import { leads } from "@/lib/db/schema";
-import { eq, and } from "drizzle-orm";
+import { eq, and, ilike } from "drizzle-orm";
 import { withOrgContext } from "./base";
 
 export const LeadRepository = {
@@ -212,6 +212,24 @@ export const LeadRepository = {
             })
             .where(eq(leads.id, id))
             .returning();
+        
+        // 3. Sincronização Automática de Etiquetas de Sistema (ex: IA ATIVA)
+        if (updatedLead && (data.aiActive !== undefined || data.metaData !== undefined)) {
+            try {
+                const { TagRepository } = await import("./tag");
+                const aiActive = updatedLead.aiActive === "true";
+                const iaTag = await TagRepository.ensureSystemTag(updatedLead.organizationId, "IA ATIVA", "#3b82f6", "Bot");
+                
+                if (aiActive) {
+                    await TagRepository.assignToLead(updatedLead.id, iaTag.id);
+                } else {
+                    await TagRepository.removeFromLead(updatedLead.id, iaTag.id);
+                }
+            } catch (err) {
+                console.warn(`⚠️ [LeadRepository] Falha na sincronização da tag IA:`, err);
+            }
+        }
+
         return updatedLead;
     },
 

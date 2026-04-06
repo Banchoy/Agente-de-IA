@@ -158,6 +158,9 @@ export const OutreachService = {
             const updatedMetadata = {
                 ...(pendingLead.metaData as any || {}),
                 originalPhone: originalPhone,
+                normalizedPhone: finalPhone,
+                outreachInstance: org.evolutionInstanceName,
+                activeCard: "IA",
                 outreachJid: sendResult.jid
             };
 

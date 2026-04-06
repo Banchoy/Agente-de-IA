@@ -11,6 +11,7 @@ import ChatInputClient from "./ChatInputClient";
 import ChatSidebarClient from "./ChatSidebarClient";
 import ChatContainerClient from "./ChatContainerClient";
 import DroppableMessage from "./DroppableMessage";
+import ActiveStatusBadges from "@/components/chat/ActiveStatusBadges";
 
 export default async function ChatsPage({
     searchParams,
@@ -104,7 +105,7 @@ export default async function ChatsPage({
                     ) : (
                         <>
                             {/* Chat Header */}
-                            <div className="px-4 py-2 bg-[#202c33] flex items-center justify-between z-20 shadow-md">
+                            <div className="px-4 py-2 bg-[#202c33] flex items-center justify-between z-20 shadow-md border-b border-white/5 relative">
                                 <div className="flex items-center gap-3">
                                     <div className="h-10 w-10 rounded-full bg-[#6a7175] flex items-center justify-center text-white font-bold text-lg shadow-inner">
                                         {activeLead?.name?.charAt(0) || "?"}
@@ -124,6 +125,9 @@ export default async function ChatsPage({
                                     <MoreVertical size={20} className="cursor-pointer hover:text-white transition-colors" />
                                 </div>
                             </div>
+
+                            {/* Floating Active Status Badges */}
+                            <ActiveStatusBadges lead={activeLead} />
 
                             {/* Messages with Doodle Background */}
                             <div 
@@ -156,7 +160,7 @@ export default async function ChatsPage({
                             </div>
 
                             {/* Input Area */}
-                            <div className="bg-[#202c33] px-4 py-3 flex items-center gap-4">
+                            <div className="bg-[#202c33] px-4 py-3 flex items-center gap-4 border-t border-white/5 shadow-[0_-4px_10px_rgba(0,0,0,0.3)]">
                                 <ChatInputClient leadId={activeLeadId} />
                             </div>
                         </>

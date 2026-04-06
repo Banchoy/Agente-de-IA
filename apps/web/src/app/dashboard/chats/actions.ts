@@ -135,6 +135,35 @@ export async function applyCardAction(leadId: string, type: "IA" | "PARAR_IA" | 
     }
 }
 
+/**
+ * Limpa estados especiais (badges) do lead.
+ */
+export async function clearLeadStatus(leadId: string) {
+    try {
+        const lead = await LeadRepository.getByIdSystem(leadId);
+        if (!lead) return { success: false, error: "Lead não encontrado." };
+
+        const metadata = (lead.metaData as any) || {};
+        
+        // Limpa campos de agendamento e o badge ativo
+        const { nextActionAt, activeCard, ...restMetadata } = metadata;
+        
+        // Se o card removido for o de pausa (PARAR_IA ou PAUSA_2H), reativa a IA
+        const shouldReactivateAI = activeCard === "PARAR_IA" || activeCard === "PAUSA_2H" || activeCard === "AMANHA";
+
+        await LeadRepository.updateSystem(leadId, {
+            aiActive: shouldReactivateAI ? "true" : lead.aiActive,
+            metaData: { ...restMetadata, aiPaused: "false" }
+        });
+
+        revalidatePath("/dashboard/chats");
+        return { success: true };
+    } catch (error) {
+        console.error("Erro ao limpar status do lead:", error);
+        return { success: false, error };
+    }
+}
+
 // -----------------------------------------------------------------------------
 // Tag Actions
 // -----------------------------------------------------------------------------
