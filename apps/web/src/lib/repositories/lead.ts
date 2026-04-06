@@ -194,6 +194,12 @@ export const LeadRepository = {
         const mergedMetadata = { ...currentMetadata };
         
         for (const [key, value] of Object.entries(newMetadata)) {
+            if (value === null) {
+                // Suporte para REMOÇÃO de chaves se passado explicitamente null
+                delete mergedMetadata[key];
+                continue;
+            }
+
             const lowValue = String(value).toLowerCase();
             const isGeneric = lowValue.includes("seu negócio") || lowValue.includes("desconhecido") || !value;
             

@@ -144,16 +144,19 @@ export async function clearLeadStatus(leadId: string) {
         if (!lead) return { success: false, error: "Lead não encontrado." };
 
         const metadata = (lead.metaData as any) || {};
-        
-        // Limpa campos de agendamento e o badge ativo
-        const { nextActionAt, activeCard, ...restMetadata } = metadata;
+        const activeCard = metadata.activeCard;
         
         // Se o card removido for o de pausa (PARAR_IA ou PAUSA_2H), reativa a IA
         const shouldReactivateAI = activeCard === "PARAR_IA" || activeCard === "PAUSA_2H" || activeCard === "AMANHA";
 
         await LeadRepository.updateSystem(leadId, {
-            aiActive: shouldReactivateAI ? "true" : lead.aiActive,
-            metaData: { ...restMetadata, aiPaused: "false" }
+            aiActive: shouldReactivateAI ? "true" : (lead.aiActive || "true"),
+            metaData: { 
+                ...metadata, 
+                activeCard: null, 
+                nextActionAt: null, 
+                aiPaused: "false" 
+            }
         });
 
         revalidatePath("/dashboard/chats");
