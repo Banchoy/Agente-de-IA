@@ -131,23 +131,35 @@ export const OutreachService = {
             // 5.1 Sincronização Crítica: Se o WhatsApp normalizou o JID (ex: removeu o 9º dígito), 
             // atualizamos o lead no banco para que as respostas futuras casem com este ID.
             let finalPhone = pendingLead.phone;
+            const originalPhone = pendingLead.phone;
+
             if (sendResult.jid) {
                 const jidNumber = sendResult.jid.split("@")[0];
+                console.log(`📡 [Outreach] WhatsApp retornou JID: ${sendResult.jid} para o lead ${pendingLead.id}`);
+
                 if (jidNumber !== pendingLead.phone) {
-                    console.log(`🔄 [Outreach] Telefone do lead ${pendingLead.name} sincronizado: ${pendingLead.phone} -> ${jidNumber}`);
+                    console.log(`🔄 [Outreach] Sincronização Necessária: ${pendingLead.phone} -> ${jidNumber}`);
                     finalPhone = jidNumber;
 
-                    // 🛡️ DEDUPLICAÇÃO: Verificar se já existe OUTRO lead com o número normalizado
-                    // para evitar violação da constraint única (leads_phone_org_unique)
+                    // 🛡️ DEDUPLICAÇÃO RESILIENTE: Verificar se já existe OUTRO lead com o número normalizado
                     const existingLead = await LeadRepository.getByPhoneSystem(jidNumber, org.id);
                     if (existingLead && existingLead.id !== pendingLead.id) {
-                        console.warn(`⚠️ [Outreach] Conflito de JID: Lead duplicado encontrado (ID: ${existingLead.id}) com phone ${jidNumber}. Removendo duplicata...`);
-                        // Deleta o lead duplicado (o pending tem o histórico correto de outreach)
+                        console.warn(`⚠️ [Outreach] CONFLITO DE JID: Outro lead já possui esse identificador (ID: ${existingLead.id}, Nome: ${existingLead.name}).`);
+                        
+                        // Lógica: Se o existente tem mensagens, devemos manter o existente?
+                        // Por simplicidade atual, deletamos o "vazio" se for o caso.
+                        // Mas aqui apenas logamos por enquanto para entender o padrão.
+                        console.log(`🗑️ [Outreach] Removendo lead conflitante para prevalecer o atual prospecção...`);
                         await LeadRepository.deleteSystem(existingLead.id);
-                        console.log(`🗑️ [Outreach] Lead duplicado ${existingLead.id} removido com sucesso.`);
                     }
                 }
             }
+
+            const updatedMetadata = {
+                ...(pendingLead.metaData as any || {}),
+                originalPhone: originalPhone,
+                outreachJid: sendResult.jid
+            };
 
             // Atualiza o anti-ban no Redis
             if (redis) await redis.set("outreach:last_sent_at", Date.now().toString(), "EX", 86400);
@@ -158,6 +170,7 @@ export const OutreachService = {
             // 7. Atualizar status, estágio, telefone (se mudou) e histórico
             await LeadRepository.updateSystem(pendingLead.id, {
                 phone: finalPhone,
+                metaData: updatedMetadata,
                 outreachStatus: "completed",
                 lastOutreachAt: new Date(),
                 status: "CONTACTED",

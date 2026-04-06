@@ -27,7 +27,7 @@ export async function POST(req: NextRequest) {
         }
 
         const remoteJid = key.remoteJid;
-        if (!remoteJid || !remoteJid.endsWith("@s.whatsapp.net")) {
+        if (!remoteJid || (!remoteJid.endsWith("@s.whatsapp.net") && !remoteJid.endsWith("@lid"))) {
             return NextResponse.json({ received: true });
         }
 
@@ -45,8 +45,9 @@ export async function POST(req: NextRequest) {
 
         // 3. Find or Create Lead
         const rawPhone = remoteJid.split("@")[0];
-        const phone = rawPhone.replace(/\D/g, ""); // Garante que buscamos apenas números
+        const phone = rawPhone; // Mantemos o nome da variável para compatibilidade
         
+        console.log(`🌐 [Evolution] Validating JID: ${remoteJid} -> Phone: ${phone}`);
         let lead = await LeadRepository.getByPhoneSystem(phone, org.id);
         
         if (!lead) {

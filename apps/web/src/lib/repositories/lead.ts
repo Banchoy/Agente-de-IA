@@ -38,7 +38,10 @@ export const LeadRepository = {
     getByPhoneSystem: async (phone: string, organizationId: string) => {
         // 1. Sanitização rigorosa do telefone de entrada
         const cleanPhone = phone.replace(/\D/g, "");
+        if (!cleanPhone) return null;
         
+        console.log(`🔍 [LeadRepository] Buscando lead: ${cleanPhone} na Org: ${organizationId}`);
+
         // 2. Tenta busca exata com o número limpo
         let lead = await db.query.leads.findFirst({
             where: and(
@@ -49,29 +52,61 @@ export const LeadRepository = {
 
         if (lead) return lead;
 
-        // 3. Busca Resiliente para Números do Brasil (Divergência de 9º dígito)
+        // 3. Busca Resiliente para Números do Brasil (Divergência de 9º dígito / Prefixo 55)
+        // Se o número tem '55' na frente, vamos tentar também a versão sem o '55'
+        if (cleanPhone.startsWith("55")) {
+            const no55 = cleanPhone.substring(2);
+            lead = await db.query.leads.findFirst({
+                where: and(eq(leads.phone, no55), eq(leads.organizationId, organizationId))
+            });
+            if (lead) return lead;
+        } else if (cleanPhone.length >= 10 && cleanPhone.length <= 11) {
+            // Se não tem 55, mas parece um número com DDD (10 ou 11 dígitos), tenta com 55
+            const with55 = `55${cleanPhone}`;
+            lead = await db.query.leads.findFirst({
+                where: and(eq(leads.phone, with55), eq(leads.organizationId, organizationId))
+            });
+            if (lead) return lead;
+        }
+
+        // 4. Lógica para resolver divergências de 9º dígito (DDD + 8 ou 9 dígitos)
         if (cleanPhone.startsWith("55") && (cleanPhone.length === 12 || cleanPhone.length === 13)) {
             const ddd = cleanPhone.substring(2, 4);
             const body = cleanPhone.substring(4);
             
             let alternativePhone: string | null = null;
-            
             if (cleanPhone.length === 13 && body.startsWith("9")) {
-                // Tem 9 dígito, tenta sem
                 alternativePhone = `55${ddd}${body.substring(1)}`;
             } else if (cleanPhone.length === 12) {
-                // Não tem 9 dígito, tenta com
                 alternativePhone = `55${ddd}9${body}`;
             }
 
             if (alternativePhone) {
-                console.log(`🔍 [LeadRepository] Tentando busca resiliente: ${cleanPhone} -> ${alternativePhone}`);
+                console.log(`🔍 [LeadRepository] Tentando busca alternativa (9º dígito): ${alternativePhone}`);
                 lead = await db.query.leads.findFirst({
-                    where: and(
-                        eq(leads.phone, alternativePhone),
-                        eq(leads.organizationId, organizationId)
-                    )
+                    where: and(eq(leads.phone, alternativePhone), eq(leads.organizationId, organizationId))
                 });
+                if (lead) return lead;
+            }
+        }
+
+        // 5. BUSCA POR SUFIXO (Agressiva): Última tentativa para LIDs ou IDs mal formados
+        // Buscamos se existe algum lead cuja coluna 'phone' termine com os mesmos últimos 8 dígitos
+        // e pertença à mesma organização.
+        if (cleanPhone.length >= 8) {
+            const suffix = cleanPhone.slice(-8);
+            console.log(`🔍 [LeadRepository] Tentando busca agressiva por sufixo: *${suffix}`);
+            
+            lead = await db.query.leads.findFirst({
+                where: and(
+                    ilike(leads.phone, `%${suffix}`),
+                    eq(leads.organizationId, organizationId)
+                )
+            });
+            
+            if (lead) {
+                console.log(`✨ [LeadRepository] Lead identificado por sufixo! (ID: ${lead.id})`);
+                return lead;
             }
         }
 

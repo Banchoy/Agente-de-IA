@@ -372,11 +372,9 @@ export const WhatsappService = {
                             const isFromMe = !!msg.key.fromMe;
                             const role = isFromMe ? "assistant" : "user";
 
-                            console.log(`✨ [Baileys] MENSAGEM VÁLIDA: (${role}) de ${phone}. Texto: "${text.substring(0, 50)}..."`);
+                            console.log(`✨ [Baileys] MENSAGEM VÁLIDA: (${role}) de ${phone} [JID: ${jid}]. Texto: "${text.substring(0, 50)}..."`);
 
                             // ⚡ COMANDOS DE CONTROLE (do dono da conta, fromMe=true)
-                            // Devem ser interceptados ANTES do filtro de isFromMe
-                            // para que o operador possa enviar /parar ia ou /ativar ia direto pelo WhatsApp
                             const cleanTextCmd = text?.toLowerCase().trim();
                             if (isFromMe && (cleanTextCmd === '/parar ia' || cleanTextCmd === '/ativar ia')) {
                                 const shouldActivate = cleanTextCmd === '/ativar ia';
@@ -399,30 +397,24 @@ export const WhatsappService = {
                                 continue;
                             }
 
-                            // CRÍTICO: Mensagens enviadas pelo próprio sistema (fromMe=true) são ecos
-                            // do que a IA já salvou manualmente antes de enviar. Ignorar para evitar duplicatas.
                             if (isFromMe) {
                                 console.log(`⏩ [Baileys] Mensagem fromMe (eco de envio da IA) ignorada para evitar duplicata.`);
                                 continue;
                             }
 
-
                             // 0. Get Organization
-                            console.log(`🔍 [Baileys] Buscando organização ID: ${organizationId}`);
                             const org = await OrganizationRepository.getById(organizationId);
                             if (!org) {
-                                console.warn(`⚠️ [Baileys] Organização ${organizationId} não encontrada no banco.`);
+                                console.warn(`⚠️ [Baileys] Organização ${organizationId} não encontrada.`);
                                 continue;
                             }
-                            console.log(`🏢 [Baileys] Org vinculada: ${org.name} (UUID: ${org.id})`);
 
                             // 1. Find or Create Lead
-                            console.log(`👤 [Baileys] Buscando/Criando lead para o telefone: ${phone}`);
+                            console.log(`👤 [Baileys] Resolvendo lead para o identificador: ${phone}`);
                             lead = await (LeadRepository as any).getByPhoneSystem(phone, org.id);
                             
                             if (!lead) {
-                                console.log(`👤 [Baileys] Lead novo detectado. Criando...`);
-                                // Buscar estágio inicial "Novo Lead"
+                                console.log(`👤 [Baileys] Lead NÃO encontrado. Criando novo...`);
                                 const initialStageId = await CRMRepository.getStageByName(org.id, "Novo Lead");
                                 
                                 lead = await LeadRepository.createSystem({
@@ -435,9 +427,9 @@ export const WhatsappService = {
                                     stageId: initialStageId,
                                     outreachStatus: "completed"
                                 });
-                                console.log(`👤 [Baileys] Lead criado com sucesso: ${lead.id}`);
+                                console.log(`👤 [Baileys] Novo Lead criado: ${lead.id} (${lead.name})`);
                             } else {
-                                console.log(`👤 [Baileys] Lead existente encontrado: ${lead.id}`);
+                                console.log(`👤 [Baileys] Lead identificado com sucesso: ${lead.id} (${lead.name})`);
                             }
 
                             const whatsappMessageId = msg.key.id;
