@@ -93,5 +93,14 @@ export const MessageRepository = {
 
     deleteByLeadSystem: async (leadId: string) => {
         await db.delete(messages).where(eq(messages.leadId, leadId));
+    },
+
+    getByWhatsappId: async (whatsappId: string, organizationId: string) => {
+        return await db.query.messages.findFirst({
+            where: and(
+                eq(messages.whatsappMessageId, whatsappId),
+                eq(messages.organizationId, organizationId)
+            )
+        });
     }
 };

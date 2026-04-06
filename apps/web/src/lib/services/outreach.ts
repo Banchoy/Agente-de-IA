@@ -189,7 +189,7 @@ export const OutreachService = {
                 leadId: pendingLead.id,
                 role: "assistant",
                 content: messageBody,
-                whatsappMessageId: `outreach_${Date.now()}`
+                whatsappMessageId: (sendResult as any)?.key?.id || `outreach_${Date.now()}`
             });
 
             console.log(`✅ [Outreach] Mensagem enviada para ${pendingLead.name} com sucesso!`);

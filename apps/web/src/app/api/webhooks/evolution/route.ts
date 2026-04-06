@@ -44,11 +44,34 @@ export async function POST(req: NextRequest) {
         }
 
         // 3. Find or Create Lead
-        const rawPhone = remoteJid.split("@")[0];
-        const phone = rawPhone; // Mantemos o nome da variável para compatibilidade
+        const phone = rawPhone;
         
         console.log(`🌐 [Evolution] Validating JID: ${remoteJid} -> Phone: ${phone}`);
         let lead = await LeadRepository.getByPhoneSystem(phone, org.id);
+
+        // --- INTEGRIDADE DE CHAT: RECUPERAÇÃO VIA STANZA_ID (LID LINKER) ---
+        // Se não achou por telefone/JID, verifica se é uma resposta a uma mensagem nossa
+        if (!lead) {
+            const stanzaId = message.extendedTextMessage?.contextInfo?.stanzaId || 
+                             message.conversation?.contextInfo?.stanzaId;
+
+            if (stanzaId) {
+                console.log(`🔍 [Evolution] Lead não encontrado por JID. Tentando rastreio via StanzaID: ${stanzaId}`);
+                const originalMessage = await MessageRepository.getByWhatsappId(stanzaId, org.id);
+                
+                if (originalMessage && originalMessage.leadId) {
+                    lead = await LeadRepository.getByIdSystem(originalMessage.leadId as string);
+                    if (lead) {
+                        console.log(`✨ [Evolution] Lead unificado com sucesso via StanzaID! (ID: ${lead.id}, Nome: ${lead.name})`);
+                        // Vincula este novo JID/LID ao lead original para futuras mensagens
+                        const meta = (lead.metaData as any) || {};
+                        await LeadRepository.updateSystem(lead.id, {
+                            metaData: { ...meta, outreachJid: remoteJid, lastLid: remoteJid }
+                        });
+                    }
+                }
+            }
+        }
         
         if (!lead) {
             console.log(`🆕 Creating new lead for phone: ${phone}`);
@@ -135,7 +158,13 @@ export async function POST(req: NextRequest) {
 
         const { body: aiBody, nextState, intent, action, extractedInfo } = structuredResult;
 
-        // Mensagem já salva no início do processamento para garantir histórico total
+        // 11. Salvar Resposta da IA no Histórico
+        await MessageRepository.createSystem({
+            organizationId: org.id,
+            leadId: lead.id,
+            role: "model",
+            content: aiBody
+        });
 
         // 9. Automated Actions (CRM Movement)
         let stageToUpdate = lead.stageId;
@@ -160,14 +189,6 @@ export async function POST(req: NextRequest) {
                 ...extractedInfo,
                 updatedByAIAt: new Date().toISOString()
             }
-        });
-
-        // 11. Save AI Response
-        await MessageRepository.createSystem({
-            organizationId: org.id,
-            leadId: lead.id,
-            role: "model",
-            content: aiBody
         });
 
         // 12. Send Response (Split Voice and Text)
