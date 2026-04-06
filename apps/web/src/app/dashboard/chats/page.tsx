@@ -139,7 +139,7 @@ export default async function ChatsPage({
                                     backgroundSize: '400px'
                                 }}
                             >
-                                {[...activeMessages].reverse().map((msg: any) => {
+                                {activeMessages.map((msg: any) => {
                                     const isMe = msg.role === 'assistant';
                                     const tags = messageTagsMap[msg.id as string] || [];
                                     return (

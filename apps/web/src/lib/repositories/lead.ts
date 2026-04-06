@@ -1,7 +1,7 @@
 
 import { db } from "@/lib/db";
 import { leads } from "@/lib/db/schema";
-import { eq, and, ilike } from "drizzle-orm";
+import { eq, and, ilike, sql } from "drizzle-orm";
 import { withOrgContext } from "./base";
 
 export const LeadRepository = {
@@ -91,8 +91,7 @@ export const LeadRepository = {
         }
 
         // 5. BUSCA POR SUFIXO (Agressiva): Última tentativa para LIDs ou IDs mal formados
-        // Buscamos se existe algum lead cuja coluna 'phone' termine com os mesmos últimos 8 dígitos
-        // e pertença à mesma organização.
+        // Buscamos se existe algum lead cuja coluna 'phone' termine com os mesmos últimos 8-9 dígitos
         if (cleanPhone.length >= 8) {
             const suffix = cleanPhone.slice(-8);
             console.log(`🔍 [LeadRepository] Tentando busca agressiva por sufixo: *${suffix}`);
@@ -103,12 +102,16 @@ export const LeadRepository = {
                     eq(leads.organizationId, organizationId)
                 )
             });
-            
-            if (lead) {
-                console.log(`✨ [LeadRepository] Lead identificado por sufixo! (ID: ${lead.id})`);
-                return lead;
-            }
+            if (lead) return lead;
         }
+
+        // 6. BUSCA POR METADADOS (Caso o JID tenha sido salvo anteriormente)
+        lead = await db.query.leads.findFirst({
+            where: and(
+                sql`leads.metadata->>'outreachJid' = ${phone} OR leads.metadata->>'remoteJid' = ${phone}`,
+                eq(leads.organizationId, organizationId)
+            )
+        });
 
         return lead;
     },
