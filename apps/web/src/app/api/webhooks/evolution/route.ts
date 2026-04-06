@@ -44,6 +44,7 @@ export async function POST(req: NextRequest) {
         }
 
         // 3. Find or Create Lead
+        const rawPhone = remoteJid.split("@")[0];
         const phone = rawPhone;
         
         console.log(`🌐 [Evolution] Validating JID: ${remoteJid} -> Phone: ${phone}`);
@@ -61,16 +62,41 @@ export async function POST(req: NextRequest) {
                 
                 if (originalMessage && originalMessage.leadId) {
                     lead = await LeadRepository.getByIdSystem(originalMessage.leadId as string);
-                    if (lead) {
-                        console.log(`✨ [Evolution] Lead unificado com sucesso via StanzaID! (ID: ${lead.id}, Nome: ${lead.name})`);
-                        // Vincula este novo JID/LID ao lead original para futuras mensagens
-                        const meta = (lead.metaData as any) || {};
-                        await LeadRepository.updateSystem(lead.id, {
-                            metaData: { ...meta, outreachJid: remoteJid, lastLid: remoteJid }
-                        });
-                    }
                 }
             }
+        }
+
+        // --- INTEGRIDADE DE CHAT: RECUPERAÇÃO VIA API (LID RESOLVER) ---
+        // Se ainda não achou, consulta a Evolution para descobrir o número real por trás do JID/LID
+        if (!lead && remoteJid.includes("@lid")) {
+            console.log(`📡 [Evolution] JID desconhecido (@lid). Ativando LID Resolver para: ${remoteJid}`);
+            const apiUrl = org.evolutionApiUrl || process.env.EVOLUTION_API_URL || "";
+            const apiKey = org.evolutionApiKey || process.env.EVOLUTION_API_KEY || "";
+            
+            const contact = await EvolutionService.fetchContact(apiUrl, apiKey, instance, remoteJid);
+            const realNumber = contact?.number || contact?.pushName; // Às vezes o number vem no pushName ou vice-versa na v2
+
+            if (realNumber) {
+                console.log(`🎯 [Evolution] Número real identificado via API: ${realNumber}`);
+                lead = await LeadRepository.getByPhoneSystem(realNumber, org.id);
+
+                // Se achou pelo número real, vincular este @lid ao lead original IMEDIATAMENTE
+                if (lead) {
+                    console.log(`✨ [Evolution] Unificando perfil de LID ${remoteJid} com o Lead: ${lead.name}`);
+                    const meta = (lead.metaData as any) || {};
+                    await LeadRepository.updateSystem(lead.id, {
+                        metaData: { ...meta, outreachJid: remoteJid, lastLid: remoteJid }
+                    });
+                }
+            }
+        }
+
+        // --- INTEGRIDADE DE CHAT: BUSCA POR SUFIXO (FALLBACK FINAL) ---
+        if (!lead && phone.length >= 8) {
+             lead = await LeadRepository.getByPhoneSuffixSystem(phone, org.id);
+             if (lead) {
+                 console.log(`✨ [Evolution] Lead encontrado via Suffix Match: ${lead.name}`);
+             }
         }
         
         if (!lead) {

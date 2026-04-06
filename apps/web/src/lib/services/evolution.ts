@@ -224,5 +224,23 @@ export const EvolutionService = {
             console.warn(`⚠️ Erro ao tentar deletar instância ${instanceName}:`, e);
             return null;
         }
+    },
+
+    fetchContact: async (apiUrl: string, apiKey: string, instanceName: string, jid: string) => {
+        try {
+            // A v2 da Evolution usa fetchProfile ou fetchContacts. 
+            // fetchProfile é mais certeiro para resolver o número real por trás de um LID.
+            const response = await fetch(`${apiUrl}/chat/fetchProfile/${instanceName}?number=${jid.split("@")[0]}`, {
+                headers: { "apikey": apiKey }
+            });
+            if (response.ok) {
+                const data = await response.json();
+                return data;
+            }
+            return null;
+        } catch (e) {
+            console.warn(`⚠️ [EvolutionService] Falha ao buscar contato ${jid}:`, e);
+            return null;
+        }
     }
 };

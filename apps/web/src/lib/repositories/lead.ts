@@ -105,15 +105,23 @@ export const LeadRepository = {
             if (lead) return lead;
         }
 
-        // 6. BUSCA POR METADADOS (Flexível: Busca o número dentro da string do JID)
-        lead = await db.query.leads.findFirst({
-            where: and(
-                sql`leads.metadata->>'outreachJid' ILIKE ${'%' + phone + '%'} OR leads.metadata->>'remoteJid' ILIKE ${'%' + phone + '%'}`,
-                eq(leads.organizationId, organizationId)
-            )
-        });
-
         return lead;
+    },
+
+    getByPhoneSuffixSystem: async (phone: string, organizationId: string, suffixLength: number = 8) => {
+        const clean = phone.replace(/\D/g, "");
+        if (clean.length < suffixLength) return null;
+        const suffix = clean.slice(-suffixLength);
+        
+        console.log(`🔍 [LeadRepository] Suffix Match: Buscando por *${suffix} na Org: ${organizationId}`);
+        
+        return await db.query.leads.findFirst({
+            where: and(
+                ilike(leads.phone, `%${suffix}`),
+                eq(leads.organizationId, organizationId)
+            ),
+            orderBy: (l: any, { desc }: any) => [desc(l.createdAt)]
+        });
     },
 
     create: async (data: typeof leads.$inferInsert) => {
