@@ -552,28 +552,42 @@ export const WhatsappService = {
                                 console.log(`💾 [Baileys] Histórico carregado (${history.length} mensagens).`);
                                 let formattedHistory = history.reverse().map((m: any) => ({
                                     role: m.role === "assistant" ? "model" : "user",
-                                    content: m.content,
+                                    content: m.content || (m.type === "audio" ? "[Áudio enviado pelo usuário. Por favor, ouça e responda.]" : ""),
                                     media: undefined as any
                                 }));
 
-                                // Se a mensagem atual for áudio, anexa os dados ao último item do histórico (que é a mensagem que acabou de ser salva)
-                                if (audioData && formattedHistory.length > 0) {
-                                    const lastIndex = formattedHistory.length - 1;
-                                    if (formattedHistory[lastIndex].role === "user") {
-                                        formattedHistory[lastIndex].media = audioData;
-                                        console.log(`🎤 [Baileys] Áudio anexado à última mensagem do histórico para processamento.`);
+                                // 🛡️ GARANTIA DE CONTEXTO: Se a mensagem atual não está no histórico (race condition), adiciona manualmente
+                                const alreadyInHistory = history.some(m => m.whatsappMessageId === whatsappMessageId);
+                                if (!alreadyInHistory) {
+                                    console.log(`🛡️ [Baileys] Mensagem atual não encontrada no histórico (race condition). Adicionando manualmente.`);
+                                    formattedHistory.push({
+                                        role: "user",
+                                        content: text || (isAudio ? "[Áudio enviado pelo usuário. Por favor, ouça e responda.]" : ""),
+                                        media: isAudio ? audioData : undefined
+                                    });
+                                } else if (isAudio && audioData) {
+                                    // Se já está lá, anexa a mídia no item correto
+                                    const lastUserIdx = formattedHistory.map(m => m.role).lastIndexOf("user");
+                                    if (lastUserIdx !== -1) {
+                                        formattedHistory[lastUserIdx].media = audioData;
+                                        if (!formattedHistory[lastUserIdx].content) {
+                                            formattedHistory[lastUserIdx].content = "[Áudio enviado pelo usuário. Por favor, ouça e responda.]";
+                                        }
+                                        console.log(`🎤 [Baileys] Áudio anexado ao histórico para processamento multimodal.`);
                                     }
                                 }
 
                                 // CRÍTICO: O Gemini exige que a primeira mensagem seja do 'user'.
-                                // Se o bloco de 10 mensagens começar com uma resposta da IA, removemos para evitar erro.
                                 while (formattedHistory.length > 0 && formattedHistory[0].role === "model") {
                                     formattedHistory.shift();
                                 }
 
-                                // Se o histórico ficar vazio ou se a mensagem atual não estiver nele, garantimos contexto.
                                 if (formattedHistory.length === 0) {
-                                    formattedHistory = [{ role: "user", content: text }];
+                                    formattedHistory = [{ 
+                                        role: "user", 
+                                        content: text || (isAudio ? "[Áudio enviado pelo usuário. Por favor, ouça e responda.]" : ""),
+                                        media: isAudio ? audioData : undefined
+                                    }];
                                 }
 
                                 // Delay simulado para leitura: 1.5 a 3 segundos
@@ -587,12 +601,16 @@ export const WhatsappService = {
 
                                 // Construir contexto do que JÁ foi enviado para evitar repetição
                                 const lastSentTexts = recentAssistantMessages
-                                    .slice(0, 2)
+                                    .slice(0, 3)
                                     .map((m: any) => `- "${m.content.substring(0, 120)}${m.content.length > 120 ? '...' : ''}"`)
                                     .join("\n");
+                                
+                                // Forçar instrução de áudio se houver mídia
+                                let audioInstruction = isAudio ? "\n\n⚠️ IMPORTANTE: O usuário enviou um ÁUDIO. Transcreva-o mentalmente, considere o tom de voz e responda de forma empática e contextualizada." : "";
+                                
                                 const noRepeatInstruction = lastSentTexts
-                                    ? `${scriptInstruction}\n\n### ⚠️ MENSAGENS JÁ ENVIADAS — NÃO REPITA:\n${lastSentTexts}\nREGRA ABSOLUTA: Nunca repita, parafraseie ou reuse as frases acima. Continue a conversa avançando naturalmente.`
-                                    : scriptInstruction;
+                                    ? `${scriptInstruction}${audioInstruction}\n\n### ⚠️ MENSAGENS JÁ ENVIADAS — NÃO REPITA:\n${lastSentTexts}\nREGRA ABSOLUTA: Nunca repita, parafraseie ou reuse as frases acima. Se já enviou a saudação, NÃO envie de novo. Continue a conversa avançando naturalmente.`
+                                    : `${scriptInstruction}${audioInstruction}`;
                                 
                                 console.log(`🤖 [Baileys] Chamando AIService (Adaptativo: ${!!scriptInstruction}) para: ${agent.name}`);
 
@@ -607,6 +625,7 @@ export const WhatsappService = {
                                 const aiResponse = adaptiveResult.body;
                                 if (!aiResponse) {
                                     console.log("⏩ [Baileys] IA retornou resposta vazia ou inválida. Ignorando.");
+                                    if (redis) await redis.del(`lock:lead:${lead.id}`);
                                     return;
                                 }
 
@@ -615,7 +634,8 @@ export const WhatsappService = {
                                 const leadMeta = (lead.metaData as any) || {};
 
                                 // Update Lead Profile with Learned Info
-                                const nextState = ScriptService.advanceState(lead.conversationState);
+                                // FIX: Pass lead and adaptiveResult to advanceState
+                                const nextState = ScriptService.advanceState(lead.conversationState, lead, adaptiveResult);
 
                                 const isGenericNiche = (n: string | undefined | null) => !n || n.toLowerCase().includes("seu negócio") || n.toLowerCase().includes("desconhecido");
                                 const newNiche = adaptiveResult.detectedNiche;
