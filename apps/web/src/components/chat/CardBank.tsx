@@ -2,7 +2,7 @@
 
 import React, { useState } from 'react';
 import { useDraggable } from '@dnd-kit/core';
-import { Bot, Calendar, Clock, Pause, Zap, Plus, Tag as TagIcon, Star, Info, AlertCircle, Heart, BotOff, MoreVertical, Check } from 'lucide-react';
+import { Bot, Calendar, Clock, Pause, Zap, Plus, Tag as TagIcon, Star, Info, AlertCircle, Heart, BotOff, MoreVertical, Check, Trash2 } from 'lucide-react';
 import CreateTagModal from './CreateTagModal';
 import DeleteTagModal from '@/app/dashboard/chats/DeleteTagModal';
 
@@ -137,10 +137,10 @@ export default function CardBank({ customTags = [], activeLeadTagIds = [] }: Car
         </button>
         <button 
           onClick={() => setIsDeleteModalOpen(true)}
-          className="flex items-center justify-center p-2 rounded-xl bg-[#202c33] border border-[#222d34] text-[#8696a0] hover:text-red-500 transition-all hover:scale-105 active:scale-95"
-          title="Gerenciar Etiquetas"
+          className="flex items-center justify-center p-2 rounded-xl bg-red-500/10 border border-red-500/20 text-red-500 hover:bg-red-500 hover:text-white transition-all hover:scale-105 active:scale-95 shadow-sm group"
+          title="Excluir Etiquetas"
         >
-          <MoreVertical size={16} />
+          <Trash2 size={16} className="group-hover:animate-bounce-subtle" />
         </button>
       </div>
 

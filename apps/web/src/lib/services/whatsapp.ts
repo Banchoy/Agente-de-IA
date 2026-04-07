@@ -410,8 +410,9 @@ export const WhatsappService = {
                             }
 
                             // 1. Find or Create Lead
-                            console.log(`👤 [Baileys] Resolvendo lead para o identificador: ${phone}`);
-                            lead = await (LeadRepository as any).getByPhoneSystem(phone, org.id);
+                            console.log(`👤 [Baileys] Resolvendo lead para JID: ${jid} (Phone: ${phone})`);
+                            // Prioridade: Busca por JID exato (Sincronização definitiva)
+                            lead = await (LeadRepository as any).getByJidSystem(jid, org.id);
                             
                             if (!lead) {
                                 console.log(`👤 [Baileys] Lead NÃO encontrado. Criando novo...`);
@@ -472,7 +473,7 @@ export const WhatsappService = {
                                 // 🔒 LOCK ATÔMICO (SET NX): Padrão correto para distributed lock.
                                 // SET key value EX seconds NX = só seta se a chave NÃO existir (operação atômica).
                                 // Evita race condition entre threads que processam mensagens paralelas do mesmo lead.
-                                const lockAcquired = await redis.set(`lock:lead:${lead.id}`, "1", "EX", 300, "NX");
+                                const lockAcquired = await redis.set(`lock:lead:${lead.id}`, "1", "EX", 45, "NX");
                                 if (!lockAcquired) {
                                     console.log(`⏩ [Baileys] Lead ${lead.id} já está sendo processado (lock atômico). Ignorando.`);
                                     continue;
@@ -565,7 +566,7 @@ export const WhatsappService = {
                                 }));
 
                                 // 🛡️ GARANTIA DE CONTEXTO: Se a mensagem atual não está no histórico (race condition), adiciona manualmente
-                                const alreadyInHistory = history.some(m => m.whatsappMessageId === whatsappMessageId);
+                                const alreadyInHistory = history.some((m: any) => m.whatsappMessageId === whatsappMessageId);
                                 if (!alreadyInHistory) {
                                     console.log(`🛡️ [Baileys] Mensagem atual não encontrada no histórico (race condition). Adicionando manualmente.`);
                                     formattedHistory.push({
@@ -575,7 +576,7 @@ export const WhatsappService = {
                                     });
                                 } else if (isAudio && audioData) {
                                     // Se já está lá, anexa a mídia no item correto
-                                    const lastUserIdx = formattedHistory.map(m => m.role).lastIndexOf("user");
+                                    const lastUserIdx = formattedHistory.map((m: any) => m.role).lastIndexOf("user");
                                     if (lastUserIdx !== -1) {
                                         formattedHistory[lastUserIdx].media = audioData;
                                         if (!formattedHistory[lastUserIdx].content) {
@@ -799,8 +800,10 @@ export const WhatsappService = {
                                 if (lead?.id) {
                                     const { redis } = await import("@/lib/redis");
                                     await (LeadRepository as any).updateSystem(lead.id, { isTyping: "false" });
-                                    if (redis) await redis.del(`lock:lead:${lead.id}`);
-                                    console.log(`🔓 [Baileys] Lock LIBERADO para o lead ${lead.id}.`);
+                                    // ⚠️ NÃO deletamos o lock aqui se tudo correu bem,
+                                    // permitindo que o TTL de 45s atue como uma 'trava de respiração'
+                                    // para evitar ecos de entrega duplicando a resposta.
+                                    console.log(`🔒 [Baileys] Processamento do lead ${lead.id} concluído. Lock expirará via TTL.`);
                                 }
                             }
                     }

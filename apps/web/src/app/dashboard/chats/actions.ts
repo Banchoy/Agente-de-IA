@@ -43,11 +43,26 @@ export async function sendMessageManual(leadId: string, content: string) {
 
         if (!lead.phone) return { success: false, error: "Lead sem número de telefone." };
 
-        // Enviar via Baileys (WhatsApp real)
+        // Enviar via Baileys (WhatsApp real) e capturar JID
         const { WhatsappService } = await import("@/lib/services/whatsapp");
-        await WhatsappService.sendText(org.id, lead.phone, content.trim());
+        const sendResult = await WhatsappService.sendText(org.id, lead.phone, content.trim());
 
-        // Salvar no histórico manualmente
+        // Atualizar Lead com JID se necessário (Sincronização de Identidade)
+        if (sendResult.jid) {
+            const jidNumber = sendResult.jid.split("@")[0];
+            const currentMetadata = (lead.metaData as any) || {};
+            
+            await LeadRepository.updateSystem(lead.id, {
+                phone: jidNumber,
+                metaData: { ...currentMetadata, outreachJid: sendResult.jid, normalizedBy: "manual" },
+                aiActive: "false" // Desativar IA para este lead (handover humano)
+            });
+        } else {
+            // Fallback se não retornou JID (improvável mas por segurança)
+            await LeadRepository.updateSystem(lead.id, { aiActive: "false" });
+        }
+
+        //Salvar no histórico manualmente (IMPRESCINDÍVEL para ver no dashboard)
         const { MessageRepository } = await import("@/lib/repositories/message");
         await (MessageRepository as any).createSystem({
             organizationId: org.id,
@@ -57,9 +72,6 @@ export async function sendMessageManual(leadId: string, content: string) {
             type: "text",
             whatsappMessageId: `manual_${Date.now()}`,
         });
-
-        // Desativar IA para este lead (handover humano)
-        await LeadRepository.updateSystem(lead.id, { aiActive: "false" });
 
         revalidatePath("/dashboard/chats");
         return { success: true };

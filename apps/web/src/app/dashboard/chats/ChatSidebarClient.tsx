@@ -30,13 +30,14 @@ interface Props {
     customTags?: any[];
 }
 
-function DroppableChatItem({ chat, activeLeadId, selectMode, isSelected, onToggleSelect, customTags }: { 
+function DroppableChatItem({ chat, activeLeadId, selectMode, isSelected, onToggleSelect, customTags, onUnassignTag }: { 
     chat: ChatItem; 
     activeLeadId?: string; 
     selectMode: boolean; 
     isSelected: boolean;
     onToggleSelect: (id: string) => void;
     customTags: any[];
+    onUnassignTag: (leadId: string, tagId: string) => void;
 }) {
     const { setNodeRef, isOver } = useDroppable({
         id: `drop-${chat.leadId}`,
@@ -131,14 +132,22 @@ function DroppableChatItem({ chat, activeLeadId, selectMode, isSelected, onToggl
                                         </span>
                                     )}
 
-                                    {/* Etiquetas customizadas - Versão Compacta Inline */}
+                                    {/* Etiquetas customizadas - Versão Compacta Inline com Remoção */}
                                     {leadTagIds.map((tagId: string) => {
                                         const tag = customTags.find(t => t.id === tagId);
                                         if (!tag) return null;
+                                        
+                                        // Deduplicação Visual: Não mostra etiquetas que repetem o que o cardVisual já diz
+                                        const tagNameLower = tag.name.toLowerCase();
+                                        if (activeCard && (
+                                            (activeCard === "IA" && (tagNameLower.includes("ia ativa") || tagNameLower.includes("+ ia"))) ||
+                                            (activeCard === "PARAR_IA" && (tagNameLower.includes("ia parada") || tagNameLower.includes("parar ia")))
+                                        )) return null;
+
                                         return (
                                             <span
                                                 key={tag.id}
-                                                className="inline-flex items-center gap-1 px-1 py-0.5 rounded-md text-[7px] font-black uppercase tracking-tighter border shadow-sm transition-transform hover:scale-105 shrink-0 animate-in zoom-in duration-300"
+                                                className="inline-flex items-center gap-1 px-1 py-0.5 rounded-md text-[7px] font-black uppercase tracking-tighter border shadow-sm transition-all hover:pr-1.5 group/tag shrink-0 animate-in zoom-in duration-300"
                                                 style={{
                                                     backgroundColor: `${tag.color}15`,
                                                     color: tag.color,
@@ -148,6 +157,18 @@ function DroppableChatItem({ chat, activeLeadId, selectMode, isSelected, onToggl
                                             >
                                                 <div className="w-1 h-1 rounded-full animate-pulse" style={{ backgroundColor: tag.color }} />
                                                 {tag.name.substring(0, 8)}
+                                                
+                                                {/* Botão de Remover Etiqueta */}
+                                                <button
+                                                    onClick={(e) => {
+                                                        e.preventDefault();
+                                                        e.stopPropagation();
+                                                        onUnassignTag(chat.leadId, tag.id);
+                                                    }}
+                                                    className="ml-0.5 opacity-0 group-hover/tag:opacity-100 hover:scale-125 transition-all text-current/60 hover:text-current"
+                                                >
+                                                    <X size={8} />
+                                                </button>
                                             </span>
                                         );
                                     })}
@@ -199,6 +220,19 @@ export default function ChatSidebarClient({ conversations: propConversations, ac
     const [selectMode, setSelectMode] = useState(false);
     const [selected, setSelected] = useState<Set<string>>(new Set());
     const [isDeleting, setIsDeleting] = useState(false);
+
+    const handleUnassignTag = async (leadId: string, tagId: string) => {
+        try {
+            const { removeTagFromLead } = await import("./actions");
+            const result = await removeTagFromLead(leadId, tagId);
+            if (result.success) {
+                toast.success("Etiqueta removida do contato.");
+                router.refresh();
+            }
+        } catch (error) {
+            toast.error("Erro ao remover etiqueta.");
+        }
+    };
 
     const toggleSelect = (leadId: string) => {
         setSelected(prev => {
@@ -307,6 +341,7 @@ export default function ChatSidebarClient({ conversations: propConversations, ac
                         isSelected={selected.has(chat.leadId)}
                         onToggleSelect={toggleSelect}
                         customTags={customTags}
+                        onUnassignTag={handleUnassignTag}
                     />
                 ))}
             </div>

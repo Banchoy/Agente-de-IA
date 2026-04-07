@@ -90,22 +90,33 @@ export const LeadRepository = {
             }
         }
 
-        // 5. BUSCA POR SUFIXO (Agressiva): Última tentativa para LIDs ou IDs mal formados
-        // Buscamos se existe algum lead cuja coluna 'phone' termine com os mesmos últimos 8-9 dígitos
-        if (cleanPhone.length >= 8) {
-            const suffix = cleanPhone.slice(-8);
-            console.log(`🔍 [LeadRepository] Tentando busca agressiva por sufixo: *${suffix}`);
-            
-            lead = await db.query.leads.findFirst({
-                where: and(
-                    ilike(leads.phone, `%${suffix}`),
-                    eq(leads.organizationId, organizationId)
-                )
-            });
-            if (lead) return lead;
-        }
+        // 6. BUSCA POR JID (Metadados): Para contatos vindos de prospecção
+        // Tenta encontrar o lead que tenha esse JID exato gravado nos seus metadados
+        const jid = `${cleanPhone}@s.whatsapp.net`;
+        lead = await db.query.leads.findFirst({
+            where: and(
+                sql`meta_data->>'outreachJid' = ${jid}`,
+                eq(leads.organizationId, organizationId)
+            )
+        });
+        if (lead) return lead;
 
         return lead;
+    },
+
+    getByJidSystem: async (jid: string, organizationId: string) => {
+        // 1. Busca exata por JID nos metadados
+        let lead = await db.query.leads.findFirst({
+            where: and(
+                sql`meta_data->>'outreachJid' = ${jid}`,
+                eq(leads.organizationId, organizationId)
+            )
+        });
+        if (lead) return lead;
+
+        // 2. Fallback: Extrai o número do JID e tenta busca resiliente normal
+        const phone = jid.split("@")[0];
+        return await LeadRepository.getByPhoneSystem(phone, organizationId);
     },
 
     getByPhoneSuffixSystem: async (phone: string, organizationId: string, suffixLength: number = 8) => {
