@@ -182,9 +182,9 @@ export async function POST(req: NextRequest) {
             config.temperature || 0.7
         );
 
-        const { body: aiBody, nextState, intent, action, extractedInfo } = structuredResult;
+        const { body: aiBody, nextState, intent, action, extractedInfo, interestLevel } = structuredResult;
 
-        // 11. Salvar Resposta da IA no Histórico
+        // 11. Salvar Resposta da IA no Histórico (Sempre após gerar)
         await MessageRepository.createSystem({
             organizationId: org.id,
             leadId: lead.id,
@@ -192,13 +192,32 @@ export async function POST(req: NextRequest) {
             content: aiBody
         });
 
-        // 9. Automated Actions (CRM Movement)
+        // 9. Automated Actions (CRM Movement e Refusal Logic)
         let stageToUpdate = lead.stageId;
+        let aiActiveStatus = lead.aiActive;
+        const currentMetadata = (lead.metaData as any) || {};
+        let refusalCount = parseInt(currentMetadata.refusalCount || "0");
+
+        // Regra de Negócio: Movimentação automática por interesse/ação
         if (action === "SCHEDULE_MEETING") {
-            console.log(`📅 Action: Moving lead ${phone} to Meeting stage.`);
             const meetingStage = await CRMRepository.getStageByName(org.id, "Reunião");
-            if (meetingStage) {
-                stageToUpdate = meetingStage;
+            if (meetingStage) stageToUpdate = meetingStage;
+        } else if (interestLevel === "ALTO" || intent === "INTEREST") {
+            const qualStage = await CRMRepository.getStageByName(org.id, "Qualificação");
+            if (qualStage) stageToUpdate = qualStage;
+        } else if (intent === "PRICE" || intent === "NEGOTIATION") {
+            const negStage = await CRMRepository.getStageByName(org.id, "Negociação");
+            if (negStage) stageToUpdate = negStage;
+        }
+
+        // Regra de Negócio: Lógica de recusa (Dois Nãos)
+        if (intent === "NO_INTEREST") {
+            refusalCount++;
+            if (refusalCount >= 2) {
+                console.log(`🛑 [Evolution] Lead ${phone} recusou pela 2ª vez. Encerrando e movendo para Perdido.`);
+                aiActiveStatus = "false";
+                const lostStage = await CRMRepository.getStageByName(org.id, "Perdido");
+                if (lostStage) stageToUpdate = lostStage;
             }
         }
 
@@ -210,9 +229,11 @@ export async function POST(req: NextRequest) {
             conversationState: nextConversationState,
             lastIntent: intent,
             stageId: stageToUpdate,
+            aiActive: aiActiveStatus,
             metaData: {
-                ...(lead.metaData as object),
+                ...currentMetadata,
                 ...extractedInfo,
+                refusalCount: refusalCount.toString(),
                 updatedByAIAt: new Date().toISOString()
             }
         });

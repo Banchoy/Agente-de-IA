@@ -41,12 +41,14 @@ export const CRMRepository = {
             pipelineId = newPipeline.id;
         }
 
-        // Cria os estágios padrão
+        // Cria os estágios padrão completos
         const defaultStages = [
             { name: "Novo Lead", order: "0" },
             { name: "Em Atendimento (IA)", order: "1" },
             { name: "Qualificação", order: "2" },
-            { name: "Perdido", order: "3" }
+            { name: "Negociação", order: "3" },
+            { name: "Fechado", order: "4" },
+            { name: "Perdido", order: "5" }
         ];
 
         const insertedStages = await db.insert(stages).values(
@@ -55,7 +57,7 @@ export const CRMRepository = {
                 name: s.name,
                 order: s.order
             }))
-        ).returning();
+        ).onConflictDoNothing().returning();
 
         console.log(`🎯 [CRM] Stage ID retornado (novo): ${insertedStages[0]?.id || "null"}`);
         return insertedStages[0]?.id || null;
