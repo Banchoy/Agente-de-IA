@@ -126,12 +126,8 @@ export const LeadRepository = {
         // 3. Extrai o número central do JID (remove @s.whatsapp.net ou @lid)
         const phone = jid.split("@")[0];
         
-        // 4. Se for um @lid, a extração de número não é confiável para busca por telefone,
-        // então paramos aqui se não achamos nos metadados.
-        if (jid.includes("@lid")) {
-            console.log(`📡 [LeadRepository] JID ${jid} não encontrado nos metadados.`);
-            return null;
-        }
+        // 4. Se for um @lid, a extração de número pode ser útil para busca por telefone fallback
+        // em alguns cenários onde o LID é puramente numérico (comum em instâncias brasileiras).
 
         // 5. Busca inteligente por sufixo (os últimos 8-9 dígitos são os mais confiáveis)
         if (phone.length >= 8) {

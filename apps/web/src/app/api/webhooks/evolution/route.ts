@@ -108,26 +108,33 @@ export async function POST(req: NextRequest) {
         }
         
         if (!lead) {
-            console.log(`🆕 Creating new lead for phone: ${phone}`);
+            console.log(`🆕 [Evolution] No lead found. Attempting atomic upsert for phone: ${phone}`);
+            
             // Ensure default pipeline exists
             await CRMRepository.ensureDefaultPipeline(org.id);
             const initialStageId = await CRMRepository.getStageByName(org.id, "Novo Lead");
             
-            // Lógica de detecção de fonte: se o nome ou conteúdo sugere prospecção, podemos marcar como Outreach
             const nameLower = (data.pushName || "").toLowerCase();
             const isLikelyOutreach = nameLower.includes("vendas") || nameLower.includes("comercial") || nameLower.includes("negócios");
 
-            lead = await LeadRepository.createSystem({
+            // Atômico: Resolve race conditions onde dois webhooks simultâneos tentam criar o mesmo telefone
+            // Se já houver conflito, o PostgreSQL atualiza os campos e retorna o Lead existente.
+            lead = await LeadRepository.upsertSystem({
                 organizationId: org.id,
                 name: data.pushName || phone,
                 phone: phone,
                 source: isLikelyOutreach ? "Outreach" : "WhatsApp (Inbound)",
                 stageId: initialStageId,
                 conversationState: "START",
-                aiActive: "true"
+                aiActive: "true",
+                metaData: { 
+                    lastLid: remoteJid, 
+                    jid: remoteJid,
+                    initialJid: remoteJid
+                }
             });
         } else {
-            console.log(`✅ Existing lead found: ${lead.name} [Source: ${lead.source}]`);
+            console.log(`✅ [Evolution] Existing lead found: ${lead.name} [ID: ${lead.id}]`);
         }
 
         // 4. Salvar Mensagem no Histórico (Sempre, mesmo se a IA estiver desativada)
@@ -179,7 +186,7 @@ export async function POST(req: NextRequest) {
             config.provider || "google",
             config.model || "gemini-1.5-flash",
             systemPromptToUse,
-            [...formattedHistory, { role: "user", content: text }],
+            formattedHistory,
             lead.conversationState || "START",
             { 
                 name: lead.name, 
