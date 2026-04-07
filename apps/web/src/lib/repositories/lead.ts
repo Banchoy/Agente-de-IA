@@ -105,7 +105,7 @@ export const LeadRepository = {
     },
 
     getByJidSystem: async (jid: string, organizationId: string) => {
-        // 1. Busca exata por JID nos metadados
+        // 1. Busca exata por JID nos metadados (outreachJid é o padrão para prospecção)
         let lead = await db.query.leads.findFirst({
             where: and(
                 sql`metadata->>'outreachJid' = ${jid}`,
@@ -114,10 +114,26 @@ export const LeadRepository = {
         });
         if (lead) return lead;
 
-        // 2. Extrai o número central do JID (remove @s.whatsapp.net ou @lid)
+        // 2. Busca por lastLid ou JID genérico nos metadados
+        lead = await db.query.leads.findFirst({
+            where: and(
+                sql`(metadata->>'lastLid' = ${jid} OR metadata->>'jid' = ${jid})`,
+                eq(leads.organizationId, organizationId)
+            )
+        });
+        if (lead) return lead;
+
+        // 3. Extrai o número central do JID (remove @s.whatsapp.net ou @lid)
         const phone = jid.split("@")[0];
         
-        // 3. Busca inteligente por sufixo (os últimos 8-9 dígitos são os mais confiáveis)
+        // 4. Se for um @lid, a extração de número não é confiável para busca por telefone,
+        // então paramos aqui se não achamos nos metadados.
+        if (jid.includes("@lid")) {
+            console.log(`📡 [LeadRepository] JID ${jid} não encontrado nos metadados.`);
+            return null;
+        }
+
+        // 5. Busca inteligente por sufixo (os últimos 8-9 dígitos são os mais confiáveis)
         if (phone.length >= 8) {
             const suffix = phone.slice(-8);
             lead = await db.query.leads.findFirst({
@@ -132,7 +148,7 @@ export const LeadRepository = {
             }
         }
 
-        // 4. Fallback: busca resiliente padrão
+        // 6. Fallback: busca resiliente padrão por telefone
         return await LeadRepository.getByPhoneSystem(phone, organizationId);
     },
 

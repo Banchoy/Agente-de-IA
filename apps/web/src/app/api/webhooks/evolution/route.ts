@@ -44,11 +44,19 @@ export async function POST(req: NextRequest) {
         }
 
         // 3. Find or Create Lead
+        // --- PRIORIDADE MÁXIMA: Busca por JID/LID Completo (Evita duplicados de prospecção) ---
+        console.log(`🌐 [Evolution] Validating JID: ${remoteJid}`);
+        let lead = await LeadRepository.getByJidSystem(remoteJid, org.id);
+
         const rawPhone = remoteJid.split("@")[0];
         const phone = rawPhone;
         
-        console.log(`🌐 [Evolution] Validating JID: ${remoteJid} -> Phone: ${phone}`);
-        let lead = await LeadRepository.getByPhoneSystem(phone, org.id);
+        if (lead) {
+            console.log(`✅ [Evolution] Lead encontrado via JID/LID: ${lead.name}`);
+        } else {
+            console.log(`🔍 [Evolution] Lead não encontrado por JID. Tentando busca resiliente por telefone: ${phone}`);
+            lead = await LeadRepository.getByPhoneSystem(phone, org.id);
+        }
 
         // --- INTEGRIDADE DE CHAT: RECUPERAÇÃO VIA STANZA_ID (LID LINKER) ---
         // Se não achou por telefone/JID, verifica se é uma resposta a uma mensagem nossa
