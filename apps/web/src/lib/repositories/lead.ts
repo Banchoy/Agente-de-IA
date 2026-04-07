@@ -114,8 +114,25 @@ export const LeadRepository = {
         });
         if (lead) return lead;
 
-        // 2. Fallback: Extrai o número do JID e tenta busca resiliente normal
+        // 2. Extrai o número central do JID (remove @s.whatsapp.net ou @lid)
         const phone = jid.split("@")[0];
+        
+        // 3. Busca inteligente por sufixo (os últimos 8-9 dígitos são os mais confiáveis)
+        if (phone.length >= 8) {
+            const suffix = phone.slice(-8);
+            lead = await db.query.leads.findFirst({
+                where: and(
+                    ilike(leads.phone, `%${suffix}`),
+                    eq(leads.organizationId, organizationId)
+                )
+            });
+            if (lead) {
+                console.log(`🔗 [LeadRepository] Unificação via JID Suffix (${suffix}): ${lead.id}`);
+                return lead;
+            }
+        }
+
+        // 4. Fallback: busca resiliente padrão
         return await LeadRepository.getByPhoneSystem(phone, organizationId);
     },
 

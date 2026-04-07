@@ -431,6 +431,15 @@ export const WhatsappService = {
                                 console.log(`👤 [Baileys] Novo Lead criado: ${lead.id} (${lead.name})`);
                             } else {
                                 console.log(`👤 [Baileys] Lead identificado com sucesso: ${lead.id} (${lead.name})`);
+                                
+                                // 🔄 SINCRONIZAÇÃO REATIVA: Se o telefone no banco for diferente do JID (normalização), atualiza.
+                                if (lead.phone !== phone) {
+                                    console.log(`🔄 [Baileys] Sincronizando telefone do lead: ${lead.phone} -> ${phone}`);
+                                    await LeadRepository.updateSystem(lead.id, { 
+                                        phone: phone,
+                                        metaData: { ...(lead.metaData as any || {}), outreachJid: jid, normalizedAt: new Date().toISOString() }
+                                    });
+                                }
                             }
 
                             const whatsappMessageId = msg.key.id;
@@ -631,12 +640,24 @@ export const WhatsappService = {
                                     config.temperature !== undefined ? parseFloat(config.temperature) : 0.7
                                 );
 
-                                const aiResponse = adaptiveResult.body;
+                                let aiResponse = adaptiveResult.body;
                                 if (!aiResponse) {
                                     console.log("⏩ [Baileys] IA retornou resposta vazia ou inválida. Ignorando.");
                                     if (redis) await redis.del(`lock:lead:${lead.id}`);
                                     return;
                                 }
+
+                                // 🛠️ FILTRO DE PLACEHOLDERS (Bruno 2.6)
+                                // Garante que tags como [SAUDAÇÃO_HORARIO] não vazem para o cliente
+                                const spTime = new Date().toLocaleString("en-US", { timeZone: "America/Sao_Paulo" });
+                                const hourNow = new Date(spTime).getHours();
+                                const timeGreeting = hourNow < 12 ? "bom dia" : hourNow < 18 ? "boa tarde" : "boa noite";
+                                const leadNiche = (lead.metaData as any)?.niche || "seu negócio";
+
+                                aiResponse = aiResponse
+                                    .replace(/\[SAUDAÇÃO_HORARIO\]/gi, timeGreeting)
+                                    .replace(/\[SAUDACAO_HORARIO\]/gi, timeGreeting)
+                                    .replace(/\[NICHO\]/gi, leadNiche);
 
                                 let finalMessage = aiResponse;
 
