@@ -95,7 +95,7 @@ export const LeadRepository = {
         const jid = `${cleanPhone}@s.whatsapp.net`;
         lead = await db.query.leads.findFirst({
             where: and(
-                sql`meta_data->>'outreachJid' = ${jid}`,
+                sql`metadata->>'outreachJid' = ${jid}`,
                 eq(leads.organizationId, organizationId)
             )
         });
@@ -108,7 +108,7 @@ export const LeadRepository = {
         // 1. Busca exata por JID nos metadados
         let lead = await db.query.leads.findFirst({
             where: and(
-                sql`meta_data->>'outreachJid' = ${jid}`,
+                sql`metadata->>'outreachJid' = ${jid}`,
                 eq(leads.organizationId, organizationId)
             )
         });
