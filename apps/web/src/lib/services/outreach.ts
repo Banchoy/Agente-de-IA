@@ -84,28 +84,33 @@ export const OutreachService = {
                 .where(eq(organizations.id, pendingLead.organizationId))
                 .limit(1);
 
-            if (!org || !org.evolutionInstanceName || org.evolutionInstanceStatus !== "connected") {
-                console.warn(`⚠️ [Outreach] Org ${pendingLead.organizationId} não tem WhatsApp conectado. Pulando...`);
-                await LeadRepository.updateSystem(pendingLead.id, { outreachStatus: "failed_no_whatsapp" });
+            // 🔌 VALIDAÇÃO DE SESSÃO BAILEYS (substitui evolutionInstanceStatus que não é mais atualizado)
+            const sessionId = `wa_${org.id.slice(0, 8)}`;
+            const baileysSession = WhatsappService.sessions.get(sessionId);
+            if (!baileysSession || baileysSession.status !== "open") {
+                console.warn(`⚠️ [Outreach] Sessão Baileys ${sessionId} não está aberta (status: ${baileysSession?.status || 'inexistente'}). Pulando...`);
+                await LeadRepository.updateSystem(pendingLead.id, { outreachStatus: "pending" }); // volta pra fila
                 return;
             }
 
             // 🆕 VALIDAÇÃO DE NÚMERO (Anti-bloqueio e Assertividade)
             if (pendingLead.phone) {
-                const isValid = await WhatsappService.isValidNumber(org.id, pendingLead.phone);
-                if (!isValid) {
-                    console.warn(`🚫 [Outreach] Lead ${pendingLead.name} possui telefone inválido: ${pendingLead.phone}. EXCLUINDO permanentemente...`);
-                    
-                    // Conforme solicitado pelo usuário, deletar permanentemente se o número for inválido
-                    await LeadRepository.deleteSystem(pendingLead.id);
-                    return;
+                try {
+                    const isValid = await WhatsappService.isValidNumber(org.id, pendingLead.phone);
+                    if (!isValid) {
+                        console.warn(`🚫 [Outreach] Lead ${pendingLead.name} possui telefone inválido: ${pendingLead.phone}. EXCLUINDO permanentemente...`);
+                        await LeadRepository.deleteSystem(pendingLead.id);
+                        return;
+                    }
+                } catch (validErr) {
+                    console.warn(`⚠️ [Outreach] Erro ao validar número ${pendingLead.phone}. Continuando sem validação:`, validErr);
                 }
             } else if (!pendingLead.email) {
-                // Se não tem nem telefone nem email (estranho mas possível), exclui para não poluir o CRM
                 console.warn(`🚫 [Outreach] Lead ${pendingLead.name} sem formas de contato válidas. EXCLUINDO...`);
                 await LeadRepository.deleteSystem(pendingLead.id);
                 return;
             }
+
 
             // 3. Buscar Agente ativo para prospecção
             const agents = await AgentRepository.listByOrgIdSystem(org.id);

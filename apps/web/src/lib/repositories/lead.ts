@@ -296,7 +296,7 @@ export const LeadRepository = {
             try {
                 const { TagRepository } = await import("./tag");
                 const aiActive = updatedLead.aiActive === "true";
-                const iaTag = await TagRepository.ensureSystemTag(updatedLead.organizationId, "IA ATIVA", "#3b82f6", "Bot");
+                const iaTag = await TagRepository.ensureSystemTag(updatedLead.organizationId, "IA ATIVA", "#22c55e", "Bot");
                 
                 if (aiActive) {
                     await TagRepository.assignToLead(updatedLead.id, iaTag.id);

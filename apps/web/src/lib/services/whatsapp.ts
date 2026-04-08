@@ -605,10 +605,18 @@ export const WhatsappService = {
                                     }
                                 }
 
-                                // CRÍTICO: O Gemini exige que a primeira mensagem seja do 'user'.
+                                // CRÍTICO: O Gemini exige que o histórico comece com 'user'.
+                                // Em vez de DELETAR as mensagens iniciais do bot (o que causava repetição
+                                // de "Olá tudo bem?"), vamos PRESERVÁ-LAS como contexto no system prompt.
+                                const priorBotMessages: string[] = [];
                                 while (formattedHistory.length > 0 && formattedHistory[0].role === "model") {
-                                    formattedHistory.shift();
+                                    priorBotMessages.push(formattedHistory.shift()!.content);
                                 }
+
+                                // Construir bloco de contexto com mensagens do bot que a IA precisa conhecer
+                                const priorContext = priorBotMessages.length > 0
+                                    ? `\n\n### ⚠️ VOCÊ JÁ ENVIOU ESTAS MENSAGENS — NÃO REPITA, NÃO RECOMECE:\n${priorBotMessages.map(m => `- "${m.substring(0, 120)}${m.length > 120 ? '...' : ''}"`).join('\n')}`
+                                    : '';
 
                                 if (formattedHistory.length === 0) {
                                     formattedHistory = [{ 
@@ -637,8 +645,8 @@ export const WhatsappService = {
                                 let audioInstruction = isAudio ? "\n\n⚠️ IMPORTANTE: O usuário enviou um ÁUDIO. Transcreva-o mentalmente, considere o tom de voz e responda de forma empática e contextualizada." : "";
                                 
                                 const noRepeatInstruction = lastSentTexts
-                                    ? `${scriptInstruction}${audioInstruction}\n\n### ⚠️ MENSAGENS JÁ ENVIADAS — NÃO REPITA:\n${lastSentTexts}\nREGRA ABSOLUTA: Nunca repita, parafraseie ou reuse as frases acima. Se já enviou a saudação, NÃO envie de novo. Continue a conversa avançando naturalmente.`
-                                    : `${scriptInstruction}${audioInstruction}`;
+                                    ? `${scriptInstruction}${priorContext}${audioInstruction}\n\n### ⚠️ MENSAGENS JÁ ENVIADAS — NÃO REPITA:\n${lastSentTexts}\nREGRA ABSOLUTA: Nunca repita, parafraseie ou reuse as frases acima. Se já enviou a saudação, NÃO envie de novo. Continue a conversa avançando naturalmente.`
+                                    : `${scriptInstruction}${priorContext}${audioInstruction}`;
                                 
                                 console.log(`🤖 [Baileys] Chamando AIService (Adaptativo: ${!!scriptInstruction}) para: ${agent.name}`);
 
@@ -812,6 +820,15 @@ export const WhatsappService = {
                                                     type: "text",
                                                     whatsappMessageId: sentMsg?.key?.id || `ai_${Date.now()}`,
                                                 });
+
+                                                // 🏷️ AUTO-TAG IA ATIVA (verde) — indica que este lead está sendo atendido pela IA
+                                                try {
+                                                    const { TagRepository } = await import("@/lib/repositories/tag");
+                                                    const iaTag = await TagRepository.ensureSystemTag(org.id, "IA ATIVA", "#22c55e", "Bot");
+                                                    await TagRepository.assignToLead(lead.id, iaTag.id);
+                                                } catch (tagErr) {
+                                                    console.warn(`⚠️ [Baileys] Erro ao atribuir tag IA ATIVA:`, tagErr);
+                                                }
 
                                                 // MOVER LEAD PARA "EM ATENDIMENTO" (Se ainda não estiver)
                                                 try {
