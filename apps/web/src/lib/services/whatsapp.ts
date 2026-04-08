@@ -4,7 +4,9 @@ import makeWASocket, {
     makeCacheableSignalKeyStore,
     AuthenticationCreds,
     SignalDataTypeMap,
-    Browsers
+    Browsers,
+    // @ts-ignore
+    makeInMemoryStore
 } from "@whiskeysockets/baileys";
 import { Boom } from "@hapi/boom";
 import pino from "pino";
@@ -26,16 +28,19 @@ const logger = pino({ level: "silent" }); // TOTALMENTE SILENCIOSO para o Bailey
 declare global {
     var __baileys_sessions: Map<string, any> | undefined;
     var __baileys_promises: Map<string, Promise<any>> | undefined;
+    var __baileys_stores: Map<string, any> | undefined;
     var __lead_locks: Set<string> | undefined;
     var __processed_messages: Set<string> | undefined;
 }
  
 const sessions = globalThis.__baileys_sessions || new Map<string, any>();
 const connectionPromises = globalThis.__baileys_promises || new Map<string, Promise<any>>();
- 
+const stores = globalThis.__baileys_stores || new Map<string, any>();
+
 if (process.env.NODE_ENV !== 'production') {
     globalThis.__baileys_sessions = sessions;
     globalThis.__baileys_promises = connectionPromises;
+    globalThis.__baileys_stores = stores;
 }
 
 /**
@@ -145,6 +150,7 @@ async function useDrizzleAuthState(sessionId: string, organizationId: string) {
 export const WhatsappService = {
     sessions: sessions,
     connectionPromises: connectionPromises,
+    stores: stores,
 
     deleteSessionFromDb: async (sessionId: string) => {
         console.log(`🧹 [Baileys] Iniciando limpeza profunda da sessão ${sessionId}...`);
@@ -229,7 +235,15 @@ export const WhatsappService = {
                     }
                 }, 60000); // 1 minuto
                 
-                // Armazenar heartbeat na sessão para limpeza
+                // Store em memória (Native Baileys Tracking)
+                let store = WhatsappService.stores.get(sessionId);
+                if (!store) {
+                    store = makeInMemoryStore({ logger });
+                    WhatsappService.stores.set(sessionId, store);
+                }
+                store.bind(sock.ev);
+
+                // Armazenar heartbeat e configs na sessão
                 WhatsappService.sessions.set(sessionId, { sock, qr: null, status: "connecting", heartbeat });
 
                 sock.ev.on("connection.update", async (update) => {
@@ -368,11 +382,38 @@ export const WhatsappService = {
                                 }
                             }
 
-                            const phone = jid.split("@")[0];
+                            if (jid.includes("@g.us")) continue;
+
+                            let phone = jid.split("@")[0];
                             const isFromMe = !!msg.key.fromMe;
                             const role = isFromMe ? "assistant" : "user";
+                            
+                            // 🔍 TENTATIVA DE RESOLUÇÃO DO LID NATIVAMENTE ATRAVÉS DO BAILYES STORE
+                            let resolvedPhone = phone;
+                            if (jid.includes('@lid')) {
+                                const store = WhatsappService.stores.get(sessionId);
+                                if (store && store.contacts) {
+                                    // A memória do Baileys armazena os LIDs traduzidos para os JIDs no processo de sync!
+                                    // A Store do Baileys costuma gravar mapeamentos quando o LID trafega na internet
+                                    const contactDetails = store.contacts[jid];
+                                    if (contactDetails && contactDetails.id !== jid) {
+                                        console.log(`🧠 [Baileys Store] @lid resolvido pela Native Store: ${jid} -> ${contactDetails.id}`);
+                                        resolvedPhone = contactDetails.id.split("@")[0];
+                                        phone = resolvedPhone;
+                                    } else {
+                                        // Varrer contacts iterativamente (FallBack da Store nativa)
+                                        const values = Object.values(store.contacts || {}) as any[];
+                                        const found = values.find(c => c.lid === jid || c.id === jid);
+                                        if (found && found.id && found.id.includes('@s.whatsapp.net')) {
+                                            console.log(`🧠 [Baileys Store] Iteração de @lid resolvida: ${jid} -> ${found.id}`);
+                                            resolvedPhone = found.id.split("@")[0];
+                                            phone = resolvedPhone;
+                                        }
+                                    }
+                                }
+                            }
 
-                            console.log(`✨ [Baileys] MENSAGEM VÁLIDA: (${role}) de ${phone} [JID: ${jid}]. Texto: "${text.substring(0, 50)}..."`);
+                            console.log(`✨ [Baileys] MENSAGEM VÁLIDA: (${role}) de ${phone} [JID Origin: ${jid}]. Texto: "${text.substring(0, 50)}..."`);
 
                             // ⚡ COMANDOS DE CONTROLE (do dono da conta, fromMe=true)
                             const cleanTextCmd = text?.toLowerCase().trim();
@@ -411,8 +452,14 @@ export const WhatsappService = {
 
                             // 1. Find or Create Lead
                             console.log(`👤 [Baileys] Resolvendo lead para JID: ${jid} (Phone: ${phone})`);
-                            // Prioridade: Busca por JID exato (Sincronização definitiva)
-                            lead = await (LeadRepository as any).getByJidSystem(jid, org.id);
+                            
+                            let searchJid = jid;
+                            if (resolvedPhone !== jid.split('@')[0]) {
+                                searchJid = `${resolvedPhone}@s.whatsapp.net`;
+                            }
+                            
+                            // Prioridade: Busca por JID exato usando o identificador já resolvido
+                            lead = await (LeadRepository as any).getByJidSystem(searchJid, org.id);
                             
                             if (!lead) {
                                 console.log(`👤 [Baileys] Lead NÃO encontrado. Criando novo...`);
