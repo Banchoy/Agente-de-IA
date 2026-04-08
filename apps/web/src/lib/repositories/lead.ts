@@ -126,24 +126,29 @@ export const LeadRepository = {
         // 3. Extrai o número central do JID (remove @s.whatsapp.net ou @lid)
         const phone = jid.split("@")[0];
         
-        // 4. Se for um @lid, a extração de número pode ser útil para busca por telefone fallback
-        // LIDs brasileiros frequentemente concatenam o número original (Ex: LID(11999999999) + hash(1479) = 119999999991479)
-        if (jid.includes("@lid")) {
+        // 4. RESOLUÇÃO DE LID BRASILEIRO (estratégia dos 9 primeiros dígitos)
+        // Padrão observado: phone enviado = "11988171440" (11 dígitos)
+        //                   LID de resposta = "119881714401479" (15 dígitos)
+        // Os 9 primeiros dígitos são IDÊNTICOS: "119881714"
+        // Busca: encontrar lead cujo phone começa com os mesmos 9 dígitos do LID
+        if (jid.includes("@lid") && phone.length >= 9) {
+            const sharedPrefix = phone.slice(0, 9); // Ex: "119881714"
+            
             const prefixLead = await db.query.leads.findFirst({
                 where: and(
                     eq(leads.organizationId, organizationId),
-                    sql`LENGTH(${leads.phone}) >= 10`,
-                    sql`${phone} LIKE ${leads.phone} || '%'`
+                    ilike(leads.phone, `${sharedPrefix}%`),        // phone STARTS WITH os 9 primeiros dígitos
+                    sql`LENGTH(${leads.phone}) BETWEEN 10 AND 15`  // phone tem comprimento típico de celular
                 ),
-                orderBy: (l: any, { asc }: any) => [asc(l.createdAt)] // Pega o lead raiz da prospecção original
+                orderBy: (l: any, { asc }: any) => [asc(l.createdAt)] // Retorna o lead original (mais antigo)
             });
             if (prefixLead) {
-                console.log(`🔗 [LeadRepository] Unificação via LID Prefix (${phone} begins with ${prefixLead.phone}): ${prefixLead.id}`);
-                return prefixLead; // Retorna o lead com o telefone verdadeiro e desiste da gambiarra temporal
+                console.log(`🔗 [LeadRepository] Unificação via LID Prefix (${sharedPrefix}...): LID ${phone} → Lead ${prefixLead.phone} [${prefixLead.id}]`);
+                return prefixLead;
             }
         }
 
-        // 5. Busca inteligente por sufixo (os últimos 8-9 dígitos são os mais confiáveis)
+        // 5. Busca inteligente por sufixo (fallback — últimos 8 dígitos)
         if (phone.length >= 8) {
             const suffix = phone.slice(-8);
             lead = await db.query.leads.findFirst({
@@ -151,7 +156,7 @@ export const LeadRepository = {
                     ilike(leads.phone, `%${suffix}`),
                     eq(leads.organizationId, organizationId)
                 ),
-                orderBy: (l: any, { asc }: any) => [asc(l.createdAt)] // Previne retornar as sombras dos LIDs duplicados
+                orderBy: (l: any, { asc }: any) => [asc(l.createdAt)]
             });
             if (lead) {
                 console.log(`🔗 [LeadRepository] Unificação via JID Suffix (${suffix}): ${lead.id}`);
@@ -162,6 +167,7 @@ export const LeadRepository = {
         // 6. Fallback: busca resiliente padrão por telefone
         return await LeadRepository.getByPhoneSystem(phone, organizationId);
     },
+
 
     getByPhoneSuffixSystem: async (phone: string, organizationId: string, suffixLength: number = 8) => {
         const clean = phone.replace(/\D/g, "");
