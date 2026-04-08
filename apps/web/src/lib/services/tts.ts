@@ -49,7 +49,7 @@ export const TTSService = {
             throw new Error(`OpenAI TTS Error: ${err}`);
         }
 
-        // Return base64 for Evolution API (v2 supports base64 directly or URL)
+        // Retorna base64 para o Baileys enviar como PTT (áudio original)
         const buffer = await response.arrayBuffer();
         const base64 = Buffer.from(buffer).toString("base64");
         return `data:audio/mp3;base64,${base64}`;

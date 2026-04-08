@@ -37,7 +37,7 @@ const industries = [
 const faqs = [
   { q: "Preciso de conhecimento técnico?", a: "Não. O LeadDirector AI foi criado para ser usado por qualquer gestor ou dono de negócio, sem precisar de TI." },
   { q: "Como funciona a integração com o Meta?", a: "Você conecta sua conta Meta com um clique, seleciona seus formulários de lead e todos os novos contatos entram automaticamente no CRM." },
-  { q: "O sistema funciona com WhatsApp?", a: "Sim. Integramos com o WhatsApp via Evolution API. O agente de IA envia mensagens personalizadas automaticamente." },
+  { q: "O sistema funciona com WhatsApp?", a: "Sim. Possuímos nossa própria integração nativa com o WhatsApp. O agente de IA envia mensagens personalizadas e qualifica leads automaticamente assim que eles entram no funil." },
   { q: "Meus dados estão seguros?", a: "Absolutamente. Usamos isolamento multi-tenant com Row Level Security no banco de dados Supabase, e nenhuma organização acessa dados de outra." },
 ];
 

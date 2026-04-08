@@ -13,8 +13,6 @@ const envSchema = z.object({
     OPENAI_API_KEY: z.string().optional(),
     GROQ_API_KEY: z.string().optional(),
     OPENROUTER_API_KEY: z.string().optional(),
-    EVOLUTION_API_URL: z.string().optional(),
-    EVOLUTION_API_KEY: z.string().optional(),
     // Meta Integration
     META_APP_ID: z.string().optional(),
     META_APP_SECRET: z.string().optional(),
