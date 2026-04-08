@@ -434,12 +434,20 @@ export const WhatsappService = {
                             } else {
                                 console.log(`👤 [Baileys] Lead identificado com sucesso: ${lead.id} (${lead.name})`);
                                 
-                                // 🔄 SINCRONIZAÇÃO REATIVA: Se o telefone no banco for diferente do JID (normalização), atualiza.
-                                if (lead.phone !== phone) {
+                                // 🔄 SINCRONIZAÇÃO REATIVA: Só normaliza telefone se o JID for um número real (@s.whatsapp.net).
+                                // NUNCA sobrescrever com fragmentos LID (ex: 119881714401479 não é um phone válido).
+                                const isRealPhone = jid.includes('@s.whatsapp.net') && phone.length >= 10 && phone.length <= 15;
+                                if (isRealPhone && lead.phone !== phone) {
                                     console.log(`🔄 [Baileys] Sincronizando telefone do lead: ${lead.phone} -> ${phone}`);
                                     await LeadRepository.updateSystem(lead.id, { 
                                         phone: phone,
                                         metaData: { ...(lead.metaData as any || {}), outreachJid: jid, normalizedAt: new Date().toISOString() }
+                                    });
+                                } else if (!isRealPhone && jid.includes('@lid')) {
+                                    // Para @lid: só salva o LID nos metadados, sem alterar o telefone real
+                                    console.log(`🔗 [Baileys] @lid detectado. Preservando telefone real (${lead.phone}), registrando LID nos metadados.`);
+                                    await LeadRepository.updateSystem(lead.id, {
+                                        metaData: { ...(lead.metaData as any || {}), lastLid: jid }
                                     });
                                 }
                             }

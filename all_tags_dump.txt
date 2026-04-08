@@ -1,0 +1,11 @@
+[dotenv@17.2.4] injecting env (17) from .env -- tip: ⚙️  override existing env vars with { override: true }
+[
+  {
+    "id": "2b1845fa-83ae-404b-9f0b-c382a6d8fda8",
+    "organization_id": "e2bfe560-d097-4402-a3ea-891e1b301dad",
+    "name": "IA ATIVA",
+    "color": "#3b82f6",
+    "icon_name": "Bot",
+    "created_at": "2026-04-06T17:56:32.609Z"
+  }
+]
