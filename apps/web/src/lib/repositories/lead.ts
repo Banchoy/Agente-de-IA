@@ -127,7 +127,21 @@ export const LeadRepository = {
         const phone = jid.split("@")[0];
         
         // 4. Se for um @lid, a extração de número pode ser útil para busca por telefone fallback
-        // em alguns cenários onde o LID é puramente numérico (comum em instâncias brasileiras).
+        // LIDs brasileiros frequentemente concatenam o número original (Ex: LID(11999999999) + hash(1479) = 119999999991479)
+        if (jid.includes("@lid")) {
+            const prefixLead = await db.query.leads.findFirst({
+                where: and(
+                    eq(leads.organizationId, organizationId),
+                    sql`LENGTH(${leads.phone}) >= 10`,
+                    sql`${phone} LIKE ${leads.phone} || '%'`
+                ),
+                orderBy: (l: any, { asc }: any) => [asc(l.createdAt)] // Pega o lead raiz da prospecção original
+            });
+            if (prefixLead) {
+                console.log(`🔗 [LeadRepository] Unificação via LID Prefix (${phone} begins with ${prefixLead.phone}): ${prefixLead.id}`);
+                return prefixLead; // Retorna o lead com o telefone verdadeiro e desiste da gambiarra temporal
+            }
+        }
 
         // 5. Busca inteligente por sufixo (os últimos 8-9 dígitos são os mais confiáveis)
         if (phone.length >= 8) {
@@ -136,7 +150,8 @@ export const LeadRepository = {
                 where: and(
                     ilike(leads.phone, `%${suffix}`),
                     eq(leads.organizationId, organizationId)
-                )
+                ),
+                orderBy: (l: any, { asc }: any) => [asc(l.createdAt)] // Previne retornar as sombras dos LIDs duplicados
             });
             if (lead) {
                 console.log(`🔗 [LeadRepository] Unificação via JID Suffix (${suffix}): ${lead.id}`);
