@@ -14,7 +14,9 @@ export default async function WhatsAppPage() {
     const org = await OrganizationRepository.getByClerkId(clerkOrgId);
     if (!org) redirect("/org-selection");
 
-    const isConnected = org.evolutionInstanceStatus === "connected";
+    // Status real vem via polling do ConnectButton (/api/whatsapp/status)
+    // Não usamos mais evolutionInstanceStatus (campo legado da Evolution API)
+    const isConnected = false; // SSR sempre false — ConnectButton detecta o estado real via client
 
     return (
         <div className="space-y-6 text-foreground">
@@ -40,11 +42,11 @@ export default async function WhatsAppPage() {
                                     <MessageSquare size={32} />
                                 </div>
                                 <div>
-                                    <h3 className="text-xl font-black">{org.evolutionInstanceName || "WhatsApp Business"}</h3>
+                                    <h3 className="text-xl font-black">WhatsApp Business</h3>
                                     <div className="flex items-center gap-2 mt-1">
-                                        <div className={`h-2.5 w-2.5 rounded-full ${isConnected ? 'bg-green-500 animate-pulse' : 'bg-amber-500'}`} />
+                                        <div className={`h-2.5 w-2.5 rounded-full bg-amber-500`} />
                                         <span className="text-[10px] font-black text-muted-foreground uppercase tracking-widest">
-                                            {org.evolutionInstanceStatus || "Pronto para Conectar"}
+                                            Verificando conexão...
                                         </span>
                                     </div>
                                 </div>

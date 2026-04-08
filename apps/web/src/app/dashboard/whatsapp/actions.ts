@@ -14,27 +14,7 @@ const normalizeUrl = (url: string) => {
     return normalized.replace(/\/$/, "");
 };
 
-export async function saveEvolutionSettings(formData: FormData) {
-    try {
-        const { orgId: clerkOrgId } = await auth();
-        if (!clerkOrgId) throw new Error("Unauthorized");
-
-        const apiUrl = normalizeUrl(formData.get("apiUrl") as string);
-        const apiKey = (formData.get("apiKey") as string).trim();
-
-        const org = await OrganizationRepository.getByClerkId(clerkOrgId);
-        if (!org) throw new Error("Organization not found");
-
-        await OrganizationRepository.update(org.id, {
-            evolutionApiUrl: apiUrl,
-            evolutionApiKey: apiKey,
-        });
-
-        revalidatePath("/dashboard/whatsapp");
-    } catch (error: any) {
-        console.error("❌ Erro ao salvar configurações:", error.message);
-    }
-}
+// saveEvolutionSettings removida — sistema agora usa Baileys nativo (sem Evolution API)
 
 export async function connectWhatsApp() {
     try {
@@ -65,7 +45,7 @@ export async function disconnectWhatsApp() {
         if (!clerkOrgId) throw new Error("Unauthorized");
 
         const org = await OrganizationRepository.getByClerkId(clerkOrgId);
-        if (!org || !org.evolutionInstanceName) return;
+        if (!org) throw new Error("Não autorizado.");
 
         const sessionId = `wa_${org.id.split('-')[0]}`;
         const session = WhatsappService.sessions.get(sessionId);
@@ -83,10 +63,9 @@ export async function disconnectWhatsApp() {
             WhatsappService.sessions.delete(sessionId);
         }
 
-        // 3. Status atualizado
+        // 3. Atualizar status (campos neutros compatíveis com o banco)
         await OrganizationRepository.update(org.id, {
             evolutionInstanceStatus: "disconnected",
-            evolutionInstanceName: null,
             evolutionQrCode: null
         });
 
@@ -118,10 +97,9 @@ export async function resetWhatsApp() {
         }
         WhatsappService.sessions.delete(sessionId);
 
-        // 3. Update Org Status
+        // 3. Atualizar status
         await OrganizationRepository.update(org.id, {
             evolutionInstanceStatus: "disconnected",
-            evolutionInstanceName: null,
             evolutionQrCode: null
         });
 

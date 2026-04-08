@@ -197,8 +197,12 @@ export async function startOutreach(leadIds?: string[]) {
         const org = await OrganizationRepository.getByClerkId(clerkOrgId);
         if (!org) throw new Error("Organization not found");
 
-        if (!org.evolutionInstanceName || org.evolutionInstanceStatus !== "connected") {
-            return { success: false, error: "WhatsApp não conectado. Conecte primeiro." };
+        // Verificar sessão Baileys ativa
+        const { WhatsappService } = await import("@/lib/services/whatsapp");
+        const baileysSessionId = `wa_${org.id.slice(0, 8)}`;
+        const baileysSession = WhatsappService.sessions.get(baileysSessionId);
+        if (!baileysSession || baileysSession.status !== "open") {
+            return { success: false, error: "WhatsApp não conectado. Conecte primeiro na página de WhatsApp." };
         }
 
         // 1. Buscar leads
@@ -259,7 +263,11 @@ export async function startMassOutreach(stageId: string) {
         const org = await OrganizationRepository.getByClerkId(clerkOrgId);
         if (!org) throw new Error("Organization not found");
 
-        if (!org.evolutionInstanceName || org.evolutionInstanceStatus !== "connected") {
+        // Verificar sessão Baileys ativa
+        const { WhatsappService } = await import("@/lib/services/whatsapp");
+        const baileysSessionId = `wa_${org.id.slice(0, 8)}`;
+        const baileysSession = WhatsappService.sessions.get(baileysSessionId);
+        if (!baileysSession || baileysSession.status !== "open") {
             return { success: false, error: "WhatsApp não conectado. Conecte primeiro." };
         }
 

@@ -242,10 +242,8 @@ export const WhatsappService = {
                             const qrBase64 = await QRCode.toDataURL(qr);
                             if (session) session.qr = qrBase64;
                             
-                            // PERSISTÊNCIA NO BANCO (Para cross-process sync)
-                            await db.update(organizations)
-                                .set({ evolutionQrCode: qrBase64 })
-                                .where(eq(organizations.id, organizationId));
+                            // Não atualizamos evolutionQrCode mais
+                            // await db.update(organizations)...
                             
                         } catch (err) {
                             console.error("❌ Erro ao gerar/salvar QR Code:", err);
@@ -257,12 +255,9 @@ export const WhatsappService = {
                         
                         if (connection === "open") {
                             console.log(`✅ [Baileys] Conectado: ${sessionId}`);
+                            // A versão com Baileys nativo não precisa mais preencher evolutionInstanceName
                             await db.update(organizations)
-                                .set({ 
-                                    evolutionInstanceStatus: "connected", 
-                                    evolutionInstanceName: sessionId,
-                                    evolutionQrCode: null // Limpar QR após conectar
-                                })
+                                .set({ evolutionInstanceStatus: "connected", evolutionQrCode: null })
                                 .where(eq(organizations.id, organizationId));
                         } else if (connection === "close") {
                              const error = lastDisconnect?.error as Boom;
