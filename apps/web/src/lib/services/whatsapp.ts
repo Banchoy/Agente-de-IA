@@ -255,6 +255,7 @@ export const WhatsappService = {
                         
                         if (connection === "open") {
                             console.log(`✅ [Baileys] Conectado: ${sessionId}`);
+                            connectionPromises.delete(sessionId);
                             // A versão com Baileys nativo não precisa mais preencher evolutionInstanceName
                             await db.update(organizations)
                                 .set({ evolutionInstanceStatus: "connected", evolutionQrCode: null })
@@ -274,9 +275,18 @@ export const WhatsappService = {
                             
                             if (shouldReconnect) {
                                 WhatsappService.sessions.delete(sessionId);
+                                connectionPromises.delete(sessionId);
                                 const delay = 5000 + Math.random() * 10000;
                                 console.log(`⏳ [Baileys] Agendando reconexão para ${sessionId} em ${(delay/1000).toFixed(1)}s (jitter)...`);
-                                setTimeout(() => WhatsappService.connect(organizationId, sessionId), delay);
+                                setTimeout(() => {
+                                    // Guard: Se já reconectou enquanto aguardava, não reconecta de novo
+                                    const currentSession = WhatsappService.sessions.get(sessionId);
+                                    if (currentSession && (currentSession.status === "open" || currentSession.status === "connecting")) {
+                                        console.log(`ℹ️ [Baileys] Reconexão cancelada: sessão ${sessionId} já está ${currentSession.status}.`);
+                                        return;
+                                    }
+                                    WhatsappService.connect(organizationId, sessionId);
+                                }, delay);
                             } else {
                                 console.log(`⚠️ [Baileys] Logout detectado. Limpando dados da sessão...`);
                                 if (session?.heartbeat) clearInterval(session.heartbeat);
