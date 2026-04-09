@@ -192,10 +192,11 @@ export const OutreachService = {
             await MessageRepository.createSystem({
                 organizationId: org.id,
                 leadId: pendingLead.id,
-                role: "model",
+                role: "assistant",
                 content: messageBody,
                 whatsappMessageId: (sendResult as any)?.key?.id || `outreach_${Date.now()}`
             });
+
 
             console.log(`✅ [Outreach] Mensagem enviada para ${pendingLead.name} com sucesso!`);
 

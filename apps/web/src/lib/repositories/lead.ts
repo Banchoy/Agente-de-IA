@@ -126,27 +126,42 @@ export const LeadRepository = {
         // 3. Extrai o número central do JID (remove @s.whatsapp.net ou @lid)
         const phone = jid.split("@")[0];
         
-        // 4. RESOLUÇÃO DE LID BRASILEIRO (estratégia dos 9 primeiros dígitos)
-        // Padrão observado: phone enviado = "11988171440" (11 dígitos)
-        //                   LID de resposta = "119881714401479" (15 dígitos)
-        // Os 9 primeiros dígitos são IDÊNTICOS: "119881714"
-        // Busca: encontrar lead cujo phone começa com os mesmos 9 dígitos do LID
-        if (jid.includes("@lid") && phone.length >= 9) {
-            const sharedPrefix = phone.slice(0, 9); // Ex: "119881714"
+        // 4. RESOLUÇÃO DE LID BRASILEIRO (estratégia resiliente de 9º dígito)
+        if (jid.includes("@lid")) {
+            const cleanPhoneFromJid = phone.replace(/\D/g, "");
             
-            const prefixLead = await db.query.leads.findFirst({
-                where: and(
-                    eq(leads.organizationId, organizationId),
-                    ilike(leads.phone, `${sharedPrefix}%`),        // phone STARTS WITH os 9 primeiros dígitos
-                    sql`LENGTH(${leads.phone}) BETWEEN 10 AND 15`  // phone tem comprimento típico de celular
-                ),
-                orderBy: (l: any, { asc }: any) => [asc(l.createdAt)] // Retorna o lead original (mais antigo)
-            });
-            if (prefixLead) {
-                console.log(`🔗 [LeadRepository] Unificação via LID Prefix (${sharedPrefix}...): LID ${phone} → Lead ${prefixLead.phone} [${prefixLead.id}]`);
-                return prefixLead;
+            // Se for brasileiro (começa com 55 ou tem 10-13 dígitos)
+            const isPossiblyBrazilian = cleanPhoneFromJid.startsWith("55") || (cleanPhoneFromJid.length >= 10 && cleanPhoneFromJid.length <= 11);
+            
+            if (isPossiblyBrazilian && cleanPhoneFromJid.length >= 8) {
+                // Remove o '55' e o '9' (nono dígito) para pegar a essência (DDD + 8 dígitos)
+                const core = cleanPhoneFromJid.startsWith("55") ? cleanPhoneFromJid.slice(2) : cleanPhoneFromJid;
+                const ddd = core.slice(0, 2);
+                
+                // Se o corpo tem 9 dígitos e o primeiro é '9', remove ele
+                const bodyWithoutNine = (core.length === 9 && core.startsWith("9")) ? core.slice(1) : (core.length === 11 && core.substring(2, 3) === "9") ? ddd + core.slice(3) : core;
+                
+                // essential terá o formato DDD + 8 dígitos (ex: 4196252461 -> 4196252461 ou 416252461)
+                // A busca ILIKE %8dgitos deve resolver.
+                const suffix8 = bodyWithoutNine.slice(-8);
+                
+                console.log(`🔗 [LeadRepository] Tentando unificação LID para final: ${suffix8}`);
+                
+                const prefixLead = await db.query.leads.findFirst({
+                    where: and(
+                        eq(leads.organizationId, organizationId),
+                        ilike(leads.phone, `%${suffix8}`)
+                    ),
+                    orderBy: (l: any, { asc }: any) => [asc(l.createdAt)]
+                });
+
+                if (prefixLead) {
+                    console.log(`🔗 [LeadRepository] Unificação LID detectada: LID ${phone} → Lead ${prefixLead.phone} [${prefixLead.id}]`);
+                    return prefixLead;
+                }
             }
         }
+
 
         // 5. Busca inteligente por sufixo (fallback — últimos 8 dígitos)
         if (phone.length >= 8) {

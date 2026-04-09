@@ -43,8 +43,9 @@ export const BRUNO_RULES = `
 ### REGRAS CRÍTICAS DE ÁUDIO E CONTINUIDADE:
 1. **ÁUDIOS**: Você tem capacidade total de ouvir mensagens de áudio. Se houver um anexo de mídia no histórico, ANALISE-O e responda ao conteúdo. NUNCA diga que não pode ouvir áudios.
 2. **CONTEXTO E CONTINUIDADE**: Sempre verifique as últimas 3 mensagens enviadas por você no Histórico. Se você já deu "Bom dia" ou se apresentou como Bruno recentemente, **É TERMINANTEMENTE PROIBIDO** fazer isso de novo. Continue a conversa de onde parou.
-3. **NÃO REPETIÇÃO**: Se a sua última mensagem não obteve resposta clara (ex: o cliente mandou "???"), não repita a mesma pergunta. Tente uma abordagem diferente ou peça desculpas pela falta de clareza de forma natural.
+3. **NÃO REPETIÇÃO**: Se a sua última mensagem não obteve resposta clara (ex: o cliente mandou "???"), não repita a mesma pergunta. Tente uma abordagem diferente ou peça desculpas pela falta de clareza de forma natural. NUNCA inicie uma resposta com "Olá" ou "Bom dia" se o histórico já contiver uma saudação sua.
 4. **[REGRA DE DESISTÊNCIA]**: Se o cliente demonstrar desinteresse claro ou recusar o avanço duas vezes (ex: "não quero", "já tenho parceiro"), não insista mais. Faça um encerramento educado e com impacto ("Entendo perfeitamente. Caso seu cenário mude e precise escalar seu atendimento no futuro, conte conosco!"), salve o histórico e pare.
+
 `.trim();
 
 export const AIService = {
@@ -159,7 +160,8 @@ Your response MUST be a valid JSON object with the following keys:
 Olha, para você ter uma ideia, a gente tem um cliente desse mesmo segmento que triplicou as vendas usando nossa automação.`.trim();
 
         const isOutreach = lead?.source === "Outreach";
-        const systemPromptBase = agentConfig.prompt || agentConfig.systemPrompt || "Siga o roteiro de prospecção ativa.";
+        const systemPromptBase = agentConfig.systemPrompt || agentConfig.prompt || "Siga o roteiro de prospecção ativa.";
+
 
         const lastMessage = messages[messages.length - 1]?.content?.toLowerCase() || "";
         const autoReplyKeywords = ["estou ausente", "responderemos em breve", "mensagem automática", "estamos fora", "horário de atendimento"];
@@ -281,15 +283,31 @@ Sua resposta DEVE ser um JSON válido com a seguinte estrutura:
     },
 
     generateResilientResponse: async (systemPrompt: string, messages: ChatMessage[], temperature: number = 0.7) => {
+        const errors: string[] = [];
+        
         if (env.GOOGLE_GEMINI_API_KEY) {
-            try { return await AIService.generateGeminiResponse("gemini-1.5-flash", systemPrompt, messages, temperature); } catch (e) {}
-        }
-        if (env.OPENROUTER_API_KEY) {
-            const models = await AIService.getOpenRouterFreeModels();
-            for (const m of models) {
-                try { return await AIService.generateOpenAICompatibleResponse("openrouter", m, systemPrompt, messages, temperature); } catch (e) {}
+            try { 
+                return await AIService.generateGeminiResponse("gemini-1.5-flash", systemPrompt, messages, temperature); 
+            } catch (e: any) { 
+                console.error("❌ [AIService] Erro no Gemini:", e.message);
+                errors.push(`Gemini: ${e.message}`);
             }
         }
-        throw new Error("Todos os provedores falharam.");
+
+        if (env.OPENROUTER_API_KEY) {
+            const models = await AIService.getOpenRouterFreeModels();
+            console.log(`📡 [AIService] Tentando OpenRouter como fallback (${models.length} modelos)...`);
+            for (const m of models) {
+                try { 
+                    return await AIService.generateOpenAICompatibleResponse("openrouter", m, systemPrompt, messages, temperature); 
+                } catch (e: any) { 
+                    errors.push(`OpenRouter (${m}): ${e.message}`);
+                    continue; 
+                }
+            }
+        }
+
+        throw new Error(`Todos os provedores falharam. Detalhes: ${errors.join(" | ")}`);
     }
+
 };
