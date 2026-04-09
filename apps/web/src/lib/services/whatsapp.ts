@@ -621,10 +621,11 @@ export const WhatsappService = {
                                     }];
                                 }
 
-                                // Delay simulado para leitura: 1.5 a 3 segundos
-                                const leituraDelay = 1500 + Math.random() * 1500;
+                                // Delay simulado para leitura: 3 a 6 segundos
+                                const leituraDelay = 3000 + Math.random() * 3000;
                                 console.log(`⏳ [Baileys] Simulando leitura... Aguardando ${(leituraDelay/1000).toFixed(1)}s.`);
                                 await new Promise(resolve => setTimeout(resolve, leituraDelay));
+
 
                                 // 4. Generate AI Response (Adaptive or Generic)
                                 const { ScriptService } = await import("./script");
@@ -769,7 +770,11 @@ export const WhatsappService = {
                                     for (const msg of messagesToWait) {
                                         if (msg.type === "audio" && config.voiceEnabled) {
                                             await sock.sendPresenceUpdate('recording', jid);
-                                            await new Promise(resolve => setTimeout(resolve, 12000));
+                                            // Aumento do delay de áudio: 15 a 20 segundos
+                                            const audioDelay = 15000 + Math.random() * 5000;
+                                            console.log(`⏳ [Baileys] Simulando gravação de áudio por ${(audioDelay/1000).toFixed(1)}s...`);
+                                            await new Promise(resolve => setTimeout(resolve, audioDelay));
+
                                             
                                             try {
                                                 const audioData = await TTSService.generateAudio(msg.content, config.ttsProvider || "openai", config.ttsVoiceId, config.coquiUrl);
@@ -799,8 +804,9 @@ export const WhatsappService = {
                                             }
                                         } else {
                                             await sock.sendPresenceUpdate('composing', jid);
-                                            // Digitando: base de 1s + 30ms por caractere (máx 3.5s)
-                                            const typingDelay = Math.min(1000 + (msg.content.length * 30), 3500);
+                                            // Digitando: base de 2s + 50ms por caractere (máx 8.0s)
+                                            const typingDelay = Math.min(2000 + (msg.content.length * 50), 8000);
+
                                             console.log(`💬 [Baileys] Simulando digitação para "${msg.content.substring(0, 20)}..." por ${(typingDelay/1000).toFixed(1)}s...`);
                                             await new Promise(resolve => setTimeout(resolve, typingDelay));
                                             const cleanText = msg.content.replace(/\[\/?(?:AUDIO|ÁUDIO)\]/gi, "").trim();
