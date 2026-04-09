@@ -2,7 +2,6 @@
 
 import { useEffect, useState } from "react";
 import { Loader2, Pause, Play, CheckCircle2, XCircle } from "lucide-react";
-import { getOutreachStatus, stopOutreach } from "./outreach-actions";
 import { toast } from "sonner";
 
 export function OutreachBanner() {
@@ -12,7 +11,8 @@ export function OutreachBanner() {
 
     const fetchStatus = async () => {
         try {
-            const res = await getOutreachStatus();
+            const response = await fetch('/api/outreach/status');
+            const res = await response.json();
             if (res) setStatus(res);
         } catch (error) {
             console.error(error);
@@ -30,9 +30,13 @@ export function OutreachBanner() {
     const handleStop = async () => {
         setActionLoading(true);
         try {
-            await stopOutreach();
-            toast.success("Envio interrompido com sucesso.");
-            await fetchStatus();
+            const response = await fetch('/api/outreach/stop', { method: 'POST' });
+            if (response.ok) {
+                toast.success("Envio interrompido com sucesso.");
+                await fetchStatus();
+            } else {
+                toast.error("Erro ao interromper envio.");
+            }
         } catch (error) {
             toast.error("Erro ao interromper envio.");
         } finally {
