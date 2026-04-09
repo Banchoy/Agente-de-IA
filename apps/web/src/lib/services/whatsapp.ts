@@ -487,7 +487,9 @@ export const WhatsappService = {
                                 // 🔒 LOCK ATÔMICO (SET NX): Padrão correto para distributed lock.
                                 // SET key value EX seconds NX = só seta se a chave NÃO existir (operação atômica).
                                 // Evita race condition entre threads que processam mensagens paralelas do mesmo lead.
-                                const lockAcquired = await redis.set(`lock:lead:${lead.id}`, "1", "EX", 45, "NX");
+                                // Reduzimos de 45s para 20s para ser mais dinâmico
+                                const lockAcquired = await redis.set(`lock:lead:${lead.id}`, "1", "EX", 20, "NX");
+
                                 if (!lockAcquired) {
                                     console.log(`⏩ [Baileys] Lead ${lead.id} já está sendo processado (lock atômico). Ignorando.`);
                                     continue;
@@ -522,12 +524,13 @@ export const WhatsappService = {
                                     // porque significa que o usuário respondeu à nossa última mensagem.
                                     if (latestMsg?.role === "user") {
                                         console.log(`✨ [Baileys] Nova mensagem do usuário detectada (${latestMsg.content.substring(0, 20)}...). Seguindo com a resposta.`);
-                                    } else if (diff < 10000) {
-                                        // Só bloqueia se o assistente falou MUITO rápido ( < 10s de intervalo )
-                                        console.log(`⏩ [Baileys] Lead ${lead.id} já respondeu há ${(diff/1000).toFixed(1)}s (< 10s). Bloqueando redundância.`);
+                                    } else if (diff < 3000) {
+                                        // Reduzimos de 10s para 3s para permitir conversas rápidas
+                                        console.log(`⏩ [Baileys] Lead ${lead.id} já respondeu há ${(diff/1000).toFixed(1)}s (< 3s). Bloqueando redundância.`);
                                         if (redis) await redis.del(`lock:lead:${lead.id}`);
                                         continue;
                                     }
+
                                 }
                             } catch (err) {
                                 console.warn("⚠️ [Baileys] Erro ao verificar trava temporal:", err);
@@ -849,11 +852,16 @@ export const WhatsappService = {
                                 if (lead?.id) {
                                     const { redis } = await import("@/lib/redis");
                                     await (LeadRepository as any).updateSystem(lead.id, { isTyping: "false" });
-                                    // ⚠️ NÃO deletamos o lock aqui se tudo correu bem,
-                                    // permitindo que o TTL de 45s atue como uma 'trava de respiração'
-                                    // para evitar ecos de entrega duplicando a resposta.
-                                    console.log(`🔒 [Baileys] Processamento do lead ${lead.id} concluído. Lock expirará via TTL.`);
+                                    
+                                    // 🚀 LIBERAÇÃO CRÍTICA: Deletamos o lock para permitir que novas mensagens 
+                                    // que chegaram durante o processamento (e ficaram na fila do Baileys) 
+                                    // possam ser processadas imediatamente agora.
+                                    if (redis) {
+                                        await redis.del(`lock:lead:${lead.id}`);
+                                        console.log(`🔒 [Baileys] Lock do lead ${lead.id} liberado manualmente.`);
+                                    }
                                 }
+
                             }
                     }
                 });
