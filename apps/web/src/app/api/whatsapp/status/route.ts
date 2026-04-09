@@ -20,6 +20,8 @@ export async function GET(req: NextRequest) {
         const sessionId = `wa_${org.id.split('-')[0]}`;
         const session = WhatsappService.sessions.get(sessionId);
 
+        console.log(`🔍 [API WhatsApp Status] Buscando sessão: ${sessionId} | Encontrada: ${!!session} | Status: ${session?.status || "disconnected"}`);
+
         return NextResponse.json({
             status: session?.status || "disconnected",
             qr: session?.qr || null,

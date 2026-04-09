@@ -33,10 +33,8 @@ declare global {
 const sessions = globalThis.__baileys_sessions || new Map<string, any>();
 const connectionPromises = globalThis.__baileys_promises || new Map<string, Promise<any>>();
  
-if (process.env.NODE_ENV !== 'production') {
-    globalThis.__baileys_sessions = sessions;
-    globalThis.__baileys_promises = connectionPromises;
-}
+globalThis.__baileys_sessions = sessions;
+globalThis.__baileys_promises = connectionPromises;
 
 /**
  * Função recursiva para converter objetos {type: 'Buffer', data: [...]} de volta para Buffer real.
@@ -676,8 +674,11 @@ export const WhatsappService = {
 
                                 // 🛠️ FILTRO DE PLACEHOLDERS (Bruno 2.6)
                                 // Garante que tags como [SAUDAÇÃO_HORARIO] não vazem para o cliente
-                                const spTime = new Date().toLocaleString("en-US", { timeZone: "America/Sao_Paulo" });
-                                const hourNow = new Date(spTime).getHours();
+                                const hourNow = parseInt(new Intl.DateTimeFormat('pt-BR', {
+                                    timeZone: 'America/Sao_Paulo',
+                                    hour: 'numeric',
+                                    hour12: false
+                                }).format(new Date()));
                                 const timeGreeting = hourNow < 12 ? "bom dia" : hourNow < 18 ? "boa tarde" : "boa noite";
                                 const leadNiche = (lead.metaData as any)?.niche || "seu negócio";
 
