@@ -20,6 +20,22 @@ export const OutreachService = {
      * Verifica e processa a fila de prospecção.
      */
     processQueue: async () => {
+        // ⏰ BLOQUEIO DE HORÁRIO
+        const hourNow = parseInt(new Intl.DateTimeFormat('pt-BR', {
+            timeZone: 'America/Sao_Paulo',
+            hour: 'numeric',
+            hour12: false
+        }).format(new Date()));
+
+        // Regras do Usuário: 5h-12h (Bom dia), 12h-17h (Boa tarde), 17h+ (Boa noite)
+        const timeGreeting = (hourNow >= 5 && hourNow < 12) ? "bom dia" : (hourNow >= 12 && hourNow < 17) ? "boa tarde" : "boa noite";
+
+        // Não dispara prospecção ativa entre 21h e 08h
+        if (hourNow >= 21 || hourNow < 8) {
+            console.log(`💤 [Outreach] Fora do horário comercial (${hourNow}h). Fila pausada para evitar inconveniência.`);
+            return;
+        }
+
         let pendingLead: any = null;
         
         try {

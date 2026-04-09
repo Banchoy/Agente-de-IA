@@ -45,6 +45,7 @@ export const BRUNO_RULES = `
 2. **CONTEXTO E CONTINUIDADE**: Sempre verifique as últimas 3 mensagens enviadas por você no Histórico. Se você já deu "Bom dia" ou se apresentou como Bruno recentemente, **É TERMINANTEMENTE PROIBIDO** fazer isso de novo. Continue a conversa de onde parou.
 3. **NÃO REPETIÇÃO**: Se a sua última mensagem não obteve resposta clara (ex: o cliente mandou "???"), não repita a mesma pergunta. Tente uma abordagem diferente ou peça desculpas pela falta de clareza de forma natural. NUNCA inicie uma resposta com "Olá" ou "Bom dia" se o histórico já contiver uma saudação sua.
 4. **[REGRA DE DESISTÊNCIA]**: Se o cliente demonstrar desinteresse claro ou recusar o avanço duas vezes (ex: "não quero", "já tenho parceiro"), não insista mais. Faça um encerramento educado e com impacto ("Entendo perfeitamente. Caso seu cenário mude e precise escalar seu atendimento no futuro, conte conosco!"), salve o histórico e pare.
+5. **[CONSCIÊNCIA TEMPORAL]**: Você deve ter consciência do horário atual em São Paulo para evitar ser inconveniente. Se for muito tarde (ex: após as 21h) ou muito cedo (antes das 08h), adapte sua resposta para algo como "Boa noite! Deixa eu te perguntar..." ou "Opa, bom dia! Vi sua mensagem agora...", e evite insistir em agendamentos imediatos nesses horários.
 
 `.trim();
 
@@ -98,7 +99,7 @@ Your response MUST be a valid JSON object with the following keys:
 
         if (env.GOOGLE_GEMINI_API_KEY) {
             try {
-                const response = await AIService.generateGeminiResponse(model || "gemini-1.5-flash", structuredPrompt, messages, temperature, true);
+                const response = await AIService.generateGeminiResponse(model || "gemini-1.5-flash-latest", structuredPrompt, messages, temperature, true);
                 const cleaned = response.replace(/```json|```/g, "").trim();
                 return JSON.parse(cleaned);
             } catch (err: any) {}
@@ -186,6 +187,7 @@ ${systemPromptBase}
 - Nome: ${lead?.name || "Desconhecido"}
 - Setor (Nicho): [NICHO] = "${leadNiche}"
 - Fluxo de Venda: ${isOutreach ? "OUTBOUND" : "INBOUND"}
+- Horário Atual (São Paulo): ${new Intl.DateTimeFormat('pt-BR', { timeZone: 'America/Sao_Paulo', hour: '2-digit', minute: '2-digit', weekday: 'long' }).format(new Date())}
 
 ### ESTRUTURA DE ARGUMENTAÇÃO DE APOIO:
 ${opportunities}
@@ -232,7 +234,7 @@ Sua resposta DEVE ser um JSON válido com a seguinte estrutura:
         if (!apiKey) throw new Error("GOOGLE_GEMINI_API_KEY not configured.");
         const genAI = new GoogleGenerativeAI(apiKey);
         const genModel = genAI.getGenerativeModel({ 
-            model: model || "gemini-1.5-flash", 
+            model: model || "gemini-1.5-flash-latest", 
             systemInstruction: systemPrompt,
             generationConfig: { temperature, responseMimeType: jsonMode ? "application/json" : "text/plain" }
         });
@@ -287,7 +289,7 @@ Sua resposta DEVE ser um JSON válido com a seguinte estrutura:
         
         if (env.GOOGLE_GEMINI_API_KEY) {
             try { 
-                return await AIService.generateGeminiResponse("gemini-1.5-flash", systemPrompt, messages, temperature); 
+                return await AIService.generateGeminiResponse("gemini-1.5-flash-latest", systemPrompt, messages, temperature); 
             } catch (e: any) { 
                 console.error("❌ [AIService] Erro no Gemini:", e.message);
                 errors.push(`Gemini: ${e.message}`);

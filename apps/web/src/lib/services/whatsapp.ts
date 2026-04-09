@@ -679,7 +679,9 @@ export const WhatsappService = {
                                     hour: 'numeric',
                                     hour12: false
                                 }).format(new Date()));
-                                const timeGreeting = hourNow < 12 ? "bom dia" : hourNow < 18 ? "boa tarde" : "boa noite";
+                                
+                                // Regras do Usuário: 5h-12h (Bom dia), 12h-17h (Boa tarde), 17h+ (Boa noite)
+                                const timeGreeting = (hourNow >= 5 && hourNow < 12) ? "bom dia" : (hourNow >= 12 && hourNow < 17) ? "boa tarde" : "boa noite";
                                 const leadNiche = (lead.metaData as any)?.niche || "seu negócio";
 
                                 aiResponse = aiResponse
