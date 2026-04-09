@@ -7,7 +7,6 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Bot, MapPin, MessageSquare, Loader2, Sparkles, CheckCircle2, TrendingUp, Users } from "lucide-react";
-import { processProspecting, getProspectingProgress } from "./leads/actions";
 import { toast } from "sonner";
 import { Progress } from "@/components/ui/progress";
 
@@ -40,7 +39,9 @@ export default function ProspectingModal({ isOpen, onClose }: ProspectingModalPr
 
         if (view === "progress" && runId) {
             interval = setInterval(async () => {
-                const res = await getProspectingProgress(runId, niche);
+                const response = await fetch(`/api/prospecting/progress?runId=${runId}&niche=${niche}`);
+                const res = await response.json();
+                
                 if (res.success) {
                     setFoundLeads(res.leads || []);
                     setProgressStatus(res.status === "RUNNING" ? "Extraindo dados do Google Maps..." : "Finalizado!");
@@ -70,14 +71,22 @@ export default function ProspectingModal({ isOpen, onClose }: ProspectingModalPr
 
         try {
             setIsLoading(true);
-            toast.info("Iniciando motores do Google Maps...");
-            const res = await processProspecting(url, { 
-                niche, 
-                initialMessage,
-                minRating,
-                minReviews,
-                maxItems
+            const response = await fetch('/api/prospecting/start', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ 
+                    mapsUrl: url, 
+                    config: { 
+                        niche, 
+                        initialMessage,
+                        minRating,
+                        minReviews,
+                        maxItems
+                    }
+                })
             });
+            
+            const res = await response.json();
             
             if (res.success && res.runId) {
                 setRunId(res.runId);

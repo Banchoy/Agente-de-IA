@@ -27,7 +27,7 @@ import { Plus, MoreHorizontal, User, Phone, MessageSquare, Calendar, CheckCircle
 import LeadDetailsModal from "./LeadDetailsModal";
 import AddLeadModal from "./AddLeadModal";
 import ProspectingModal from "./ProspectingModal";
-import { updateLeadMetadata, updateLeadStage, importLeads, createLead, deleteLead, updateLeadColor, createStage, deleteStage, updateStageOrder } from "./leads/actions";
+import { getDashboardAnalytics } from "./leads/actions"; // Apenas o fetch de dados inicial (Server-side)
 import Papa from "papaparse";
 import * as XLSX from "xlsx";
 import { toast } from "sonner";
@@ -445,7 +445,11 @@ export default function CRMKanban({ initialLeads = [], initialStages = [] }: { i
                 
                 // Update order in DB for all shifted stages
                 newStages.forEach(async (s: any, index: number) => {
-                    await updateStageOrder(s.id, index.toString());
+                    await fetch('/api/crm/stage', {
+                        method: 'PATCH',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ stageId: s.id, newOrder: index })
+                    });
                 });
                 return;
             }
@@ -459,7 +463,11 @@ export default function CRMKanban({ initialLeads = [], initialStages = [] }: { i
         } else {
             const lead = leadsList.find((l: any) => l.id === active.id);
             if (lead) {
-                await updateLeadStage(active.id as string, lead.stageId);
+                await fetch(`/api/leads/${active.id}/stage`, { // Note: using /[id] route
+                    method: 'PATCH',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ stageId: lead.stageId })
+                });
             }
         }
 
@@ -470,7 +478,13 @@ export default function CRMKanban({ initialLeads = [], initialStages = [] }: { i
         const name = prompt("Nome da nova coluna:");
         if (!name) return;
 
-        const res = await createStage(name);
+        const response = await fetch('/api/crm/stage', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ name })
+        });
+        const res = await response.json();
+
         if (res.success) {
             toast.success("Coluna adicionada!");
             window.location.reload();
@@ -480,7 +494,11 @@ export default function CRMKanban({ initialLeads = [], initialStages = [] }: { i
     };
 
     const handleDeleteStage = async (stageId: string) => {
-        const res = await deleteStage(stageId);
+        const response = await fetch(`/api/crm/stage?id=${stageId}`, {
+            method: 'DELETE',
+        });
+        const res = await response.json();
+
         if (res.success) {
             toast.success("Coluna excluída.");
             window.location.reload();
@@ -496,11 +514,27 @@ export default function CRMKanban({ initialLeads = [], initialStages = [] }: { i
 
     const handleSaveLead = async (leadId: string, updatedData: any) => {
         setLeadsList((prev: any) => prev.map((l: any) => l.id === leadId ? updatedData : l));
-        await updateLeadMetadata(leadId, updatedData.metaData);
+        await fetch(`/api/leads/${leadId}`, {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ 
+                metaData: updatedData.metaData,
+                phone: updatedData.phone,
+                email: updatedData.email,
+                source: updatedData.source,
+                name: updatedData.name
+            })
+        });
     };
 
     const handleAddLead = async (newLeadData: any) => {
-        const res = await createLead(newLeadData);
+        const response = await fetch('/api/leads', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(newLeadData)
+        });
+        const res = await response.json();
+
         if (res.success) {
             setLeadsList((prev: any) => [res.lead, ...prev]);
             toast.success("Lead adicionado com sucesso!");
@@ -512,7 +546,11 @@ export default function CRMKanban({ initialLeads = [], initialStages = [] }: { i
     const handleDeleteLead = async (leadId: string) => {
         if (!confirm("Tem certeza que deseja excluir este lead?")) return;
         
-        const res = await deleteLead(leadId);
+        const response = await fetch(`/api/leads/${leadId}`, {
+            method: 'DELETE',
+        });
+        const res = await response.json();
+
         if (res.success) {
             setLeadsList((prev: any) => prev.filter((l: any) => l.id !== leadId));
             toast.success("Lead excluído com sucesso.");
@@ -525,7 +563,11 @@ export default function CRMKanban({ initialLeads = [], initialStages = [] }: { i
         setLeadsList((prev: any) => 
             prev.map((l: any) => l.id === leadId ? { ...l, metaData: { ...l.metaData, cardColor: color } } : l)
         );
-        await updateLeadColor(leadId, color);
+        await fetch(`/api/leads/${leadId}`, {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ cardColor: color })
+        });
     };
 
     const handleStartOutreach = async () => {
@@ -571,11 +613,15 @@ export default function CRMKanban({ initialLeads = [], initialStages = [] }: { i
                         metaData: { ...row }
                     }));
                     
-                    const res = await importLeads(importedLeads);
+                    const response = await fetch('/api/leads/import', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ leadsData: importedLeads })
+                    });
+                    const res = await response.json();
+
                     if (res.success) {
                         toast.success(`${importedLeads.length} leads importados com sucesso!`);
-                        // Recarregar leads aconteceria via revalidatePath no servidor, 
-                        // mas para feedback imediato podemos atualizar localmente também ou forçar refresh
                         window.location.reload();
                     } else {
                         toast.error("Erro ao salvar leads importados.");
@@ -600,7 +646,13 @@ export default function CRMKanban({ initialLeads = [], initialStages = [] }: { i
                     metaData: { ...row }
                 }));
 
-                const res = await importLeads(importedLeads);
+                const response = await fetch('/api/leads/import', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ leadsData: importedLeads })
+                });
+                const res = await response.json();
+
                 if (res.success) {
                     toast.success(`${importedLeads.length} leads importados com sucesso!`);
                     window.location.reload();
