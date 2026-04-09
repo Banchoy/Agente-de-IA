@@ -27,7 +27,8 @@ import { Plus, MoreHorizontal, User, Phone, MessageSquare, Calendar, CheckCircle
 import LeadDetailsModal from "./LeadDetailsModal";
 import AddLeadModal from "./AddLeadModal";
 import ProspectingModal from "./ProspectingModal";
-import { updateLeadMetadata, updateLeadStage, importLeads, startOutreach, createLead, deleteLead, updateLeadColor, createStage, deleteStage, updateStageOrder } from "./leads/actions";
+import { updateLeadMetadata, updateLeadStage, importLeads, createLead, deleteLead, updateLeadColor, createStage, deleteStage, updateStageOrder } from "./leads/actions";
+import { startOutreach } from "./leads/outreach-actions";
 import Papa from "papaparse";
 import * as XLSX from "xlsx";
 import { toast } from "sonner";
@@ -247,7 +248,7 @@ function KanbanColumn({ stage, leads, onLeadClick, onDeleteLead, onColorChange, 
         }
         setIsSending(true);
         try {
-            const { startMassOutreach } = await import("./leads/actions");
+            const { startMassOutreach } = await import("./leads/outreach-actions");
             const res = await startMassOutreach(stage.id);
             if (res.success) {
                 toast.success(`Disparo iniciado! ${res.count} leads foram agendados para contato.`);

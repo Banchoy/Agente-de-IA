@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { Loader2, Pause, Play, CheckCircle2, XCircle } from "lucide-react";
-import { getOutreachStatus, stopOutreach } from "./actions";
+import { getOutreachStatus, stopOutreach } from "./outreach-actions";
 import { toast } from "sonner";
 
 export function OutreachBanner() {

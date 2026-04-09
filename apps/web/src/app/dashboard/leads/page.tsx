@@ -1,6 +1,7 @@
 
 import CRMKanban from "../CRMKanban";
-import { getKanbanData, stopOutreach } from "./actions";
+import { getKanbanData } from "./actions";
+import { stopOutreach } from "./outreach-actions";
 import { OutreachBanner } from "./OutreachBanner";
 import { PowerOff } from "lucide-react";
 
