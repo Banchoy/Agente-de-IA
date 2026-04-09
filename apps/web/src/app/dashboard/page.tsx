@@ -6,7 +6,8 @@ import { count, eq } from "drizzle-orm";
 import { Bot, UserCheck, Activity, Globe, Sparkles, Settings, TrendingUp, Users, PowerOff } from "lucide-react";
 import { UserService } from "@/lib/services/user";
 import CRMKanban from "./CRMKanban";
-import { getKanbanData, stopOutreach, getDashboardAnalytics } from "./leads/actions";
+import { getKanbanData, getDashboardAnalytics } from "./leads/actions";
+import { stopOutreach } from "./leads/outreach-actions";
 import { OutreachBanner } from "./leads/OutreachBanner";
 
 export default async function DashboardPage() {

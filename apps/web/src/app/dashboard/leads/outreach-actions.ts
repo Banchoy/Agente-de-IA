@@ -103,8 +103,8 @@ export async function startMassOutreach(stageId: string) {
         const leadsToContact = allLeads.filter((l: any) => 
             l.stageId === stageId && 
             l.phone && 
-            l.outreachStatus !== "completed" && 
-            l.outreachStatus !== "pending"
+            l.outreachStatus !== "pending" &&
+            l.outreachStatus !== "processing"
         );
 
         console.log(`[MassOutreach] Estágio: ${stageId} | Leads Totais da Org: ${allLeads.length} | Elegíveis: ${leadsToContact.length}`);

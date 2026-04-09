@@ -41,8 +41,8 @@ export async function POST(req: Request) {
             leadsToContact = allLeads.filter((l: any) => 
                 l.stageId === stageId && 
                 l.phone && 
-                l.outreachStatus !== "completed" && 
-                l.outreachStatus !== "pending"
+                l.outreachStatus !== "pending" &&
+                l.outreachStatus !== "processing"
             );
         } else {
             return NextResponse.json({ success: false, error: "Nenhum estágio ou leads fornecidos." }, { status: 400 });
