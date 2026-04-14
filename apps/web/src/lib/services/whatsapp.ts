@@ -435,7 +435,7 @@ export const WhatsappService = {
                                 });
                                 console.log(`👤 [Baileys] Novo Lead criado: ${lead.id} (${lead.name})`);
                             } else {
-                                console.log(`👤 [Baileys] Lead identificado com sucesso: ${lead.id} (${lead.name})`);
+                                console.log(`👤 [Baileys] Lead identificado com sucesso: ${lead.id} (${lead.name}) [Telefone no DB: ${lead.phone}]`);
                                 
                                 // 🔄 SINCRONIZAÇÃO REATIVA: Só normaliza telefone se o JID for um número real (@s.whatsapp.net).
                                 // NUNCA sobrescrever com fragmentos LID (ex: 119881714401479 não é um phone válido).
@@ -591,7 +591,6 @@ export const WhatsappService = {
                                 }));
 
                                 // 🛡️ GARANTIA DE CONTEXTO: Se a mensagem atual não está no histórico (race condition), adiciona manualmente
-                                const alreadyInHistory = history.some((m: any) => m.whatsappMessageId === whatsappMessageId);
                                 if (!alreadyInHistory) {
                                     console.log(`🛡️ [Baileys] Mensagem atual não encontrada no histórico (race condition). Adicionando manualmente.`);
                                     formattedHistory.push({
@@ -796,6 +795,7 @@ export const WhatsappService = {
                                                 const audioData = await TTSService.generateAudio(msg.content, config.ttsProvider || "openai", config.ttsVoiceId, config.coquiUrl);
                                                 const base64 = audioData.split(",")[1];
                                                 const buffer = Buffer.from(base64, "base64");
+                                                console.log(`🎤 [Baileys] Enviando áudio TTS para JID: ${jid} (Lead: ${lead.id})`);
                                                 const sentMsg = await sock.sendMessage(jid, { audio: buffer, mimetype: "audio/mp4", ptt: true });
                                                 // Salvar resposta da IA no histórico manualmente
                                                 await (MessageRepository as any).createSystem({

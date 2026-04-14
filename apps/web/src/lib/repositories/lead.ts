@@ -105,6 +105,8 @@ export const LeadRepository = {
     },
 
     getByJidSystem: async (jid: string, organizationId: string) => {
+        console.log(`🔍 [LeadRepository] Iniciando busca por JID: ${jid} na Org: ${organizationId}`);
+        
         // 1. Busca exata por JID nos metadados (outreachJid é o padrão para prospecção)
         let lead = await db.query.leads.findFirst({
             where: and(
@@ -112,7 +114,10 @@ export const LeadRepository = {
                 eq(leads.organizationId, organizationId)
             )
         });
-        if (lead) return lead;
+        if (lead) {
+            console.log(`✅ [LeadRepository] Lead encontrado por outreachJid: ${lead.id}`);
+            return lead;
+        }
 
         // 2. Busca por lastLid ou JID genérico nos metadados
         lead = await db.query.leads.findFirst({
@@ -121,31 +126,29 @@ export const LeadRepository = {
                 eq(leads.organizationId, organizationId)
             )
         });
-        if (lead) return lead;
+        if (lead) {
+            console.log(`✅ [LeadRepository] Lead encontrado por lastLid/jid: ${lead.id}`);
+            return lead;
+        }
 
-        // 3. Extrai o número central do JID (remove @s.whatsapp.net ou @lid)
-        const phone = jid.split("@")[0];
+        // 3. Extrai o "phone" do JID (que pode ser telefone real ou ID LID)
+        const phoneFromJid = jid.split("@")[0];
         
-        // 4. RESOLUÇÃO DE LID BRASILEIRO (estratégia resiliente de 9º dígito)
+        // 4. Se for um JID de WhatsApp real (@s.whatsapp.net), faz busca resiliente por telefone
+        if (jid.includes("@s.whatsapp.net")) {
+            console.log(`🔍 [LeadRepository] JID real detectado. Buscando por telefone: ${phoneFromJid}`);
+            return await LeadRepository.getByPhoneSystem(phoneFromJid, organizationId);
+        }
+
+        // 5. RESOLUÇÃO DE LID (ID de Identidade Vinculada)
         if (jid.includes("@lid")) {
-            const cleanPhoneFromJid = phone.replace(/\D/g, "");
+            console.log(`🔗 [LeadRepository] @lid detectado: ${phoneFromJid}. Tentando unificação...`);
+            const cleanPhoneFromJid = phoneFromJid.replace(/\D/g, "");
             
-            // Se for brasileiro (começa com 55 ou tem 10-13 dígitos)
-            const isPossiblyBrazilian = cleanPhoneFromJid.startsWith("55") || (cleanPhoneFromJid.length >= 10 && cleanPhoneFromJid.length <= 11);
-            
-            if (isPossiblyBrazilian && cleanPhoneFromJid.length >= 8) {
-                // Remove o '55' e o '9' (nono dígito) para pegar a essência (DDD + 8 dígitos)
-                const core = cleanPhoneFromJid.startsWith("55") ? cleanPhoneFromJid.slice(2) : cleanPhoneFromJid;
-                const ddd = core.slice(0, 2);
-                
-                // Se o corpo tem 9 dígitos e o primeiro é '9', remove ele
-                const bodyWithoutNine = (core.length === 9 && core.startsWith("9")) ? core.slice(1) : (core.length === 11 && core.substring(2, 3) === "9") ? ddd + core.slice(3) : core;
-                
-                // essential terá o formato DDD + 8 dígitos (ex: 4196252461 -> 4196252461 ou 416252461)
-                // A busca ILIKE %8dgitos deve resolver.
-                const suffix8 = bodyWithoutNine.slice(-8);
-                
-                console.log(`🔗 [LeadRepository] Tentando unificação LID para final: ${suffix8}`);
+            // Tenta unificação agressiva por sufixo para brasileiros
+            if (cleanPhoneFromJid.length >= 8) {
+                const suffix8 = cleanPhoneFromJid.slice(-8);
+                console.log(`🔗 [LeadRepository] Tentando unificação LID via sufixo: %${suffix8}`);
                 
                 const prefixLead = await db.query.leads.findFirst({
                     where: and(
@@ -156,31 +159,15 @@ export const LeadRepository = {
                 });
 
                 if (prefixLead) {
-                    console.log(`🔗 [LeadRepository] Unificação LID detectada: LID ${phone} → Lead ${prefixLead.phone} [${prefixLead.id}]`);
+                    console.log(`🔗 [LeadRepository] Unificação LID detectada com sucesso: ${phoneFromJid} → Lead ${prefixLead.phone} [${prefixLead.id}]`);
                     return prefixLead;
                 }
             }
         }
 
-
-        // 5. Busca inteligente por sufixo (fallback — últimos 8 dígitos)
-        if (phone.length >= 8) {
-            const suffix = phone.slice(-8);
-            lead = await db.query.leads.findFirst({
-                where: and(
-                    ilike(leads.phone, `%${suffix}`),
-                    eq(leads.organizationId, organizationId)
-                ),
-                orderBy: (l: any, { asc }: any) => [asc(l.createdAt)]
-            });
-            if (lead) {
-                console.log(`🔗 [LeadRepository] Unificação via JID Suffix (${suffix}): ${lead.id}`);
-                return lead;
-            }
-        }
-
-        // 6. Fallback: busca resiliente padrão por telefone
-        return await LeadRepository.getByPhoneSystem(phone, organizationId);
+        // 6. Fallback final: busca resiliente padrão por telefone (caso o "phone" vindo do JID seja o número)
+        console.log(`🔍 [LeadRepository] Fallback final para busca por telefone: ${phoneFromJid}`);
+        return await LeadRepository.getByPhoneSystem(phoneFromJid, organizationId);
     },
 
 
