@@ -193,12 +193,9 @@ A conversa JA COMEÇOU. NÃO recomece do zero. NÃO envie saudões repetidas.
     const currentPhase = Math.floor(rawPhase);
     const maxPhase = isOutbound ? 11 : 8;
 
-    // --- AUTONOMIA: SALTO DE ESTADO POR INTENÇÃO ---
-    // Se a IA detectar que o cliente quer agendar ou tem alto interesse, pula direto pro CTA/MEETING
-    if (aiResult?.action === "SCHEDULE_MEETING" || aiResult?.nextState === "MEETING" || (aiResult?.interestLevel === "ALTO" && currentPhase < 7)) {
-        console.log(`🚀 [ScriptService] Salto de estado detectado: ${currentState} -> CTA/MEETING`);
-        return isOutbound ? "11" : "8"; // Vai para a fase de fechamento
-    }
+    // --- AVANÇO SEQUENCIAL (SEM SALTO BRUSCO POR INTERESSE) ---
+    // Removido o salto automático para a última fase quando interestLevel === "ALTO"
+    // para garantir que o bot siga o script e não perca o contexto da conversa.
 
     // Lógica de Sub-fases para Mini Diagnóstico (Outbound Fase 9)
     if (isOutbound && currentPhase === 9) {
