@@ -584,6 +584,9 @@ export const WhatsappService = {
                                 // BUSCAR HISTÓRICO PARA MEMÓRIA (Últimas 30 mensagens)
                                 const history = await (MessageRepository as any).listByLeadSystem(lead.id, 30);
                                 console.log(`💾 [Baileys] Histórico carregado (${history.length} mensagens).`);
+                                
+                                const alreadyInHistory = history.some((m: any) => m.whatsappMessageId === whatsappMessageId);
+
                                 let formattedHistory = history.reverse().map((m: any) => ({
                                     role: m.role === "assistant" ? "model" : "user",
                                     content: m.content || (m.type === "audio" ? "[Áudio enviado pelo usuário. Por favor, ouça e responda.]" : ""),
