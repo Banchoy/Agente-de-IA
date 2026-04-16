@@ -142,27 +142,9 @@ export const LeadRepository = {
 
         // 5. RESOLUÇÃO DE LID (ID de Identidade Vinculada)
         if (jid.includes("@lid")) {
-            console.log(`🔗 [LeadRepository] @lid detectado: ${phoneFromJid}. Tentando unificação...`);
-            const cleanPhoneFromJid = phoneFromJid.replace(/\D/g, "");
-            
-            // Tenta unificação agressiva por sufixo para brasileiros
-            if (cleanPhoneFromJid.length >= 8) {
-                const suffix8 = cleanPhoneFromJid.slice(-8);
-                console.log(`🔗 [LeadRepository] Tentando unificação LID via sufixo: %${suffix8}`);
-                
-                const prefixLead = await db.query.leads.findFirst({
-                    where: and(
-                        eq(leads.organizationId, organizationId),
-                        ilike(leads.phone, `%${suffix8}`)
-                    ),
-                    orderBy: (l: any, { asc }: any) => [asc(l.createdAt)]
-                });
-
-                if (prefixLead) {
-                    console.log(`🔗 [LeadRepository] Unificação LID detectada com sucesso: ${phoneFromJid} → Lead ${prefixLead.phone} [${prefixLead.id}]`);
-                    return prefixLead;
-                }
-            }
+            console.log(`🔗 [LeadRepository] @lid detectado: ${phoneFromJid}. Tentando outras formas de unificação...`);
+            // Nota: Unificação baseada em sufixo foi removida pois @lid é um hash opaco sem relação com o número real do telefone.
+            // A unificação ocorre agora de forma confiável no serviço principal no momento do recebimento da mensagem (via citação de mensagem ou heurística).
         }
 
         // 6. Fallback final: busca resiliente padrão por telefone (caso o "phone" vindo do JID seja o número)

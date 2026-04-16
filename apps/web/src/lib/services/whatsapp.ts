@@ -420,8 +420,48 @@ export const WhatsappService = {
                             lead = await (LeadRepository as any).getByJidSystem(jid, org.id);
                             
                             if (!lead) {
-                                console.log(`👤 [Baileys] Lead NÃO encontrado. Criando novo...`);
-                                const initialStageId = await CRMRepository.getStageByName(org.id, "Novo Lead");
+                                // --- RESGATE E UNIFICAÇÃO DE LID (@lid) ---
+                                if (jid.includes('@lid')) {
+                                    console.log(`🔗 [Baileys] LID desconhecido detectado (${jid}). Tentando resgate avançado...`);
+                                    
+                                    // 1. Resgate por Citação (stanzaId)
+                                    const stanzaId = msg.message?.extendedTextMessage?.contextInfo?.stanzaId;
+                                    if (stanzaId) {
+                                        const [originalMsg] = await db.select().from(messagesTable).where(eq(messagesTable.whatsappMessageId, stanzaId)).limit(1);
+                                        if (originalMsg && originalMsg.leadId) {
+                                            lead = await LeadRepository.getByIdSystem(originalMsg.leadId);
+                                            if (lead) {
+                                                console.log(`✅ [Baileys] LID Unificado via citação (stanzaId)! Atualizando Lead ${lead.id}`);
+                                                await LeadRepository.updateSystem(lead.id, { 
+                                                    metaData: { ...(lead.metaData as any || {}), outreachJid: jid, lastLid: jid }
+                                                });
+                                            }
+                                        }
+                                    }
+
+                                    // 2. Resgate por Heurística Temporal (Último Outreach Ativo sem LID)
+                                    if (!lead) {
+                                        const [recentOutreachLead] = await db.select().from(leads).where(
+                                            and(
+                                                eq(leads.organizationId, org.id),
+                                                eq(leads.outreachStatus, "completed"),
+                                                sql`last_outreach_at >= NOW() - INTERVAL '2 hours'`
+                                            )
+                                        ).orderBy(desc(leads.lastOutreachAt)).limit(1);
+
+                                        if (recentOutreachLead && !(recentOutreachLead.metaData as any)?.lastLid) {
+                                            lead = recentOutreachLead;
+                                            console.log(`✅ [Baileys] LID Unificado via heurística temporal! Atualizando Lead ${lead.id}`);
+                                            await LeadRepository.updateSystem(lead.id, { 
+                                                metaData: { ...(lead.metaData as any || {}), outreachJid: jid, lastLid: jid, heuristicMatch: "true" }
+                                            });
+                                        }
+                                    }
+                                }
+
+                                if (!lead) {
+                                    console.log(`👤 [Baileys] Lead NÃO encontrado. Criando novo...`);
+                                    const initialStageId = await CRMRepository.getStageByName(org.id, "Novo Lead");
                                 
                                 lead = await LeadRepository.createSystem({
                                     organizationId: org.id,
