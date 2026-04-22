@@ -99,15 +99,18 @@ Use a informação do [NICHO] ("${leadNiche}") para mostrar que você conhece o 
    /**
    * Retorna a "Instrução de Comportamento" para a IA baseado nas etapas do roteiro.
    */
-  getInstruction: (state: string, lead?: any) => {
+  getInstruction: (state: string, lead?: any, agentConfig?: any) => {
     const isOutbound = lead?.source === "Outreach" || lead?.source === "Google Maps";
     const rawPhase = parseFloat(state) || 1;
     const currentPhase = Math.floor(rawPhase);
     const totalPhases = isOutbound ? 11 : 8;
     const leadNiche = lead?.metaData?.niche || "seu negócio";
+    const promptConfig = agentConfig?.prompt || agentConfig?.systemPrompt || "";
+    const hasCustomPhases = promptConfig.toLowerCase().includes("fase 1") || promptConfig.toLowerCase().includes("etapa 1");
 
     // --- ESTRATÉGIA DE ABERTURA DESARMADA (OUTBOUND FASES 1-3) ---
-    if (isOutbound) {
+    // Ignoradas se o próprio usuário já tiver colado Fases Customizadas no Painel (Agent Prompt)
+    if (isOutbound && !hasCustomPhases) {
         if (currentPhase === 1) {
             return `### 🚫 SITUAÇÃO ATUAL — LEIA ANTES DE QUALQUER COISA:
 Você JA ENVIOU a mensagem de abertura: "Olá, tudo bem?" ou similar.

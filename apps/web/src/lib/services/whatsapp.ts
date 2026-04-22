@@ -309,8 +309,6 @@ export const WhatsappService = {
                 sock.ev.on('messages.upsert', async ({ messages: incomingMessages, type }) => {
                     console.log(`🔍 [Baileys] Entrando no Processamento de Upsert. Tipo: ${type}, Total de mensagens: ${incomingMessages.length}`);
                     
-                    // Apenas processar mensagens recebidas em tempo real (não sincronização de histórico)
-                    // Para mensagens 'append', estas são geralmente ecos de histórico/sincronização
                     if (type !== 'notify') {
                         console.log(`⏩ [Baileys] Tipo de upsert ignorado: ${type}`);
                         return;
@@ -319,26 +317,19 @@ export const WhatsappService = {
                     for (const [index, msg] of incomingMessages.entries()) {
                         console.log(`📩 [Baileys] Analisando mensagem [${index+1}/${incomingMessages.length}]...`);
                         let lead: any = null;
+                        
                         try {
                             if (!msg.message) {
-                                console.log(`⏩ [Baileys] Mensagem [${index+1}] SEM CONTEÚDO (msg.message is null).`);
+                                console.log(`⏩ [Baileys] Mensagem [${index+1}] SEM CONTEÚDO.`);
                                 continue;
                             }
 
                             const jid = msg.key.remoteJid;
-                            if (!jid) {
-                                console.log(`⏩ [Baileys] Mensagem [${index+1}] SEM JID remoto.`);
-                                continue;
-                            }
+                            if (!jid) continue;
 
-                            // Permitir tanto o formato clássico (@s.whatsapp.net) quanto o novo (@lid)
                             const isIndividual = jid.endsWith("@s.whatsapp.net") || jid.endsWith("@lid");
-                            if (!isIndividual) {
-                                console.log(`⏩ [Baileys] Mensagem de grupo/status ignorado: ${jid}`);
-                                continue;
-                            }
+                            if (!isIndividual) continue;
 
-                            // Tentar capturar texto de várias formas possíveis
                             const isAudio = !!msg.message.audioMessage;
                             let audioData: any = null;
 
@@ -350,14 +341,9 @@ export const WhatsappService = {
                                          msg.message.listResponseMessage?.title ||
                                          (isAudio ? "[Áudio]" : "");
                             
-                            if (!text && !isAudio) {
-                                console.log(`⏩ [Baileys] Mensagem [${index+1}] sem conteúdo útil.`);
-                                continue;
-                            }
+                            if (!text && !isAudio) continue;
 
-                            // Download audio if present
                             if (isAudio) {
-                                console.log(`🎤 [Baileys] Baixando mensagem de áudio...`);
                                 try {
                                     const { downloadMediaMessage } = await import('@whiskeysockets/baileys');
                                     const buffer = await downloadMediaMessage(msg, 'buffer', {});
@@ -365,7 +351,6 @@ export const WhatsappService = {
                                         mimeType: msg.message?.audioMessage?.mimetype || "audio/ogg; codecs=opus",
                                         data: buffer.toString('base64')
                                     };
-                                    console.log(`🎤 [Baileys] Áudio baixado e convertido para base64. Tamanho: ${audioData.data.length}`);
                                 } catch (err) {
                                     console.error(`❌ [Baileys] Erro ao baixar áudio:`, err);
                                 }
@@ -377,9 +362,7 @@ export const WhatsappService = {
                             const isFromMe = !!msg.key.fromMe;
                             const role = isFromMe ? "assistant" : "user";
 
-                            console.log(`✨ [Baileys] MENSAGEM VÁLIDA: (${role}) de ${phone} [JID: ${jid}]. Texto: "${text.substring(0, 50)}..."`);
-
-                            // ⚡ COMANDOS DE CONTROLE (do dono da conta, fromMe=true)
+                            // Comandos de Controle para o Dono
                             const cleanTextCmd = text?.toLowerCase().trim();
                             if (isFromMe && (cleanTextCmd === '/parar ia' || cleanTextCmd === '/ativar ia')) {
                                 const shouldActivate = cleanTextCmd === '/ativar ia';
@@ -391,114 +374,66 @@ export const WhatsappService = {
                                             aiActive: shouldActivate ? "true" : "false",
                                             metaData: { ...(cmdLead.metaData || {}), activeCard: shouldActivate ? "IA" : "PARAR_IA" }
                                         });
-                                        console.log(`${shouldActivate ? '✅' : '🚫'} [Baileys] Comando ${cleanTextCmd} aplicado ao lead ${cmdLead.id} (${cmdLead.name})`);
-                                        await sock.sendMessage(jid, { 
-                                            text: shouldActivate 
-                                                ? "🤖 IA REATIVADA para este contato." 
-                                                : "🤖 IA PAUSADA para este contato. (Modo Humano Ativado)" 
-                                        });
+                                        await sock.sendMessage(jid, { text: shouldActivate ? "🤖 IA REATIVADA." : "🤖 IA PAUSADA." });
                                     }
                                 }
                                 continue;
                             }
 
-                            if (isFromMe) {
-                                console.log(`⏩ [Baileys] Mensagem fromMe (eco de envio da IA) ignorada para evitar duplicata.`);
-                                continue;
-                            }
+                            if (isFromMe) continue;
 
-                            // 0. Get Organization
                             const org = await OrganizationRepository.getById(organizationId);
-                            if (!org) {
-                                console.warn(`⚠️ [Baileys] Organização ${organizationId} não encontrada.`);
-                                continue;
-                            }
+                            if (!org) continue;
 
                             // 1. Find or Create Lead
-                            console.log(`👤 [Baileys] Resolvendo lead para JID: ${jid} (Phone: ${phone})`);
-                            // Prioridade: Busca por JID exato (Sincronização definitiva)
                             lead = await (LeadRepository as any).getByJidSystem(jid, org.id);
                             
                             if (!lead) {
-                                // --- RESGATE E UNIFICAÇÃO DE LID (@lid) ---
                                 if (jid.includes('@lid')) {
-                                    console.log(`🔗 [Baileys] LID desconhecido detectado (${jid}). Tentando resgate avançado...`);
-                                    
-                                    // 1. Resgate por Citação (stanzaId)
                                     const stanzaId = msg.message?.extendedTextMessage?.contextInfo?.stanzaId;
                                     if (stanzaId) {
                                         const [originalMsg] = await db.select().from(messagesTable).where(eq(messagesTable.whatsappMessageId, stanzaId)).limit(1);
                                         if (originalMsg && originalMsg.leadId) {
                                             lead = await LeadRepository.getByIdSystem(originalMsg.leadId);
                                             if (lead) {
-                                                console.log(`✅ [Baileys] LID Unificado via citação (stanzaId)! Atualizando Lead ${lead.id}`);
-                                                await LeadRepository.updateSystem(lead.id, { 
-                                                    metaData: { ...(lead.metaData as any || {}), outreachJid: jid, lastLid: jid }
-                                                });
+                                                await LeadRepository.updateSystem(lead.id, { metaData: { ...(lead.metaData as any || {}), lastLid: jid } });
                                             }
                                         }
                                     }
-
-                                    // 2. Resgate por Heurística Temporal (Último Outreach Ativo sem LID)
                                     if (!lead) {
                                         const [recentOutreachLead] = await db.select().from(leads).where(
-                                            and(
-                                                eq(leads.organizationId, org.id),
-                                                eq(leads.outreachStatus, "completed"),
-                                                sql`last_outreach_at >= NOW() - INTERVAL '2 hours'`
-                                            )
+                                            and(eq(leads.organizationId, org.id), eq(leads.outreachStatus, "completed"), sql`last_outreach_at >= NOW() - INTERVAL '12 hours'`)
                                         ).orderBy(desc(leads.lastOutreachAt)).limit(1);
-
                                         if (recentOutreachLead && !(recentOutreachLead.metaData as any)?.lastLid) {
                                             lead = recentOutreachLead;
-                                            console.log(`✅ [Baileys] LID Unificado via heurística temporal! Atualizando Lead ${lead.id}`);
-                                            await LeadRepository.updateSystem(lead.id, { 
-                                                metaData: { ...(lead.metaData as any || {}), outreachJid: jid, lastLid: jid, heuristicMatch: "true" }
-                                            });
+                                            await LeadRepository.updateSystem(lead.id, { metaData: { ...(lead.metaData as any || {}), lastLid: jid, heuristicMatch: "true" } });
                                         }
                                     }
                                 }
 
                                 if (!lead) {
-                                    console.log(`👤 [Baileys] Lead NÃO encontrado. Criando novo...`);
                                     const initialStageId = await CRMRepository.getStageByName(org.id, "Novo Lead");
-                                
-                                lead = await LeadRepository.createSystem({
-                                    organizationId: org.id,
-                                    name: phone,
-                                    phone: phone,
-                                    source: "WhatsApp (Inbound)",
-                                    aiActive: "true",
-                                    status: "NEW", 
-                                    stageId: initialStageId,
-                                    outreachStatus: "completed"
-                                });
-                                console.log(`👤 [Baileys] Novo Lead criado: ${lead.id} (${lead.name})`);
+                                    lead = await LeadRepository.createSystem({
+                                        organizationId: org.id,
+                                        name: phone,
+                                        phone: phone,
+                                        source: "WhatsApp (Inbound)",
+                                        aiActive: "true",
+                                        status: "NEW", 
+                                        stageId: initialStageId,
+                                        outreachStatus: "completed"
+                                    });
+                                }
                             } else {
-                                console.log(`👤 [Baileys] Lead identificado com sucesso: ${lead.id} (${lead.name}) [Telefone no DB: ${lead.phone}]`);
-                                
-                                // 🔄 SINCRONIZAÇÃO REATIVA: Só normaliza telefone se o JID for um número real (@s.whatsapp.net).
-                                // NUNCA sobrescrever com fragmentos LID (ex: 119881714401479 não é um phone válido).
                                 const isRealPhone = jid.includes('@s.whatsapp.net') && phone.length >= 10 && phone.length <= 15;
                                 if (isRealPhone && lead.phone !== phone) {
-                                    console.log(`🔄 [Baileys] Sincronizando telefone do lead: ${lead.phone} -> ${phone}`);
-                                    await LeadRepository.updateSystem(lead.id, { 
-                                        phone: phone,
-                                        metaData: { ...(lead.metaData as any || {}), outreachJid: jid, normalizedAt: new Date().toISOString() }
-                                    });
+                                    await LeadRepository.updateSystem(lead.id, { phone, metaData: { ...(lead.metaData as any || {}), outreachJid: jid } });
                                 } else if (!isRealPhone && jid.includes('@lid')) {
-                                    // Para @lid: só salva o LID nos metadados, sem alterar o telefone real
-                                    console.log(`🔗 [Baileys] @lid detectado. Preservando telefone real (${lead.phone}), registrando LID nos metadados.`);
-                                    await LeadRepository.updateSystem(lead.id, {
-                                        metaData: { ...(lead.metaData as any || {}), lastLid: jid }
-                                    });
+                                    await LeadRepository.updateSystem(lead.id, { metaData: { ...(lead.metaData as any || {}), lastLid: jid } });
                                 }
                             }
 
                             const whatsappMessageId = msg.key.id;
-
-                            // 2. Save Message to History (apenas mensagens recebidas do usuário)
-                            console.log(`💾 [Baileys] Salvando mensagem do usuário no histórico do lead: ${lead.id} (ID: ${whatsappMessageId})`);
                             await (MessageRepository as any).createSystem({
                                 organizationId: org.id,
                                 leadId: lead.id,
@@ -507,133 +442,63 @@ export const WhatsappService = {
                                 type: isAudio ? "audio" : "text",
                                 whatsappMessageId: whatsappMessageId,
                             });
-                            console.log(`✅ [Baileys] Mensagem (${role}) salva no histórico.`);
                             
-                            // 3. Comandos de Controle (enviados pelo usuário para controlar o lead)
+                            // Comandos do Usuário
                             const cleanText = text?.toLowerCase().trim();
                             if (cleanText === '/parar ia' || cleanText === '/ativar ia') {
                                 const shouldActivate = cleanText === '/ativar ia';
-                                console.log(`${shouldActivate ? '✅' : '🚫'} [Baileys] Comando ${cleanText} detectado para o lead ${lead.id}`);
-                                
-                                await LeadRepository.updateSystem(lead.id, { 
-                                    aiActive: shouldActivate ? "true" : "false" 
-                                });
-                                
-                                await sock.sendMessage(jid, { 
-                                    text: shouldActivate 
-                                        ? "🤖 Atendimento por IA REATIVADO para este contato." 
-                                        : "🤖 Atendimento por IA PAUSADO para este contato. (Modo Humano Ativado)" 
-                                });
+                                await LeadRepository.updateSystem(lead.id, { aiActive: shouldActivate ? "true" : "false" });
+                                await sock.sendMessage(jid, { text: shouldActivate ? "🤖 IA REATIVADA." : "🤖 IA PAUSADA." });
                                 continue;
                             }
 
-                            // 4. AI Respond Logic (chegamos aqui apenas com mensagens de usuários) 
-                            
+                            // 4. AI Respond Logic
                             const { redis } = await import("@/lib/redis");
-                            
                             if (redis) {
-                                // 🔒 LOCK ATÔMICO (SET NX): Padrão correto para distributed lock.
-                                // SET key value EX seconds NX = só seta se a chave NÃO existir (operação atômica).
-                                // Evita race condition entre threads que processam mensagens paralelas do mesmo lead.
-                                // Reduzimos de 45s para 20s para ser mais dinâmico
                                 const lockAcquired = await redis.set(`lock:lead:${lead.id}`, "1", "EX", 20, "NX");
-
-                                if (!lockAcquired) {
-                                    console.log(`⏩ [Baileys] Lead ${lead.id} já está sendo processado (lock atômico). Ignorando.`);
-                                    continue;
-                                }
-
-                                // Trava de idempotência por mensagem específica (evita notify/append duplicado)
+                                if (!lockAcquired) continue;
                                 if (whatsappMessageId) {
                                     const alreadyProcessed = await redis.set(`processed:msg:${whatsappMessageId}`, "1", "EX", 3600, "NX");
                                     if (!alreadyProcessed) {
-                                        console.log(`⏩ [Baileys] Mensagem ${whatsappMessageId} já foi processada. Ignorando.`);
                                         await redis.del(`lock:lead:${lead.id}`);
                                         continue;
                                     }
                                 }
-                            } else {
-                                console.warn("⚠️ [Baileys] Redis indisponível. Lock não aplicado (risco de duplicata).");
                             }
-                            
-                            // Trava de redundância Temporal: Ignorar se enviamos algo nos últimos 10s
-                            // MAS permitir se a última mensagem no DB for do usuário (nova intenção)
-                            let recentAssistantMessages: any[] = [];
+
                             try {
                                 const lastMessages = await (MessageRepository as any).listByLeadSystem(lead.id, 5);
                                 const latestMsg = lastMessages[0];
-                                recentAssistantMessages = lastMessages.filter((m: any) => m.role === "assistant");
-                                const lastAssistantMsg = recentAssistantMessages[0];
+                                const lastAssistantMsg = lastMessages.find((m: any) => m.role === "assistant");
                                 
-                                if (lastAssistantMsg) {
+                                if (lastAssistantMsg && latestMsg?.role !== "user") {
                                     const diff = Date.now() - new Date(lastAssistantMsg.createdAt).getTime();
-                                    
-                                    // Se a última mensagem ABSOLUTA no banco for do usuário, ignora o bloqueio temporal
-                                    // porque significa que o usuário respondeu à nossa última mensagem.
-                                    if (latestMsg?.role === "user") {
-                                        console.log(`✨ [Baileys] Nova mensagem do usuário detectada (${latestMsg.content.substring(0, 20)}...). Seguindo com a resposta.`);
-                                    } else if (diff < 3000) {
-                                        // Reduzimos de 10s para 3s para permitir conversas rápidas
-                                        console.log(`⏩ [Baileys] Lead ${lead.id} já respondeu há ${(diff/1000).toFixed(1)}s (< 3s). Bloqueando redundância.`);
+                                    if (diff < 3000) {
                                         if (redis) await redis.del(`lock:lead:${lead.id}`);
                                         continue;
                                     }
-
                                 }
-                            } catch (err) {
-                                console.warn("⚠️ [Baileys] Erro ao verificar trava temporal:", err);
-                            }
 
-                            // 3. Find Mapped Agent (or fallback)
-                            console.log(`🤖 [Baileys] Buscando agente para a instância: ${sessionId}`);
-                            let agents = [];
-                            try {
-                                agents = await AgentRepository.listByOrgIdSystem(org.id);
-                            } catch (err) {
-                                console.error(`❌ [Baileys] Erro ao buscar agentes:`, err);
-                                throw err;
-                            }
-                            
-                            let agent = agents.find(a => (a as any).whatsappInstanceName === sessionId) || agents[0];
-                            
-                            if (!agent) {
-                                console.warn(`⚠️ [Baileys] Nenhum agente disponível para a organização ${org.id}`);
-                                throw new Error("No agent available");
-                            }
+                                const agents = await AgentRepository.listByOrgIdSystem(org.id);
+                                const agent = agents.find(a => (a as any).whatsappInstanceName === sessionId) || agents[0];
+                                if (!agent || !agent.config?.whatsappResponse || lead.aiActive === "false") {
+                                    if (redis) await redis.del(`lock:lead:${lead.id}`);
+                                    continue;
+                                }
 
-                            console.log(`🤖 [Baileys] Agente: ${agent.name}`);
-                            const config = (agent.config as any) || {};
+                                if (agent.config.testMode && agent.config.testNumber !== phone) {
+                                    if (redis) await redis.del(`lock:lead:${lead.id}`);
+                                    continue;
+                                }
 
-                            if (!config.whatsappResponse) {
-                                console.log(`⏩ [Baileys] Resposta automática DESATIVADA para ${agent.name}`);
-                                return;
-                            }
-
-                            if (lead.aiActive === "false") {
-                                console.log(`⏩ [Baileys] IA DESATIVADA para o lead ${lead.name} (Handover).`);
-                                return;
-                            }
-
-                            if ((agent.config as any).testMode && (agent.config as any).testNumber !== phone) {
-                                console.log(`🛡️ [Baileys] Modo de Teste ATIVO. Ignorando número externo: ${phone}`);
-                                return;
-                            }
-                                // ATIVAR DIGITANDO
                                 await (LeadRepository as any).updateSystem(lead.id, { isTyping: "true" });
-
-                                // BUSCAR HISTÓRICO PARA MEMÓRIA (Últimas 30 mensagens)
                                 const history = await (MessageRepository as any).listByLeadSystem(lead.id, 30);
-                                console.log(`💾 [Baileys] Histórico carregado (${history.length} mensagens).`);
-                                
-                                const alreadyInHistory = history.some((m: any) => m.whatsappMessageId === whatsappMessageId);
-
                                 let formattedHistory = history.reverse().map((m: any) => ({
                                     role: m.role === "assistant" ? "model" : "user",
-                                    content: m.content || (m.type === "audio" ? "[Áudio enviado pelo usuário. Por favor, ouça e responda.]" : ""),
-                                    media: undefined as any
+                                    content: m.content || (m.type === "audio" ? "[Áudio]" : ""),
+                                    media: m.whatsappMessageId === whatsappMessageId && isAudio ? audioData : undefined
                                 }));
 
-                                // 🛡️ GARANTIA DE CONTEXTO: Se a mensagem atual não está no histórico (race condition), adiciona manualmente
                                 if (!alreadyInHistory) {
                                     console.log(`🛡️ [Baileys] Mensagem atual não encontrada no histórico (race condition). Adicionando manualmente.`);
                                     formattedHistory.push({
@@ -682,7 +547,7 @@ export const WhatsappService = {
 
                                 // 4. Generate AI Response (Adaptive or Generic)
                                 const { ScriptService } = await import("./script");
-                                const scriptInstruction = ScriptService.getInstruction(lead.conversationState, lead);
+                                const scriptInstruction = ScriptService.getInstruction(lead.conversationState, lead, config);
 
                                 // Construir contexto do que JÁ foi enviado para evitar repetição
                                 const lastSentTexts = recentAssistantMessages
@@ -906,19 +771,25 @@ export const WhatsappService = {
                                 }
                             } finally {
                                 if (lead?.id) {
-                                    const { redis } = await import("@/lib/redis");
-                                    await (LeadRepository as any).updateSystem(lead.id, { isTyping: "false" });
-                                    
-                                    // 🚀 LIBERAÇÃO CRÍTICA: Deletamos o lock para permitir que novas mensagens 
-                                    // que chegaram durante o processamento (e ficaram na fila do Baileys) 
-                                    // possam ser processadas imediatamente agora.
-                                    if (redis) {
-                                        await redis.del(`lock:lead:${lead.id}`);
-                                        console.log(`🔒 [Baileys] Lock do lead ${lead.id} liberado manualmente.`);
+                                    try {
+                                        const { redis } = await import("@/lib/redis");
+                                        await (LeadRepository as any).updateSystem(lead.id, { isTyping: "false" });
+                                        
+                                        // 🚀 LIBERAÇÃO CRÍTICA: Deletamos o lock para permitir que novas mensagens 
+                                        // que chegaram durante o processamento (e ficaram na fila do Baileys) 
+                                        // possam ser processadas imediatamente agora.
+                                        if (redis) {
+                                            await redis.del(`lock:lead:${lead.id}`);
+                                            console.log(`🔒 [Baileys] Lock do lead ${lead.id} liberado manualmente.`);
+                                        }
+                                    } catch (lockErr) {
+                                        console.warn("⚠️ [Baileys] Erro ao liberar lock:", lockErr);
                                     }
                                 }
-
                             }
+                        } catch (msgErr) {
+                            console.error(`❌ [Baileys] Erro ao processar mensagem [${index+1}]:`, msgErr);
+                        }
                     }
                 });
 
