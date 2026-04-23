@@ -521,12 +521,14 @@ export const WhatsappService = {
 
                                 const agents = await AgentRepository.listByOrgIdSystem(org.id);
                                 const agent = agents.find(a => (a as any).whatsappInstanceName === sessionId) || agents[0];
-                                if (!agent || !agent.config?.whatsappResponse || lead.aiActive === "false") {
+                                const agentConfig = agent?.config || {};
+
+                                if (!agent || !agentConfig.whatsappResponse || lead.aiActive === "false") {
                                     if (redis) await redis.del(`lock:lead:${lead.id}`);
                                     continue;
                                 }
 
-                                if (agent.config.testMode && agent.config.testNumber !== phone) {
+                                if (agentConfig.testMode && agentConfig.testNumber !== phone) {
                                     if (redis) await redis.del(`lock:lead:${lead.id}`);
                                     continue;
                                 }
@@ -588,7 +590,7 @@ export const WhatsappService = {
 
                                 // 4. Generate AI Response (Adaptive or Generic)
                                 const { ScriptService } = await import("./script");
-                                const scriptInstruction = ScriptService.getInstruction(lead.conversationState, lead, config);
+                                const scriptInstruction = ScriptService.getInstruction(lead.conversationState, lead, agentConfig);
 
                                 // Construir contexto do que JÁ foi enviado para evitar repetição
                                 const lastSentTexts = recentAssistantMessages
@@ -606,11 +608,11 @@ export const WhatsappService = {
                                 console.log(`🤖 [Baileys] Chamando AIService (Adaptativo: ${!!scriptInstruction}) para: ${agent.name}`);
 
                                 const adaptiveResult = await AIService.generateAdaptiveResponse(
-                                    config,
+                                    agentConfig,
                                     lead,
                                     formattedHistory,
                                     noRepeatInstruction,
-                                    config.temperature !== undefined ? parseFloat(config.temperature) : 0.7
+                                    agentConfig.temperature !== undefined ? parseFloat(agentConfig.temperature) : 0.7
                                 );
 
                                 let aiResponse = adaptiveResult.body;
@@ -727,12 +729,12 @@ export const WhatsappService = {
                                     }
 
                                     if (messagesToWait.length === 0) {
-                                        messagesToWait.push({ type: config.voiceEnabled ? "audio" : "text", content: finalMessage });
+                                        messagesToWait.push({ type: agentConfig.voiceEnabled ? "audio" : "text", content: finalMessage });
                                     }
 
                                     // Sequential sending
                                     for (const msg of messagesToWait) {
-                                        if (msg.type === "audio" && config.voiceEnabled) {
+                                        if (msg.type === "audio" && agentConfig.voiceEnabled) {
                                             await sock.sendPresenceUpdate('recording', jid);
                                             // Aumento do delay de áudio: 15 a 20 segundos
                                             const audioDelay = 15000 + Math.random() * 5000;
@@ -741,7 +743,13 @@ export const WhatsappService = {
 
                                             
                                             try {
-                                                const audioData = await TTSService.generateAudio(msg.content, config.ttsProvider || "openai", config.ttsVoiceId, config.coquiUrl);
+                                                const { TTSService } = await import("./tts");
+                                                const audioData = await TTSService.generateAudio(
+                                                    msg.content, 
+                                                    agentConfig.ttsProvider || "openai", 
+                                                    agentConfig.ttsVoiceId, 
+                                                    agentConfig.coquiUrl
+                                                );
                                                 const base64 = audioData.split(",")[1];
                                                 const buffer = Buffer.from(base64, "base64");
                                                 console.log(`🎤 [Baileys] Enviando áudio TTS para JID: ${jid} (Lead: ${lead.id})`);
