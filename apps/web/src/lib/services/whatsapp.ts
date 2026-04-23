@@ -385,10 +385,11 @@ export const WhatsappService = {
                             const org = await OrganizationRepository.getById(organizationId);
                             if (!org) continue;
 
-                            // 1. Find or Create Lead
+                            // 1. Find or Create Lead (UNIFIED MATCH LOGIC)
                             lead = await (LeadRepository as any).getByJidSystem(jid, org.id);
                             
                             if (!lead) {
+                                // Fallback para StanzaId (@lid que cita mensagem anterior)
                                 if (jid.includes('@lid')) {
                                     const stanzaId = msg.message?.extendedTextMessage?.contextInfo?.stanzaId;
                                     if (stanzaId) {
@@ -396,16 +397,21 @@ export const WhatsappService = {
                                         if (originalMsg && originalMsg.leadId) {
                                             lead = await LeadRepository.getByIdSystem(originalMsg.leadId);
                                             if (lead) {
+                                                console.log(`🔗 [Baileys] Match por StanzaId (@lid): Unificando via @lid ${jid}`);
                                                 await LeadRepository.updateSystem(lead.id, { metaData: { ...(lead.metaData as any || {}), lastLid: jid } });
                                             }
                                         }
                                     }
+                                    
+                                    // Fallback por Heurística (Lead de prospecção recente)
                                     if (!lead) {
                                         const [recentOutreachLead] = await db.select().from(leads).where(
                                             and(eq(leads.organizationId, org.id), eq(leads.outreachStatus, "completed"), sql`last_outreach_at >= NOW() - INTERVAL '12 hours'`)
                                         ).orderBy(desc(leads.lastOutreachAt)).limit(1);
+                                        
                                         if (recentOutreachLead && !(recentOutreachLead.metaData as any)?.lastLid) {
                                             lead = recentOutreachLead;
+                                            console.log(`🔗 [Baileys] Match por Heurística (@lid): Unificando lead recente ${lead.id}`);
                                             await LeadRepository.updateSystem(lead.id, { metaData: { ...(lead.metaData as any || {}), lastLid: jid, heuristicMatch: "true" } });
                                         }
                                     }
@@ -413,6 +419,7 @@ export const WhatsappService = {
 
                                 if (!lead) {
                                     const initialStageId = await CRMRepository.getStageByName(org.id, "Novo Lead");
+                                    console.log(`🆕 [Baileys] Novo contato detectado: ${phone}. Criando lead.`);
                                     lead = await LeadRepository.createSystem({
                                         organizationId: org.id,
                                         name: phone,
@@ -423,13 +430,6 @@ export const WhatsappService = {
                                         stageId: initialStageId,
                                         outreachStatus: "completed"
                                     });
-                                }
-                            } else {
-                                const isRealPhone = jid.includes('@s.whatsapp.net') && phone.length >= 10 && phone.length <= 15;
-                                if (isRealPhone && lead.phone !== phone) {
-                                    await LeadRepository.updateSystem(lead.id, { phone, metaData: { ...(lead.metaData as any || {}), outreachJid: jid } });
-                                } else if (!isRealPhone && jid.includes('@lid')) {
-                                    await LeadRepository.updateSystem(lead.id, { metaData: { ...(lead.metaData as any || {}), lastLid: jid } });
                                 }
                             }
 
@@ -482,7 +482,7 @@ export const WhatsappService = {
                                 ];
                                 
                                 const isAutoKeyword = text && autoReplyKeywords.some(kw => text.toLowerCase().includes(kw));
-                                const isExtremelyFast = responseTimeSeconds < 20; // Automações costumam responder em < 5s, mas 20s é seguro
+                                const isExtremelyFast = responseTimeSeconds < 8; // Automações respondem em < 5s. 8s é um limite seguro para não bloquear humanos.
 
                                 if (isAutoKeyword || isExtremelyFast) {
                                     console.log(`🤖 [Baileys] Automação detectada (Tempo: ${responseTimeSeconds.toFixed(1)}s, Keyword: ${isAutoKeyword}). Executando Alternativa A.`);

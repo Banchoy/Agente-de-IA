@@ -107,49 +107,44 @@ export const LeadRepository = {
     getByJidSystem: async (jid: string, organizationId: string) => {
         console.log(`🔍 [LeadRepository] Iniciando busca por JID: ${jid} na Org: ${organizationId}`);
         
-        // 1. Busca exata por JID nos metadados (outreachJid é o padrão para prospecção)
+        // 1. Busca exata por JID nos metadados (outreachJid ou jid ou lastLid)
         let lead = await db.query.leads.findFirst({
             where: and(
-                sql`metadata->>'outreachJid' = ${jid}`,
+                sql`(metadata->>'outreachJid' = ${jid} OR metadata->>'jid' = ${jid} OR metadata->>'lastLid' = ${jid})`,
                 eq(leads.organizationId, organizationId)
             )
         });
         if (lead) {
-            console.log(`✅ [LeadRepository] Lead encontrado por outreachJid: ${lead.id}`);
+            console.log(`✅ [LeadRepository] Lead encontrado por JID exato/meta: ${lead.id}`);
             return lead;
         }
 
-        // 2. Busca por lastLid ou JID genérico nos metadados
-        lead = await db.query.leads.findFirst({
-            where: and(
-                sql`(metadata->>'lastLid' = ${jid} OR metadata->>'jid' = ${jid})`,
-                eq(leads.organizationId, organizationId)
-            )
-        });
-        if (lead) {
-            console.log(`✅ [LeadRepository] Lead encontrado por lastLid/jid: ${lead.id}`);
-            return lead;
-        }
-
-        // 3. Extrai o "phone" do JID (que pode ser telefone real ou ID LID)
-        const phoneFromJid = jid.split("@")[0];
+        // 2. Extrai o número do JID (Ex: 55419... ou @lid)
+        const phoneFromJid = jid.split("@")[0].replace(/\D/g, "");
         
-        // 4. Se for um JID de WhatsApp real (@s.whatsapp.net), faz busca resiliente por telefone
-        if (jid.includes("@s.whatsapp.net")) {
-            console.log(`🔍 [LeadRepository] JID real detectado. Buscando por telefone: ${phoneFromJid}`);
-            return await LeadRepository.getByPhoneSystem(phoneFromJid, organizationId);
+        // 3. Se o "número" extraído do JID tiver cara de telefone (>= 10 dígitos)
+        if (phoneFromJid.length >= 10) {
+            console.log(`🔍 [LeadRepository] JID parece conter um número: ${phoneFromJid}. Buscando variações...`);
+            lead = await LeadRepository.getByPhoneSystem(phoneFromJid, organizationId);
+            
+            if (lead) {
+                console.log(`✅ [LeadRepository] Lead unificado por variação de telefone: ${lead.id}. Atualizando JID.`);
+                // Unifica o JID para futuras buscas rápidas
+                const newMetadata = { ...(lead.metaData as any || {}), lastLid: jid };
+                if (jid.includes('@s.whatsapp.net')) newMetadata.outreachJid = jid;
+                
+                await db.update(leads)
+                    .set({ metaData: newMetadata })
+                    .where(eq(leads.id, lead.id));
+                    
+                return lead;
+            }
         }
 
-        // 5. RESOLUÇÃO DE LID (ID de Identidade Vinculada)
-        if (jid.includes("@lid")) {
-            console.log(`🔗 [LeadRepository] @lid detectado: ${phoneFromJid}. Tentando outras formas de unificação...`);
-            // Nota: Unificação baseada em sufixo foi removida pois @lid é um hash opaco sem relação com o número real do telefone.
-            // A unificação ocorre agora de forma confiável no serviço principal no momento do recebimento da mensagem (via citação de mensagem ou heurística).
-        }
+        // 4. Se for @lid, podemos ter dificuldades se for um hash novo, mas a unificação por phoneFromJid acima já cobre muitos casos
+        // onde o @lid contém o número (embora raramente). O @lid opaco será tratado por StanzaId no whatsapp.ts.
 
-        // 6. Fallback final: busca resiliente padrão por telefone (caso o "phone" vindo do JID seja o número)
-        console.log(`🔍 [LeadRepository] Fallback final para busca por telefone: ${phoneFromJid}`);
-        return await LeadRepository.getByPhoneSystem(phoneFromJid, organizationId);
+        return null;
     },
 
 
