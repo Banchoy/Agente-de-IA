@@ -593,6 +593,7 @@ export const WhatsappService = {
                                 const scriptInstruction = ScriptService.getInstruction(lead.conversationState, lead, agentConfig);
 
                                 // Construir contexto do que JÁ foi enviado para evitar repetição
+                                const recentAssistantMessages = history.filter((m: any) => m.role === "assistant");
                                 const lastSentTexts = recentAssistantMessages
                                     .slice(0, 3)
                                     .map((m: any) => `- "${m.content.substring(0, 120)}${m.content.length > 120 ? '...' : ''}"`)
