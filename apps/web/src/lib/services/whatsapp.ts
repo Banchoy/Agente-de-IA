@@ -539,6 +539,7 @@ export const WhatsappService = {
                                     media: m.whatsappMessageId === whatsappMessageId && isAudio ? audioData : undefined
                                 }));
 
+                                const alreadyInHistory = history.some((m: any) => m.whatsappMessageId === whatsappMessageId);
                                 if (!alreadyInHistory) {
                                     console.log(`🛡️ [Baileys] Mensagem atual não encontrada no histórico (race condition). Adicionando manualmente.`);
                                     formattedHistory.push({
