@@ -138,6 +138,20 @@ export const OutreachService = {
                 return;
             }
 
+            // [NOVA TRAVA DE SEGURANÇA] — MEMÓRIA DE DISPARO
+            // Verifica se o lead já possui mensagens no histórico para evitar disparos duplicados
+            const recentHistory = await (MessageRepository as any).listByLeadSystem(pendingLead.id, 5);
+            const hasRecentTouch = recentHistory.some((m: any) => m.role === "assistant");
+            
+            if (hasRecentTouch) {
+                console.log(`🛡️ [Outreach] Lead ${pendingLead.name} já possui interação recente no histórico. Marcando como 'completed' e pulando disparo.`);
+                await LeadRepository.updateSystem(pendingLead.id, { 
+                    outreachStatus: "completed",
+                    status: "CONTACTED"
+                });
+                return;
+            }
+
             // 4. Montar mensagem inicial personalizada com ScriptService (Tayná)
             const { ScriptService } = await import("./script");
             const messageBody = await ScriptService.getInitialMessage(agent.config || {}, pendingLead);
