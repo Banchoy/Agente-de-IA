@@ -468,10 +468,50 @@ export const WhatsappService = {
 
                             try {
                                 const lastMessages = await (MessageRepository as any).listByLeadSystem(lead.id, 5);
-                                const latestMsg = lastMessages[0];
                                 const lastAssistantMsg = lastMessages.find((m: any) => m.role === "assistant");
                                 
-                                if (lastAssistantMsg && latestMsg?.role !== "user") {
+                                // --- DETECÇÃO DE AUTOMAÇÃO (BYPASS) ---
+                                const responseTimeSeconds = lastAssistantMsg 
+                                    ? (Date.now() - new Date(lastAssistantMsg.createdAt).getTime()) / 1000 
+                                    : 999;
+                                
+                                const autoReplyKeywords = [
+                                    "estou ausente", "responderemos em breve", "mensagem automática", 
+                                    "estamos fora", "horário de atendimento", "obrigado pelo contato",
+                                    "em que posso ajudar", "atendimento automático"
+                                ];
+                                
+                                const isAutoKeyword = text && autoReplyKeywords.some(kw => text.toLowerCase().includes(kw));
+                                const isExtremelyFast = responseTimeSeconds < 20; // Automações costumam responder em < 5s, mas 20s é seguro
+
+                                if (isAutoKeyword || isExtremelyFast) {
+                                    console.log(`🤖 [Baileys] Automação detectada (Tempo: ${responseTimeSeconds.toFixed(1)}s, Keyword: ${isAutoKeyword}). Executando Alternativa A.`);
+                                    
+                                    // Se for extremamente rápido e já enviamos um bypass recentemente, evitamos o loop infinito
+                                    const lastMsgWasBypass = lastAssistantMsg?.content?.includes("Fico no aguardo de uma pessoa real");
+                                    if (lastMsgWasBypass && isExtremelyFast) {
+                                        console.warn(`🛑 [Baileys] Loop de automação detectado. Ignorando resposta.`);
+                                        if (redis) await redis.del(`lock:lead:${lead.id}`);
+                                        continue;
+                                    }
+
+                                    const bypassMsg = "Opa, tudo bem! Fico no aguardo de uma pessoa real para seguirmos aqui.";
+                                    await sock.sendMessage(jid, { text: bypassMsg });
+                                    
+                                    await (MessageRepository as any).createSystem({
+                                        organizationId: org.id,
+                                        leadId: lead.id,
+                                        role: "assistant",
+                                        content: bypassMsg,
+                                        type: "text",
+                                        whatsappMessageId: `bypass_${Date.now()}`,
+                                    });
+
+                                    if (redis) await redis.del(`lock:lead:${lead.id}`);
+                                    continue;
+                                }
+
+                                if (lastAssistantMsg && lastMessages[0]?.role !== "user") {
                                     const diff = Date.now() - new Date(lastAssistantMsg.createdAt).getTime();
                                     if (diff < 3000) {
                                         if (redis) await redis.del(`lock:lead:${lead.id}`);
