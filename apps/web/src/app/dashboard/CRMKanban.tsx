@@ -414,9 +414,11 @@ export default function CRMKanban({ initialLeads = [], initialStages = [] }: { i
         // Caso seja reordenação de colunas (estágios)
         if (activeData?.type === "column" && overData?.type === "column") {
             if (active.id !== over.id) {
-                const oldIndex = stagesList.findIndex((s: any) => s.id === active.id);
-                const newIndex = stagesList.findIndex((s: any) => s.id === over.id);
-                setStagesList(arrayMove(stagesList, oldIndex, newIndex));
+                setStagesList((prev: any) => {
+                    const oldIndex = prev.findIndex((s: any) => s.id === active.id);
+                    const newIndex = prev.findIndex((s: any) => s.id === over.id);
+                    return arrayMove(prev, oldIndex, newIndex);
+                });
             }
             return;
         }
@@ -448,28 +450,24 @@ export default function CRMKanban({ initialLeads = [], initialStages = [] }: { i
             return;
         }
 
-        if (active.id !== over.id) {
-            const activeData = active.data.current;
-            const overData = over.data.current;
+        const activeData = active.data.current;
+        const overData = over.data.current;
 
+        if (active.id !== over.id) {
             if (activeData?.type === "column" && overData?.type === "column") {
-                const oldIndex = stagesList.findIndex((s: any) => s.id === active.id);
-                const newIndex = stagesList.findIndex((s: any) => s.id === over.id);
-                const newStages = arrayMove(stagesList, oldIndex, newIndex);
-                setStagesList(newStages);
-                
-                // Update order in DB for all shifted stages
-                // Salvar a nova ordem no banco (fazer sequencial para evitar race condition)
+                // Sincronizar com o banco após a reordenação visual estar completa
+                const currentStages = [...stagesList];
                 const updateOrders = async () => {
-                    for (let i = 0; i < newStages.length; i++) {
+                    for (let i = 0; i < currentStages.length; i++) {
                         await fetch('/api/crm/stage', {
                             method: 'PATCH',
                             headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify({ stageId: newStages[i].id, newOrder: i })
+                            body: JSON.stringify({ stageId: currentStages[i].id, newOrder: i })
                         });
                     }
                 };
                 updateOrders();
+                setActiveId(null);
                 return;
             }
 

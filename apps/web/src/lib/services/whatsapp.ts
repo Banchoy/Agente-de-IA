@@ -670,18 +670,27 @@ export const WhatsappService = {
                                 console.log(`🤖 [Baileys] Resposta pronta para envio. Tamanho: ${finalMessage.length} caracteres.`);
 
                                 if (finalMessage) {
-                                    // Movimentação automática para 'Em Atendimento (IA)' se for a primeira resposta ou estiver no início
+                                    // Movimentação automática para 'Em Atendimento (IA)' apenas se estiver no início do funil
                                     const inServiceStageId = await CRMRepository.getStageByName(lead.organizationId, "Em Atendimento (IA)") || 
                                                             await CRMRepository.getStageByName(lead.organizationId, "Atendimento");
                                     
                                     if (inServiceStageId && lead.stageId !== inServiceStageId) {
-                                        console.log(`🚀 [Baileys] Movendo lead ${lead.name} para estágio de atendimento e marcando outreach como concluído.`);
-                                        await (LeadRepository as any).updateSystem(lead.id, { 
-                                            stageId: inServiceStageId,
-                                            outreachStatus: "completed"
-                                        });
+                                        // Verificar estágio atual: só move se for um estágio 'frio' (Novo Lead, Prospectado, etc)
+                                        const currentStage = lead.stageId ? await db.query.stages.findFirst({ where: eq(stages.id, lead.stageId) }) : null;
+                                        const isInitialStage = !currentStage || 
+                                                              currentStage.name.toLowerCase().includes("novo") || 
+                                                              currentStage.name.toLowerCase().includes("prospect");
+
+                                        if (isInitialStage) {
+                                            console.log(`🚀 [Baileys] Movendo lead ${lead.name} de estágio inicial para atendimento.`);
+                                            await (LeadRepository as any).updateSystem(lead.id, { 
+                                                stageId: inServiceStageId,
+                                                outreachStatus: "completed"
+                                            });
+                                        } else {
+                                            await (LeadRepository as any).updateSystem(lead.id, { outreachStatus: "completed" });
+                                        }
                                     } else {
-                                        // Apenas marca como completed
                                         await (LeadRepository as any).updateSystem(lead.id, { outreachStatus: "completed" });
                                     }
 
@@ -701,6 +710,37 @@ export const WhatsappService = {
                                             }
                                         } catch (crmErr) {
                                             console.error("❌ [Baileys] Erro ao mover lead no CRM:", crmErr);
+                                        }
+                                    }
+
+                                    // Detectar desinteresse (Perdido)
+                                    if (finalMessage.includes("[PERDIDO]")) {
+                                        try {
+                                            console.log(`📉 [Baileys] LEAD PERDIDO IDENTIFICADO: ${lead.name}.`);
+                                            finalMessage = finalMessage.replace("[PERDIDO]", "").trim();
+                                            const lostStageId = await CRMRepository.getStageByName(lead.organizationId, "Perdido") || 
+                                                                await CRMRepository.getStageByName(lead.organizationId, "Lost");
+                                            if (lostStageId) {
+                                                await (LeadRepository as any).updateSystem(lead.id, { stageId: lostStageId, aiActive: "false" });
+                                            }
+                                        } catch (crmErr) {
+                                            console.error("❌ [Baileys] Erro ao mover lead para Perdido:", crmErr);
+                                        }
+                                    }
+
+                                    // Detectar negociação/agendamento
+                                    if (finalMessage.includes("[NEGOCIACAO]") || finalMessage.includes("[AGENDADO]")) {
+                                        try {
+                                            console.log(`💰 [Baileys] LEAD EM NEGOCIAÇÃO IDENTIFICADO: ${lead.name}.`);
+                                            finalMessage = finalMessage.replace("[NEGOCIACAO]", "").replace("[AGENDADO]", "").trim();
+                                            const negociationStageId = await CRMRepository.getStageByName(lead.organizationId, "Negociação") || 
+                                                                       await CRMRepository.getStageByName(lead.organizationId, "Agendado") ||
+                                                                       await CRMRepository.getStageByName(lead.organizationId, "Negotiation");
+                                            if (negociationStageId) {
+                                                await (LeadRepository as any).updateSystem(lead.id, { stageId: negociationStageId });
+                                            }
+                                        } catch (crmErr) {
+                                            console.error("❌ [Baileys] Erro ao mover lead para Negociação:", crmErr);
                                         }
                                     }
 
