@@ -290,7 +290,7 @@ function KanbanColumn({ stage, leads, onLeadClick, onDeleteLead, onColorChange, 
     };
 
     const style = {
-        transform: CSS.Translate.toString(transform),
+        transform: CSS.Transform.toString(transform),
         transition,
         opacity: isDragging ? 0.5 : 1,
     };
@@ -408,9 +408,24 @@ export default function CRMKanban({ initialLeads = [], initialStages = [] }: { i
         const { active, over } = event;
         if (!over) return;
 
-        const activeLead = leadsList.find((l: any) => l.id === active.id);
-        const overId = over.id;
+        const activeData = active.data.current;
+        const overData = over.data.current;
 
+        // Caso seja reordenação de colunas (estágios)
+        if (activeData?.type === "column" && overData?.type === "column") {
+            if (active.id !== over.id) {
+                const oldIndex = stagesList.findIndex((s: any) => s.id === active.id);
+                const newIndex = stagesList.findIndex((s: any) => s.id === over.id);
+                setStagesList(arrayMove(stagesList, oldIndex, newIndex));
+            }
+            return;
+        }
+
+        // Caso seja arraste de lead
+        const activeLead = leadsList.find((l: any) => l.id === active.id);
+        if (!activeLead) return;
+
+        const overId = over.id;
         const isOverAStage = stagesList.some((s: any) => s.id === overId);
         let newStageId = overId;
 
@@ -419,7 +434,7 @@ export default function CRMKanban({ initialLeads = [], initialStages = [] }: { i
             newStageId = overLead ? overLead.stageId : activeLead?.stageId;
         }
 
-        if (activeLead && activeLead.stageId !== newStageId) {
+        if (newStageId && activeLead.stageId !== newStageId) {
             setLeadsList((prev: any) =>
                 prev.map((l: any) => (l.id === active.id ? { ...l, stageId: newStageId } : l))
             );
@@ -444,13 +459,17 @@ export default function CRMKanban({ initialLeads = [], initialStages = [] }: { i
                 setStagesList(newStages);
                 
                 // Update order in DB for all shifted stages
-                newStages.forEach(async (s: any, index: number) => {
-                    await fetch('/api/crm/stage', {
-                        method: 'PATCH',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ stageId: s.id, newOrder: index })
-                    });
-                });
+                // Salvar a nova ordem no banco (fazer sequencial para evitar race condition)
+                const updateOrders = async () => {
+                    for (let i = 0; i < newStages.length; i++) {
+                        await fetch('/api/crm/stage', {
+                            method: 'PATCH',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ stageId: newStages[i].id, newOrder: i })
+                        });
+                    }
+                };
+                updateOrders();
                 return;
             }
 
@@ -463,7 +482,7 @@ export default function CRMKanban({ initialLeads = [], initialStages = [] }: { i
         } else {
             const lead = leadsList.find((l: any) => l.id === active.id);
             if (lead) {
-                await fetch(`/api/leads/${active.id}/stage`, { // Note: using /[id] route
+                await fetch(`/api/leads/${active.id}`, { // Corrigido endpoint de atualização de lead
                     method: 'PATCH',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ stageId: lead.stageId })
