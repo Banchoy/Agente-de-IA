@@ -42,8 +42,8 @@ async function migrate() {
                         id, organization_id, name, email, phone, status, source, metadata, created_at, updated_at
                     ) VALUES (
                         ${lead.id}, ${lead.organization_id}, ${lead.name || 'Sem Nome'}, ${lead.email || null}, 
-                        ${lead.phone}, ${lead.status || 'active'}, ${lead.source || 'migration'}, 
-                        ${lead.metadata || {}}, ${lead.created_at}, ${lead.updated_at}
+                        ${lead.phone || null}, ${lead.status || 'active'}, ${lead.source || 'migration'}, 
+                        ${lead.metadata || {}}, ${lead.created_at || new Date().toISOString()}, ${lead.updated_at || lead.created_at || new Date().toISOString()}
                     ) ON CONFLICT (id) DO UPDATE SET
                         name = EXCLUDED.name,
                         phone = EXCLUDED.phone,
@@ -72,8 +72,8 @@ async function migrate() {
                     INSERT INTO messages (
                         id, organization_id, lead_id, role, content, whatsapp_message_id, created_at
                     ) VALUES (
-                        ${msg.id}, ${msg.organization_id}, ${msg.lead_id}, ${msg.role}, 
-                        ${msg.content}, ${msg.whatsapp_message_id || null}, ${msg.created_at}
+                        ${msg.id}, ${msg.organization_id}, ${msg.lead_id || null}, ${msg.role || 'user'}, 
+                        ${msg.content || ''}, ${msg.whatsapp_message_id || null}, ${msg.created_at || new Date().toISOString()}
                     ) ON CONFLICT (id) DO NOTHING
                 `;
                 msgsMigrated++;
