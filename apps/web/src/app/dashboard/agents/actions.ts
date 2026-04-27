@@ -71,6 +71,8 @@ export async function updateAgent(id: string, formData: FormData) {
     const successCase = formData.get("successCase") as string;
     const gender = formData.get("gender") as string || "female";
 
+    console.log(`[updateAgent] Updating agent ${id} with instance:`, whatsappInstanceName);
+
     await AgentRepository.update(id, {
         name,
         description,

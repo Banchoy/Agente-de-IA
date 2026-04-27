@@ -24,6 +24,8 @@ export default async function AgentDetailsPage({ params }: { params: Promise<{ i
     const config = (agent.config as any) || {};
 
     // Get all available sessions for this organization
+    // Usamos o db diretamente aqui, mas se houver RLS, precisamos de contexto.
+    // Como AgentRepository.getById já validou a org, podemos usar o agent.organizationId
     const sessions = await db.select({ 
         sessionId: whatsappSessions.sessionId 
     })
@@ -32,6 +34,7 @@ export default async function AgentDetailsPage({ params }: { params: Promise<{ i
     .groupBy(whatsappSessions.sessionId);
 
     const availableSessions = sessions.map(s => s.sessionId);
+    console.log(`[AgentPage] Found ${availableSessions.length} sessions for org ${agent.organizationId}:`, availableSessions);
 
     // Get dynamic free models from OpenRouter
     const freeModels = await AIService.getOpenRouterFreeModels();
@@ -236,7 +239,7 @@ export default async function AgentDetailsPage({ params }: { params: Promise<{ i
                                 <select
                                     name="whatsappInstanceName"
                                     id="whatsappInstanceName"
-                                    defaultValue={(agent as any).whatsappInstanceName || ""}
+                                    defaultValue={(agent as any).whatsappInstanceName || (agent as any).whatsapp_instance_name || ""}
                                     className="w-full rounded-2xl border border-border bg-card px-5 py-4 text-sm font-bold text-foreground focus:border-primary focus:outline-none transition-all appearance-none cursor-pointer"
                                 >
                                     <option value="">Selecione uma sessão...</option>
