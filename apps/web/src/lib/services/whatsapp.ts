@@ -483,17 +483,18 @@ export const WhatsappService = {
                                 
                                 const isAutoKeyword = text && autoReplyKeywords.some(kw => text.toLowerCase().includes(kw));
                                 
-                                // Redução de 8s para 3s: Evita falsos-positivos em humanos que respondem rápido.
-                                // Automações de "Away" do WhatsApp Business respondem em menos de 1s.
-                                const isExtremelyFast = responseTimeSeconds < 3; 
+                                // Redução de 8s para 10s conforme solicitado, mas com lógica condicional de tamanho
+                                const isExtremelyFast = responseTimeSeconds < 10; 
 
                                 if (isAutoKeyword || isExtremelyFast) {
-                                    console.log(`🤖 [Baileys] Automação suspeita (Tempo: ${responseTimeSeconds.toFixed(1)}s, Keyword: ${isAutoKeyword}).`);
+                                    console.log(`🤖 [Baileys] Resposta rápida detectada (Tempo: ${responseTimeSeconds.toFixed(1)}s). Analisando...`);
                                     
-                                    // Se for extremamente rápido e for uma das palavras-chave, aí sim bloqueamos.
-                                    // Se for só rápido mas sem keyword, deixamos o Gemini decidir se responde.
-                                    if (isAutoKeyword || (isExtremelyFast && text.length > 50)) {
-                                         console.log(`🛑 [Baileys] Automação CONFIRMADA. Executando bypass.`);
+                                    // Lógica Bruno 2.7: Só bloqueia se for keyword OU se for rápido E longo (> 50 caracteres)
+                                    // Se for rápido mas curto (ex: "Oi", "Bom dia"), tratamos como humano.
+                                    const isLikelyBot = isAutoKeyword || (isExtremelyFast && text && text.length > 50);
+
+                                    if (isLikelyBot) {
+                                         console.log(`🛑 [Baileys] Automação CONFIRMADA (Longo ou Keyword). Executando bypass.`);
                                          const bypassMsg = "Opa, tudo bem! Fico no aguardo de uma pessoa real para seguirmos aqui.";
                                          await sock.sendMessage(jid, { text: bypassMsg });
                                          
