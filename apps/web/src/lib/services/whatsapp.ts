@@ -482,33 +482,33 @@ export const WhatsappService = {
                                 ];
                                 
                                 const isAutoKeyword = text && autoReplyKeywords.some(kw => text.toLowerCase().includes(kw));
-                                const isExtremelyFast = responseTimeSeconds < 8; // Automações respondem em < 5s. 8s é um limite seguro para não bloquear humanos.
+                                
+                                // Redução de 8s para 3s: Evita falsos-positivos em humanos que respondem rápido.
+                                // Automações de "Away" do WhatsApp Business respondem em menos de 1s.
+                                const isExtremelyFast = responseTimeSeconds < 3; 
 
                                 if (isAutoKeyword || isExtremelyFast) {
-                                    console.log(`🤖 [Baileys] Automação detectada (Tempo: ${responseTimeSeconds.toFixed(1)}s, Keyword: ${isAutoKeyword}). Executando Alternativa A.`);
+                                    console.log(`🤖 [Baileys] Automação suspeita (Tempo: ${responseTimeSeconds.toFixed(1)}s, Keyword: ${isAutoKeyword}).`);
                                     
-                                    // Se for extremamente rápido e já enviamos um bypass recentemente, evitamos o loop infinito
-                                    const lastMsgWasBypass = lastAssistantMsg?.content?.includes("Fico no aguardo de uma pessoa real");
-                                    if (lastMsgWasBypass && isExtremelyFast) {
-                                        console.warn(`🛑 [Baileys] Loop de automação detectado. Ignorando resposta.`);
-                                        if (redis) await redis.del(`lock:lead:${lead.id}`);
-                                        continue;
+                                    // Se for extremamente rápido e for uma das palavras-chave, aí sim bloqueamos.
+                                    // Se for só rápido mas sem keyword, deixamos o Gemini decidir se responde.
+                                    if (isAutoKeyword || (isExtremelyFast && text.length > 50)) {
+                                         console.log(`🛑 [Baileys] Automação CONFIRMADA. Executando bypass.`);
+                                         const bypassMsg = "Opa, tudo bem! Fico no aguardo de uma pessoa real para seguirmos aqui.";
+                                         await sock.sendMessage(jid, { text: bypassMsg });
+                                         
+                                         await (MessageRepository as any).createSystem({
+                                             organizationId: org.id,
+                                             leadId: lead.id,
+                                             role: "assistant",
+                                             content: bypassMsg,
+                                             type: "text",
+                                             whatsappMessageId: `bypass_${Date.now()}`,
+                                         });
+
+                                         if (redis) await redis.del(`lock:lead:${lead.id}`);
+                                         continue;
                                     }
-
-                                    const bypassMsg = "Opa, tudo bem! Fico no aguardo de uma pessoa real para seguirmos aqui.";
-                                    await sock.sendMessage(jid, { text: bypassMsg });
-                                    
-                                    await (MessageRepository as any).createSystem({
-                                        organizationId: org.id,
-                                        leadId: lead.id,
-                                        role: "assistant",
-                                        content: bypassMsg,
-                                        type: "text",
-                                        whatsappMessageId: `bypass_${Date.now()}`,
-                                    });
-
-                                    if (redis) await redis.del(`lock:lead:${lead.id}`);
-                                    continue;
                                 }
 
                                 if (lastAssistantMsg && lastMessages[0]?.role !== "user") {

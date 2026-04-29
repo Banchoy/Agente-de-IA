@@ -114,8 +114,44 @@ export const LeadRepository = {
                 eq(leads.organizationId, organizationId)
             )
         });
+
+        // 1.1 SE NÃO ACHOU NA ATIVA, BUSCAR NO ARCHIVE (Postgres)
+        if (!lead) {
+            console.log(`📂 [LeadRepository] JID ${jid} não encontrado na ativa. Buscando no Arquivo...`);
+            
+            // Usamos sql raw aqui porque o schema.ts pode não ter o leads_archive mapeado no query builder
+            const archivedLeads = await db.execute(sql`
+                SELECT * FROM leads_archive 
+                WHERE (meta_data->>'outreachJid' = ${jid} OR meta_data->>'jid' = ${jid} OR meta_data->>'lastLid' = ${jid})
+                AND organization_id = ${organizationId}
+                LIMIT 1
+            `);
+
+            const archivedLead = archivedLeads[0] as any;
+
+            if (archivedLead) {
+                console.log(`♻️ [LeadRepository] Lead encontrado no arquivo! Restaurando: ${archivedLead.name}`);
+                // Restaura o lead para a ativa (Mapeamento básico)
+                const [restored] = await db.insert(leads).values({
+                    id: archivedLead.id,
+                    organizationId: archivedLead.organization_id,
+                    phone: archivedLead.phone,
+                    name: archivedLead.name,
+                    status: archivedLead.status || "NEW",
+                    metaData: archivedLead.meta_data || {},
+                    createdAt: archivedLead.created_at || new Date(),
+                    updatedAt: new Date(),
+                    outreachStatus: "completed" // Se estava no arquivo, a prospecção já foi
+                } as any).returning();
+                
+                lead = restored;
+                // Opcional: Deletar do arquivo (limpeza)
+                await db.execute(sql`DELETE FROM leads_archive WHERE id = ${archivedLead.id}`);
+            }
+        }
+
         if (lead) {
-            console.log(`✅ [LeadRepository] Lead encontrado por JID exato/meta: ${lead.id}`);
+            console.log(`✅ [LeadRepository] Lead encontrado por JID: ${lead.id}`);
             return lead;
         }
 
@@ -128,7 +164,7 @@ export const LeadRepository = {
             lead = await LeadRepository.getByPhoneSystem(phoneFromJid, organizationId);
             
             if (lead) {
-                console.log(`✅ [LeadRepository] Lead unificado por variação de telefone: ${lead.id}. Atualizando JID.`);
+                console.log(`✅ [LeadRepository] Lead unificado por telefone: ${lead.id}. Atualizando JID.`);
                 // Unifica o JID para futuras buscas rápidas
                 const newMetadata = { ...(lead.metaData as any || {}), lastLid: jid };
                 if (jid.includes('@s.whatsapp.net')) newMetadata.outreachJid = jid;
@@ -140,9 +176,6 @@ export const LeadRepository = {
                 return lead;
             }
         }
-
-        // 4. Se for @lid, podemos ter dificuldades se for um hash novo, mas a unificação por phoneFromJid acima já cobre muitos casos
-        // onde o @lid contém o número (embora raramente). O @lid opaco será tratado por StanzaId no whatsapp.ts.
 
         return null;
     },
