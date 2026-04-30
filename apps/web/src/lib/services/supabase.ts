@@ -49,7 +49,7 @@ export const SupabaseService = {
             if (messages.length > 0) {
                 const { error: msgError } = await supabase
                     .from("messages_archive")
-                    .insert(messages.map(m => ({
+                    .upsert(messages.map(m => ({
                         id: m.id,
                         lead_id: m.leadId,
                         organization_id: m.organizationId,
@@ -57,7 +57,7 @@ export const SupabaseService = {
                         role: m.role,
                         whatsapp_message_id: m.whatsappMessageId,
                         created_at: m.createdAt,
-                    })));
+                    })), { onConflict: 'id', ignoreDuplicates: true });
 
                 if (msgError) throw msgError;
             }

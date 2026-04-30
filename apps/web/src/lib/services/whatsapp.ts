@@ -9,7 +9,7 @@ import makeWASocket, {
 import { Boom } from "@hapi/boom";
 import pino from "pino";
 import { db } from "@/lib/db";
-import { whatsappSessions, organizations, messages as messagesTable, leads } from "@/lib/db/schema";
+import { whatsappSessions, organizations, messages as messagesTable, leads, stages } from "@/lib/db/schema";
 import { eq, and, or, isNull, lt, desc, sql, ilike } from "drizzle-orm";
 import QRCode from "qrcode";
 import { OrganizationRepository } from "@/lib/repositories/organization";
@@ -325,10 +325,16 @@ export const WhatsappService = {
                             }
 
                             const jid = msg.key.remoteJid;
-                            if (!jid) continue;
+                            if (!jid) {
+                                console.log(`⏩ [Baileys] Mensagem [${index+1}] sem remoteJid. Ignorando.`);
+                                continue;
+                            }
 
                             const isIndividual = jid.endsWith("@s.whatsapp.net") || jid.endsWith("@lid");
-                            if (!isIndividual) continue;
+                            if (!isIndividual) {
+                                console.log(`⏩ [Baileys] Mensagem [${index+1}] não é individual (JID: ${jid}). Ignorando.`);
+                                continue;
+                            }
 
                             const isAudio = !!msg.message.audioMessage;
                             let audioData: any = null;
@@ -341,7 +347,10 @@ export const WhatsappService = {
                                          msg.message.listResponseMessage?.title ||
                                          (isAudio ? "[Áudio]" : "");
                             
-                            if (!text && !isAudio) continue;
+                            if (!text && !isAudio) {
+                                console.log(`⏩ [Baileys] Mensagem [${index+1}] sem texto e sem áudio. Tipo: ${Object.keys(msg.message || {}).join(', ')}. Ignorando.`);
+                                continue;
+                            }
 
                             if (isAudio) {
                                 try {
@@ -380,10 +389,16 @@ export const WhatsappService = {
                                 continue;
                             }
 
-                            if (isFromMe) continue;
+                            if (isFromMe) {
+                                console.log(`⏩ [Baileys] Mensagem [${index+1}] é fromMe. Ignorando.`);
+                                continue;
+                            }
 
                             const org = await OrganizationRepository.getById(organizationId);
-                            if (!org) continue;
+                            if (!org) {
+                                console.log(`⏩ [Baileys] Organização ${organizationId} não encontrada. Ignorando.`);
+                                continue;
+                            }
 
                             // 1. Find or Create Lead (UNIFIED MATCH LOGIC)
                             lead = await (LeadRepository as any).getByJidSystem(jid, org.id);

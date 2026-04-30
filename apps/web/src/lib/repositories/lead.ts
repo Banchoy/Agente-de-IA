@@ -119,34 +119,38 @@ export const LeadRepository = {
         if (!lead) {
             console.log(`📂 [LeadRepository] JID ${jid} não encontrado na ativa. Buscando no Arquivo...`);
             
-            // Usamos sql raw aqui porque o schema.ts pode não ter o leads_archive mapeado no query builder
-            const archivedLeads = await db.execute(sql`
-                SELECT * FROM leads_archive 
-                WHERE (meta_data->>'outreachJid' = ${jid} OR meta_data->>'jid' = ${jid} OR meta_data->>'lastLid' = ${jid})
-                AND organization_id = ${organizationId}
-                LIMIT 1
-            `);
+            try {
+                // Usamos sql raw aqui porque o schema.ts pode não ter o leads_archive mapeado no query builder
+                const archivedLeads = await db.execute(sql`
+                    SELECT * FROM leads_archive 
+                    WHERE (meta_data->>'outreachJid' = ${jid} OR meta_data->>'jid' = ${jid} OR meta_data->>'lastLid' = ${jid})
+                    AND organization_id = ${organizationId}
+                    LIMIT 1
+                `);
 
-            const archivedLead = archivedLeads[0] as any;
+                const archivedLead = archivedLeads[0] as any;
 
-            if (archivedLead) {
-                console.log(`♻️ [LeadRepository] Lead encontrado no arquivo! Restaurando: ${archivedLead.name}`);
-                // Restaura o lead para a ativa (Mapeamento básico)
-                const [restored] = await db.insert(leads).values({
-                    id: archivedLead.id,
-                    organizationId: archivedLead.organization_id,
-                    phone: archivedLead.phone,
-                    name: archivedLead.name,
-                    status: archivedLead.status || "NEW",
-                    metaData: archivedLead.meta_data || {},
-                    createdAt: archivedLead.created_at || new Date(),
-                    updatedAt: new Date(),
-                    outreachStatus: "completed" // Se estava no arquivo, a prospecção já foi
-                } as any).returning();
-                
-                lead = restored;
-                // Opcional: Deletar do arquivo (limpeza)
-                await db.execute(sql`DELETE FROM leads_archive WHERE id = ${archivedLead.id}`);
+                if (archivedLead) {
+                    console.log(`♻️ [LeadRepository] Lead encontrado no arquivo! Restaurando: ${archivedLead.name}`);
+                    // Restaura o lead para a ativa (Mapeamento básico)
+                    const [restored] = await db.insert(leads).values({
+                        id: archivedLead.id,
+                        organizationId: archivedLead.organization_id,
+                        phone: archivedLead.phone,
+                        name: archivedLead.name,
+                        status: archivedLead.status || "NEW",
+                        metaData: archivedLead.meta_data || {},
+                        createdAt: archivedLead.created_at || new Date(),
+                        updatedAt: new Date(),
+                        outreachStatus: "completed" // Se estava no arquivo, a prospecção já foi
+                    } as any).returning();
+                    
+                    lead = restored;
+                    // Opcional: Deletar do arquivo (limpeza)
+                    await db.execute(sql`DELETE FROM leads_archive WHERE id = ${archivedLead.id}`);
+                }
+            } catch (archiveErr) {
+                console.warn(`⚠️ [LeadRepository] Tabela leads_archive não disponível no DB principal. Continuando busca normal.`);
             }
         }
 
