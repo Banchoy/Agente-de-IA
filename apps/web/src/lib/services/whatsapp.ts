@@ -789,6 +789,83 @@ export const WhatsappService = {
                                         messagesToWait.push({ type: agentConfig.voiceEnabled ? "audio" : "text", content: finalMessage });
                                     }
 
+                                    // 🧩 DIVISÃO INTELIGENTE: Mensagens de texto longas viram até 2 blocos naturais
+                                    // Mensagens curtas (< 80 chars) ficam intactas. Mensagens longas são divididas
+                                    // no ponto de quebra mais natural (parágrafo, ponto final, exclamação, interrogação).
+                                    const smartSplitMessages: typeof messagesToWait = [];
+                                    for (const item of messagesToWait) {
+                                        if (item.type !== "text" || item.content.length < 80) {
+                                            smartSplitMessages.push(item);
+                                            continue;
+                                        }
+
+                                        const txt = item.content;
+                                        
+                                        // Tenta dividir por parágrafo (dupla quebra de linha) primeiro
+                                        const paraBreak = txt.indexOf("\n\n");
+                                        if (paraBreak > 30 && paraBreak < txt.length - 20) {
+                                            smartSplitMessages.push({ type: "text", content: txt.substring(0, paraBreak).trim() });
+                                            smartSplitMessages.push({ type: "text", content: txt.substring(paraBreak + 2).trim() });
+                                            console.log(`🧩 [Split] Dividido por parágrafo: ${txt.substring(0, paraBreak).trim().length} + ${txt.substring(paraBreak + 2).trim().length} chars`);
+                                            continue;
+                                        }
+
+                                        // Tenta dividir na melhor sentença (ponto, exclamação, interrogação) perto do meio
+                                        const midPoint = Math.floor(txt.length / 2);
+                                        const sentenceEnders = /[.!?]\s/g;
+                                        let bestSplit = -1;
+                                        let bestDistance = Infinity;
+                                        let seMatch;
+                                        while ((seMatch = sentenceEnders.exec(txt)) !== null) {
+                                            const pos = seMatch.index + 1; // posição logo após o ponto/!/? 
+                                            if (pos < 30 || pos > txt.length - 15) continue; // evita fatias muito pequenas
+                                            const dist = Math.abs(pos - midPoint);
+                                            if (dist < bestDistance) {
+                                                bestDistance = dist;
+                                                bestSplit = pos;
+                                            }
+                                        }
+
+                                        if (bestSplit > 0) {
+                                            const part1 = txt.substring(0, bestSplit).trim();
+                                            const part2 = txt.substring(bestSplit).trim();
+                                            if (part1 && part2) {
+                                                smartSplitMessages.push({ type: "text", content: part1 });
+                                                smartSplitMessages.push({ type: "text", content: part2 });
+                                                console.log(`🧩 [Split] Dividido por sentença: ${part1.length} + ${part2.length} chars`);
+                                                continue;
+                                            }
+                                        }
+
+                                        // Não encontrou ponto de quebra bom — mantém inteira
+                                        smartSplitMessages.push(item);
+                                    }
+                                    
+                                    // Garante no máximo 2 blocos de texto (junta excedentes no último)
+                                    const finalMessages: typeof messagesToWait = [];
+                                    let textCount = 0;
+                                    for (let i = 0; i < smartSplitMessages.length; i++) {
+                                        if (smartSplitMessages[i].type === "text") {
+                                            textCount++;
+                                            if (textCount <= 2) {
+                                                finalMessages.push(smartSplitMessages[i]);
+                                            } else {
+                                                // Concatena no último bloco de texto
+                                                const lastTextIdx = finalMessages.map(m => m.type).lastIndexOf("text");
+                                                if (lastTextIdx >= 0) {
+                                                    finalMessages[lastTextIdx].content += "\n\n" + smartSplitMessages[i].content;
+                                                }
+                                            }
+                                        } else {
+                                            finalMessages.push(smartSplitMessages[i]);
+                                        }
+                                    }
+                                    
+                                    // Substitui o array original pelo array otimizado
+                                    messagesToWait.length = 0;
+                                    messagesToWait.push(...finalMessages);
+                                    console.log(`📨 [Split] Total de blocos a enviar: ${messagesToWait.length} (${messagesToWait.map(m => `${m.type}:${m.content.length}ch`).join(', ')})`);
+
                                     // Sequential sending
                                     for (const msg of messagesToWait) {
                                         if (msg.type === "audio" && agentConfig.voiceEnabled) {
