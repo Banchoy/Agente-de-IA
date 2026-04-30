@@ -509,6 +509,37 @@ export const WhatsappService = {
                                     const isLikelyBot = isAutoKeyword || (isExtremelyFast && text && text.length > 50);
 
                                     if (isLikelyBot) {
+                                         // 🛡️ PROTEÇÃO ANTI-LOOP: Verifica se já enviamos bypass para este lead
+                                         // Usa Redis com cooldown de 30 min para evitar spam de bypass
+                                         let alreadyBypassed = false;
+                                         if (redis) {
+                                             const bypassKey = `bypass:sent:${lead.id}`;
+                                             const existing = await redis.get(bypassKey);
+                                             if (existing) {
+                                                 alreadyBypassed = true;
+                                                 console.log(`🛡️ [Baileys] Bypass já enviado para lead ${lead.id} (cooldown ativo). Ignorando silenciosamente.`);
+                                             }
+                                         }
+                                         
+                                         // Fallback: verifica no histórico se já tem bypass recente
+                                         if (!alreadyBypassed) {
+                                             const bypassInHistory = lastMessages.some((m: any) => 
+                                                 m.role === "assistant" && 
+                                                 (m.whatsappMessageId?.startsWith("bypass_") || 
+                                                  m.content?.includes("aguardo de uma pessoa real") ||
+                                                  m.content?.includes("humano puder falar"))
+                                             );
+                                             if (bypassInHistory) {
+                                                 alreadyBypassed = true;
+                                                 console.log(`🛡️ [Baileys] Bypass já encontrado no histórico do lead ${lead.id}. Ignorando.`);
+                                             }
+                                         }
+
+                                         if (alreadyBypassed) {
+                                             if (redis) await redis.del(`lock:lead:${lead.id}`);
+                                             continue;
+                                         }
+
                                          console.log(`🛑 [Baileys] Automação CONFIRMADA (Longo ou Keyword). Executando bypass.`);
                                          const bypassMsg = "Opa, tudo bem! Fico no aguardo de uma pessoa real para seguirmos aqui.";
                                          await sock.sendMessage(jid, { text: bypassMsg });
@@ -521,6 +552,11 @@ export const WhatsappService = {
                                              type: "text",
                                              whatsappMessageId: `bypass_${Date.now()}`,
                                          });
+
+                                         // Marcar cooldown de 30 minutos no Redis para evitar loop
+                                         if (redis) {
+                                             await redis.set(`bypass:sent:${lead.id}`, "1", "EX", 1800);
+                                         }
 
                                          if (redis) await redis.del(`lock:lead:${lead.id}`);
                                          continue;

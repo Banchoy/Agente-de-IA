@@ -116,7 +116,7 @@ Your response MUST be a valid JSON object with the following keys:
 
         if (env.GOOGLE_GEMINI_API_KEY) {
             try {
-                const response = await AIService.generateGeminiResponse(model || "gemini-1.5-flash-latest", structuredPrompt, messages, temperature, true);
+                const response = await AIService.generateGeminiResponse(model || "gemini-2.0-flash", structuredPrompt, messages, temperature, true);
                 const cleaned = response.replace(/```json|```/g, "").trim();
                 return JSON.parse(cleaned);
             } catch (err: any) {}
@@ -252,7 +252,7 @@ Sua resposta DEVE ser um JSON válido com a seguinte estrutura:
         if (!apiKey) throw new Error("GOOGLE_GEMINI_API_KEY not configured.");
         const genAI = new GoogleGenerativeAI(apiKey);
         const genModel = genAI.getGenerativeModel({ 
-            model: model || "gemini-1.5-flash-latest", 
+            model: model || "gemini-2.0-flash", 
             systemInstruction: systemPrompt,
             generationConfig: { temperature, responseMimeType: jsonMode ? "application/json" : "text/plain" }
         });
@@ -293,13 +293,25 @@ Sua resposta DEVE ser um JSON válido com a seguinte estrutura:
     },
 
     getOpenRouterFreeModels: async (): Promise<string[]> => {
+        // Modelos gratuitos prioritários (conhecidos por seguir bem instruções JSON e scripts)
+        const priorityModels = [
+            "google/gemini-2.0-flash-exp:free",
+            "google/gemini-2.5-flash-preview:free",
+            "meta-llama/llama-3.3-70b-instruct:free",
+            "deepseek/deepseek-chat-v3-0324:free",
+            "qwen/qwen3-235b-a22b:free"
+        ];
         const apiKey = env.OPENROUTER_API_KEY;
-        if (!apiKey) return ["google/gemini-2.0-flash-exp:free"];
+        if (!apiKey) return priorityModels;
         try {
             const res = await fetch("https://openrouter.ai/api/v1/models", { headers: { "Authorization": `Bearer ${apiKey}` } });
             const data = await res.json();
-            return data.data.filter((m: any) => m.id.endsWith(":free") || parseFloat(m.pricing?.prompt || "1") === 0).map((m: any) => m.id);
-        } catch (e) { return ["google/gemini-2.0-flash-exp:free"]; }
+            const allFree = data.data.filter((m: any) => m.id.endsWith(":free") || parseFloat(m.pricing?.prompt || "1") === 0).map((m: any) => m.id);
+            // Colocar modelos prioritários primeiro, depois os demais
+            const prioritized = priorityModels.filter(m => allFree.includes(m));
+            const rest = allFree.filter((m: string) => !priorityModels.includes(m));
+            return [...prioritized, ...rest];
+        } catch (e) { return priorityModels; }
     },
 
     generateResilientResponse: async (systemPrompt: string, messages: ChatMessage[], temperature: number = 0.7) => {
@@ -307,7 +319,7 @@ Sua resposta DEVE ser um JSON válido com a seguinte estrutura:
         
         if (env.GOOGLE_GEMINI_API_KEY) {
             try { 
-                return await AIService.generateGeminiResponse("gemini-1.5-flash-latest", systemPrompt, messages, temperature); 
+                return await AIService.generateGeminiResponse("gemini-2.0-flash", systemPrompt, messages, temperature); 
             } catch (e: any) { 
                 console.error("❌ [AIService] Erro no Gemini:", e.message);
                 errors.push(`Gemini: ${e.message}`);
