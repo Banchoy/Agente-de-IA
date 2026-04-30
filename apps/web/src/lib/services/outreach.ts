@@ -17,6 +17,119 @@ function getRandomGapMs() {
 
 export const OutreachService = {
     /**
+     * Tenta recuperar conversas que ficaram pendentes (o usuário mandou mensagem e o bot não respondeu).
+     */
+    processRecoveryQueue: async () => {
+        // Busca leads ativos (IA ligada) que não estão na fila de prospecção inicial
+        // e que a última mensagem recebida foi do usuário.
+        try {
+            // Query para encontrar leads onde a última mensagem é 'user'
+            // Usamos uma subquery para garantir que pegamos a mensagem mais recente de cada lead
+            const pendingResponses = await db.execute(sql`
+                SELECT l.id, l.organization_id 
+                FROM leads l
+                WHERE l.ai_active = 'true'
+                AND l.outreach_status != 'pending'
+                AND EXISTS (
+                    SELECT 1 FROM messages m
+                    WHERE m.lead_id = l.id
+                    AND m.role = 'user'
+                    AND m.created_at = (
+                        SELECT MAX(created_at) FROM messages WHERE lead_id = l.id
+                    )
+                )
+                LIMIT 5
+            `);
+
+            const leadsToRecover = pendingResponses.rows as unknown as { id: string, organization_id: string }[];
+
+            if (leadsToRecover.length === 0) return false;
+
+            console.log(`🔄 [Outreach] Encontrados ${leadsToRecover.length} leads aguardando resposta. Recuperando...`);
+
+            for (const item of leadsToRecover) {
+                try {
+                    // Simula um evento de mensagem para disparar a lógica do whatsapp.ts
+                    // Na verdade, vamos apenas chamar a função de processamento de resposta se ela existir
+                    // ou deixar que o sistema de lock gerencie.
+                    // Para ser seguro, vamos apenas logar e deixar o processQueue retornar true 
+                    // se houver trabalho de recuperação a ser feito, mas aqui vamos forçar o processamento
+                    // chamando o repositório para "cutucar" o lead.
+                    
+                    const lead = await LeadRepository.getByIdSystem(item.id);
+                    if (!lead) continue;
+
+                    console.log(`🎯 [Outreach] Recuperando conversa com lead: ${lead.name} (${lead.phone})`);
+                    
+                    // Aqui chamamos a lógica de processamento de resposta do WhatsApp
+                    // Como a lógica está dentro do evento 'messages.upsert' no whatsapp.ts,
+                    // vamos disparar o processamento manualmente se possível ou 
+                    // adaptar para que o Outreach consiga processar respostas.
+                    
+                    // Nota: No whatsapp.ts, o processamento acontece quando chega mensagem.
+                    // Vamos garantir que o OutreachService consiga gerar essa resposta.
+                    await OutreachService.respondToLead(lead);
+                } catch (err) {
+                    console.error(`❌ [Outreach] Erro ao recuperar lead ${item.id}:`, err);
+                }
+            }
+            return true;
+        } catch (error) {
+            console.error("❌ [Outreach] Erro na fila de recuperação:", error);
+            return false;
+        }
+    },
+
+    /**
+     * Gera e envia uma resposta de IA para um lead que ficou pendente.
+     */
+    respondToLead: async (lead: any) => {
+        const { AIService } = await import("./ai");
+        const { ScriptService } = await import("./script");
+
+        const agents = await AgentRepository.listByOrgIdSystem(lead.organizationId);
+        const agent = agents.find((a: any) => a.config?.whatsappResponse === true) || agents[0];
+        if (!agent) return;
+
+        const history = await (MessageRepository as any).listByLeadSystem(lead.id, 20);
+        const formattedHistory = history.reverse().map((m: any) => ({
+            role: m.role === "assistant" ? "model" : "user",
+            content: m.content || ""
+        }));
+
+        const scriptInstruction = ScriptService.getInstruction(lead.conversationState, lead, agent.config);
+        
+        console.log(`🤖 [Outreach] Gerando resposta de recuperação para ${lead.name}...`);
+        
+        const aiResponse = await AIService.generateAdaptiveResponse(
+            agent.config,
+            lead,
+            formattedHistory,
+            scriptInstruction
+        );
+
+        if (aiResponse && aiResponse.body) {
+            // Enviar resposta
+            const sendResult = await WhatsappService.sendText(lead.organizationId, lead.phone, aiResponse.body);
+            
+            // Registrar no banco
+            await MessageRepository.createSystem({
+                organizationId: lead.organizationId,
+                leadId: lead.id,
+                role: "assistant",
+                content: aiResponse.body,
+                whatsappMessageId: (sendResult as any)?.key?.id || `recovery_${Date.now()}`
+            });
+
+            // Avançar estado se necessário
+            const nextState = ScriptService.advanceState(lead.conversationState, lead, aiResponse);
+            if (nextState !== lead.conversationState) {
+                await LeadRepository.updateSystem(lead.id, { conversationState: nextState });
+            }
+        }
+    },
+
+    /**
      * Verifica e processa a fila de prospecção.
      */
     processQueue: async () => {
@@ -75,12 +188,21 @@ export const OutreachService = {
                 }
             }
 
+            // 0. Tentar recuperar conversas pendentes primeiro
+            const hasRecovered = await OutreachService.processRecoveryQueue();
+            if (hasRecovered) {
+                // Se recuperou alguém, o gap de anti-ban deve ser respeitado antes da próxima ação
+                if (redis) await redis.set("outreach:last_sent_at", Date.now().toString(), "EX", 86400);
+                return;
+            }
+
             // 1. Buscar um lead que está 'pending'
             const [result] = await db
                 .select()
                 .from(leads)
                 .where(eq(leads.outreachStatus, "pending"))
                 .limit(1);
+
 
             pendingLead = result;
 
