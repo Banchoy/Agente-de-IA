@@ -213,13 +213,12 @@ ${reasoningInstruction}
 ### INSTRUÇÃO TÁTICA ATUAL (O QUE VOCÊ DEVE FAZER AGORA):
 ${scriptInstruction}
 
-### COMO VOCÊ DEVE FORMULAR SUA RESPOSTA:
-1. Analise o que o cliente acabou de dizer no Histórico.
-2. Leia sua "Instrução Tática Atual" (acima) para saber o objetivo deste momento e AVANCE PARA A PRÓXIMA ETAPA.
-3. Leia o seu "Treinamento" para entender que informações/dores/planos o negócio possui referentes a esse objetivo.
+### REGRAS DE OURO DE COMUNICAÇÃO:
+1. **[PROIBIÇÃO TOTAL]**: É TERMINANTEMENTE PROIBIDO usar o termo genérico "seu negócio" ou "sua empresa". Você DEVE usar obrigatoriamente o termo "${leadNiche}".
+2. Analise o que o cliente acabou de dizer no Histórico.
+3. Leia sua "Instrução Tática Atual" (acima) para saber o objetivo deste momento e AVANCE PARA A PRÓXIMA ETAPA.
 4. Formule a mensagem TRANSCREVENDO o objetivo para uma linguagem de bate-papo super natural.
-5. Esqueça qualquer "cópia literal", use a essência do treinamento para gerar a resposta ideal como se você fosse um representante de vendas real.
-6. [ALERTA ANTI-LOOP]: Se você perceber que o usuário respondeu "Pode", "Pode falar", "Tá", "Ok" ou "Sim", você DEVE avançar a conversa. NUNCA responda entregando a mesma frase que você enviou na mensagem anterior! O cliente irá se irritar se você repetir a pergunta.
+5. [ALERTA ANTI-LOOP]: Se o cliente respondeu algo curto ("Sim", "Ok"), avance. Não repita perguntas.
 
 ### FORMATO DE SAÍDA OBRIGATÓRIO (JSON):
 Sua resposta DEVE ser um JSON válido com a seguinte estrutura:
@@ -233,17 +232,31 @@ Sua resposta DEVE ser um JSON válido com a seguinte estrutura:
 `.trim();
 
         const response = await AIService.generateResilientResponse(systemPrompt, messages, temperature);
+        
+        // --- PÓS-PROCESSAMENTO BRUNO 2.8 (GARANTIA DE NICHO) ---
+        const finalCleanup = (text: string) => {
+            if (!text) return text;
+            return text
+                .replace(/\[NICHO\]/gi, leadNiche)
+                .replace(/seu negócio/gi, leadNiche)
+                .replace(/sua empresa/gi, leadNiche)
+                .replace(/do seu setor/gi, `do setor de ${leadNiche}`);
+        };
+
         try {
             const firstBrace = response.indexOf('{');
             const lastBrace = response.lastIndexOf('}');
             if (firstBrace !== -1 && lastBrace !== -1) {
                 const jsonStr = response.substring(firstBrace, lastBrace + 1);
                 const parsed = JSON.parse(jsonStr.replace(/```json|```/g, "").trim());
-                if (parsed.body) return parsed;
+                if (parsed.body) {
+                    parsed.body = finalCleanup(parsed.body);
+                    return parsed;
+                }
             }
             throw new Error("Invalid JSON");
         } catch (e) {
-            return { body: response.replace(/[{}]/g, "").trim() };
+            return { body: finalCleanup(response.replace(/[{}]/g, "").trim()) };
         }
     },
 
