@@ -1,6 +1,6 @@
 import { db } from "../db";
 import { leads, organizations, messages } from "../db/schema";
-import { eq, and, desc } from "drizzle-orm";
+import { eq, and, desc, sql } from "drizzle-orm";
 import { MessageRepository } from "../repositories/message";
 import { AgentRepository } from "../repositories/agent";
 import { LeadRepository } from "../repositories/lead";
