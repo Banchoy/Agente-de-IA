@@ -634,8 +634,8 @@ export const WhatsappService = {
                                     }];
                                 }
 
-                                // Delay simulado para leitura: 3 a 6 segundos
-                                const leituraDelay = 3000 + Math.random() * 3000;
+                                // Delay simulado para leitura: 5 a 10 segundos (Anti-Ban)
+                                const leituraDelay = 5000 + Math.random() * 5000;
                                 console.log(`⏳ [Baileys] Simulando leitura... Aguardando ${(leituraDelay/1000).toFixed(1)}s.`);
                                 await new Promise(resolve => setTimeout(resolve, leituraDelay));
 
@@ -902,12 +902,17 @@ export const WhatsappService = {
                                     messagesToWait.push(...finalMessages);
                                     console.log(`📨 [Split] Total de blocos a enviar: ${messagesToWait.length} (${messagesToWait.map(m => `${m.type}:${m.content.length}ch`).join(', ')})`);
 
+                                    // --- ANTI-BAN: Tempo de Pensamento Humano ---
+                                    const thinkingDelay = 3000 + Math.random() * 4000;
+                                    console.log(`⏳ [Baileys] "Pensando" na resposta por ${(thinkingDelay/1000).toFixed(1)}s...`);
+                                    await new Promise(resolve => setTimeout(resolve, thinkingDelay));
+
                                     // Sequential sending
                                     for (const msg of messagesToWait) {
                                         if (msg.type === "audio" && agentConfig.voiceEnabled) {
                                             await sock.sendPresenceUpdate('recording', jid);
-                                            // Aumento do delay de áudio: 15 a 20 segundos
-                                            const audioDelay = 15000 + Math.random() * 5000;
+                                            // Aumento do delay de áudio: 20 a 30 segundos
+                                            const audioDelay = 20000 + Math.random() * 10000;
                                             console.log(`⏳ [Baileys] Simulando gravação de áudio por ${(audioDelay/1000).toFixed(1)}s...`);
                                             await new Promise(resolve => setTimeout(resolve, audioDelay));
 
@@ -947,8 +952,8 @@ export const WhatsappService = {
                                             }
                                         } else {
                                             await sock.sendPresenceUpdate('composing', jid);
-                                            // Digitando: base de 2s + 50ms por caractere (máx 8.0s)
-                                            const typingDelay = Math.min(2000 + (msg.content.length * 50), 8000);
+                                            // Digitando: base de 3s + 80ms por caractere (máx 15.0s)
+                                            const typingDelay = Math.min(3000 + (msg.content.length * 80), 15000);
 
                                             console.log(`💬 [Baileys] Simulando digitação para "${msg.content.substring(0, 20)}..." por ${(typingDelay/1000).toFixed(1)}s...`);
                                             await new Promise(resolve => setTimeout(resolve, typingDelay));
