@@ -328,9 +328,22 @@ export const LeadRepository = {
     },
 
     createMany: async (data: (typeof leads.$inferInsert)[]) => {
+        // Desduplicar os leads na memória com base em telefone e organizationId
+        // O Postgres não permite linhas duplicadas no mesmo lote de INSERT ON CONFLICT
+        const uniqueDataMap = new Map<string, typeof leads.$inferInsert>();
+        
+        for (const lead of data) {
+            const key = `${lead.phone}_${lead.organizationId}`;
+            uniqueDataMap.set(key, lead);
+        }
+        
+        const deduplicatedData = Array.from(uniqueDataMap.values());
+
+        if (deduplicatedData.length === 0) return [];
+
         return await withOrgContext(async (tx) => {
             const results = await tx.insert(leads)
-                .values(data)
+                .values(deduplicatedData)
                 .onConflictDoUpdate({
                     target: [leads.phone, leads.organizationId],
                     set: {
