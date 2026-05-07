@@ -41,9 +41,8 @@ export const OutreachService = {
                 LIMIT 5
             `);
 
-            const leadsToRecover = pendingResponses.rows as unknown as { id: string, organization_id: string }[];
-
-            if (leadsToRecover.length === 0) return false;
+            const leadsToRecover = (pendingResponses?.rows || []) as unknown as { id: string, organization_id: string }[];
+            if (!leadsToRecover || leadsToRecover.length === 0) return false;
 
             console.log(`🔄 [Outreach] Encontrados ${leadsToRecover.length} leads aguardando resposta. Recuperando...`);
 

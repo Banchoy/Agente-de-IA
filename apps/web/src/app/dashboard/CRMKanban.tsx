@@ -622,6 +622,7 @@ export default function CRMKanban({ initialLeads = [], initialStages = [] }: { i
                 skipEmptyLines: true,
                 delimiter: "", // Auto-detect delimiter
                 complete: async (results) => {
+                    const initialStageId = stagesList[0]?.id;
                     const importedLeads = results.data.map((row: any) => {
                         // Mapeamento flexível de campos
                         const name = row.full_name || row.nome || row.name || row["Nome Completo"] || "Lead Importado";
@@ -636,7 +637,7 @@ export default function CRMKanban({ initialLeads = [], initialStages = [] }: { i
                             name,
                             phone: rawPhone,
                             email: row.email || row["E-mail"] || "",
-                            stageId: "prospecting",
+                            stageId: initialStageId, // Usa o UUID real do primeiro estágio
                             source: row.campaign_name || row.ad_name || "Importação CSV",
                             metaData: { ...row }
                         };
@@ -666,6 +667,7 @@ export default function CRMKanban({ initialLeads = [], initialStages = [] }: { i
                 const ws = wb.Sheets[wsname];
                 const data = XLSX.utils.sheet_to_json(ws);
 
+                const initialStageId = stagesList[0]?.id;
                 const importedLeads = data.map((row: any) => {
                     const name = row.full_name || row.nome || row.name || row["Nome Completo"] || "Lead Importado";
                     let rawPhone = row.phone_number || row.phone || row.telefone || row["WhatsApp"] || row["Telefone"] || "";
@@ -678,7 +680,7 @@ export default function CRMKanban({ initialLeads = [], initialStages = [] }: { i
                         name,
                         phone: rawPhone,
                         email: row.email || row["E-mail"] || "",
-                        stageId: "prospecting",
+                        stageId: initialStageId,
                         source: row.campaign_name || row.ad_name || "Importação Excel",
                         metaData: { ...row }
                     };
