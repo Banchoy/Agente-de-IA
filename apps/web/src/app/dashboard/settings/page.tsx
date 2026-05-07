@@ -1,7 +1,8 @@
 import { auth } from "@clerk/nextjs/server";
 import { redirect } from "next/navigation";
 import { OrganizationRepository } from "@/lib/repositories/organization";
-import { Settings as SettingsIcon, Building, Info, ShieldCheck, Database } from "lucide-react";
+import { Settings as SettingsIcon, Building, Info, ShieldCheck, Database, Key, ArrowLeft } from "lucide-react";
+import Link from "next/link";
 
 export default async function SettingsPage() {
     const { userId, orgId: clerkOrgId } = await auth();
@@ -72,6 +73,26 @@ export default async function SettingsPage() {
                         </p>
                     </div>
                 </div>
+
+                {/* API Keys Card */}
+                <Link href="/dashboard/settings/api-keys" className="group">
+                    <div className="rounded-[32px] border border-border bg-card p-8 shadow-sm space-y-4 hover:border-primary hover:shadow-xl hover:shadow-primary/5 transition-all">
+                        <div className="flex items-center justify-between">
+                            <div className="flex items-center gap-4">
+                                <div className="h-12 w-12 rounded-2xl bg-primary/10 flex items-center justify-center text-primary group-hover:scale-110 transition-transform">
+                                    <Key size={24} />
+                                </div>
+                                <div>
+                                    <h3 className="text-xl font-black uppercase tracking-tight">Chaves de API</h3>
+                                    <p className="text-sm text-muted-foreground font-medium">Gerencie suas credenciais de IA e ferramentas externas.</p>
+                                </div>
+                            </div>
+                            <div className="h-10 w-10 rounded-full bg-muted flex items-center justify-center text-muted-foreground group-hover:bg-primary group-hover:text-primary-foreground transition-all">
+                                <ArrowLeft size={20} className="rotate-180" />
+                            </div>
+                        </div>
+                    </div>
+                </Link>
 
                 {/* Integration Link Info */}
                 <div className="rounded-2xl bg-primary text-primary-foreground p-8 flex items-center justify-between shadow-xl">

@@ -660,12 +660,19 @@ export const WhatsappService = {
                                 
                                 console.log(`🤖 [Baileys] Chamando AIService (Adaptativo: ${!!scriptInstruction}) para: ${agent.name}`);
 
+                                const aiContext = {
+                                    openaiApiKey: (org as any).openaiApiKey,
+                                    geminiApiKey: (org as any).geminiApiKey,
+                                    openrouterApiKey: (org as any).openrouterApiKey,
+                                };
+
                                 const adaptiveResult = await AIService.generateAdaptiveResponse(
                                     agentConfig,
                                     lead,
                                     formattedHistory,
                                     noRepeatInstruction,
-                                    agentConfig.temperature !== undefined ? parseFloat(agentConfig.temperature) : 0.7
+                                    agentConfig.temperature !== undefined ? parseFloat(agentConfig.temperature) : 0.7,
+                                    aiContext
                                 );
 
                                 let aiResponse = adaptiveResult.body;
@@ -919,11 +926,16 @@ export const WhatsappService = {
                                             
                                             try {
                                                 const { TTSService } = await import("./tts");
+                                                const ttsKey = (agentConfig.ttsProvider === "elevenlabs") 
+                                                    ? (org as any).elevenlabsApiKey 
+                                                    : (org as any).openaiApiKey;
+
                                                 const audioData = await TTSService.generateAudio(
                                                     msg.content, 
                                                     agentConfig.ttsProvider || "openai", 
                                                     agentConfig.ttsVoiceId, 
-                                                    agentConfig.coquiUrl
+                                                    agentConfig.coquiUrl,
+                                                    ttsKey
                                                 );
                                                 const base64 = audioData.split(",")[1];
                                                 const buffer = Buffer.from(base64, "base64");

@@ -2,13 +2,16 @@ import { db } from "../db";
 import { leads, pipelines, stages } from "@saas/db";
 import { eq } from "drizzle-orm";
 
+import { OrganizationRepository } from "../repositories/organization";
+
 export const ApifyService = {
     /**
      * Inicia o ator de Google Maps Extractor do Apify.
      * Como o scraper pode demorar minutos ou horas, isso usa Webhooks para retornar o resultado via rota API.
      */
     startGoogleMapsExtractor: async (url: string, config: any, orgId: string, baseUrl?: string) => {
-        const token = process.env.APIFY_API_TOKEN;
+        const org = await OrganizationRepository.getById(orgId);
+        const token = (org as any)?.apifyApiKey || process.env.APIFY_API_TOKEN;
         if (!token) throw new Error("Missing APIFY_API_TOKEN");
 
         const finalBaseUrl = baseUrl || process.env.NEXT_PUBLIC_APP_URL || "https://agente-de-ia-production-1081.up.railway.app";
@@ -79,8 +82,12 @@ export const ApifyService = {
     /**
      * Busca o status atual de uma run no Apify.
      */
-    getRunStatus: async (runId: string) => {
-        const token = process.env.APIFY_API_TOKEN;
+    getRunStatus: async (runId: string, orgId?: string) => {
+        let token = process.env.APIFY_API_TOKEN;
+        if (orgId) {
+            const org = await OrganizationRepository.getById(orgId);
+            token = (org as any)?.apifyApiKey || token;
+        }
         const response = await fetch(`https://api.apify.com/v2/actor-runs/${runId}?token=${token}`);
         if (!response.ok) return null;
         const data = await response.json();
@@ -90,8 +97,12 @@ export const ApifyService = {
     /**
      * Busca os itens de um dataset específico.
      */
-    getDatasetItems: async (datasetId: string) => {
-        const token = process.env.APIFY_API_TOKEN;
+    getDatasetItems: async (datasetId: string, orgId?: string) => {
+        let token = process.env.APIFY_API_TOKEN;
+        if (orgId) {
+            const org = await OrganizationRepository.getById(orgId);
+            token = (org as any)?.apifyApiKey || token;
+        }
         const response = await fetch(`https://api.apify.com/v2/datasets/${datasetId}/items?token=${token}`);
         if (!response.ok) return [];
         return await response.json();

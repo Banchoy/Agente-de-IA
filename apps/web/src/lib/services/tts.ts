@@ -13,7 +13,8 @@ export const TTSService = {
         text: string,
         provider: TTSProvider = "openai",
         voiceId?: string,
-        coquiUrl?: string
+        coquiUrl?: string,
+        apiKey?: string | null
     ): Promise<string> => {
         console.log(`🎙️ Generating audio with ${provider} for text: ${text.substring(0, 30)}...`);
 
@@ -22,9 +23,16 @@ export const TTSService = {
         }
 
         if (provider === "openai") {
-            const apiKey = process.env.OPENAI_API_KEY;
-            if (!apiKey) throw new Error("OPENAI_API_KEY not configured.");
-            return await TTSService.generateOpenAIAudio(text, apiKey, voiceId || "alloy");
+            const finalApiKey = apiKey || process.env.OPENAI_API_KEY;
+            if (!finalApiKey) throw new Error("OPENAI_API_KEY not configured.");
+            return await TTSService.generateOpenAIAudio(text, finalApiKey, voiceId || "alloy");
+        }
+
+        if (provider === "elevenlabs") {
+            const finalApiKey = apiKey || process.env.ELEVENLABS_API_KEY;
+            if (!finalApiKey) throw new Error("ELEVENLABS_API_KEY not configured.");
+            // Voice ID padrão (Rachel) caso não seja passado
+            return await TTSService.generateElevenLabsAudio(text, finalApiKey, voiceId || "21m00Tcm4llvDq8ik8dJ");
         }
 
         throw new Error(`TTS Provider ${provider} not implemented.`);
@@ -85,5 +93,33 @@ export const TTSService = {
             console.error("❌ Piper TTS Error:", e.message);
             throw new Error("Piper TTS failed.");
         }
+    },
+
+    generateElevenLabsAudio: async (text: string, apiKey: string, voiceId: string) => {
+        const response = await fetch(`https://api.elevenlabs.io/v1/text-to-speech/${voiceId}`, {
+            method: "POST",
+            headers: {
+                "xi-api-key": apiKey,
+                "Content-Type": "application/json",
+                "accept": "audio/mpeg"
+            },
+            body: JSON.stringify({
+                text: text,
+                model_id: "eleven_multilingual_v2",
+                voice_settings: {
+                    stability: 0.5,
+                    similarity_boost: 0.75
+                }
+            })
+        });
+
+        if (!response.ok) {
+            const err = await response.text();
+            throw new Error(`ElevenLabs TTS Error: ${err}`);
+        }
+
+        const buffer = await response.arrayBuffer();
+        const base64 = Buffer.from(buffer).toString("base64");
+        return `data:audio/mpeg;base64,${base64}`;
     }
 };

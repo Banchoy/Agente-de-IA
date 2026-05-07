@@ -13,6 +13,12 @@ export const organizations = pgTable("organizations", {
     evolutionInstanceStatus: text("evolution_instance_status").default("disconnected"),
     evolutionInstanceName: text("evolution_instance_name"),
     evolutionQrCode: text("evolution_qr_code"),
+    openaiApiKey: text("openai_api_key"),
+    geminiApiKey: text("gemini_api_key"),
+    openrouterApiKey: text("openrouter_api_key"),
+    apifyApiKey: text("apify_api_key"),
+    elevenlabsApiKey: text("elevenlabs_api_key"),
+    prospectingConfig: jsonb("prospecting_config").default({}),
     createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 

@@ -66,20 +66,27 @@ export const BRUNO_RULES = `
 - **[NEGOCIACAO]**: Quando o cliente agendar uma reunião ou demonstrar intenção clara de fechamento, inclua esta tag no final da mensagem.
 `.trim();
 
+export interface AIContext {
+    openaiApiKey?: string | null;
+    geminiApiKey?: string | null;
+    openrouterApiKey?: string | null;
+}
+
 export const AIService = {
     generateResponse: async (
         provider: AIProvider,
         model: string,
         systemPrompt: string,
         messages: ChatMessage[],
-        temperature?: number
+        temperature?: number,
+        context?: AIContext
     ) => {
         if (provider === "google") {
-            return await AIService.generateGeminiResponse(model, systemPrompt, messages, temperature);
+            return await AIService.generateGeminiResponse(model, systemPrompt, messages, temperature, false, context);
         }
         
         if (provider === "openai" || provider === "groq" || provider === "openrouter") {
-            return await AIService.generateOpenAICompatibleResponse(provider, model, systemPrompt, messages, temperature);
+            return await AIService.generateOpenAICompatibleResponse(provider, model, systemPrompt, messages, temperature, false, context);
         }
 
         throw new Error(`Provider ${provider} not implemented yet.`);
@@ -92,7 +99,8 @@ export const AIService = {
         messages: ChatMessage[],
         currentState: string,
         leadData: any,
-        temperature: number = 0.7
+        temperature: number = 0.7,
+        context?: AIContext
     ) => {
         const structuredPrompt = `
 ${BRUNO_RULES}
@@ -114,19 +122,21 @@ Your response MUST be a valid JSON object with the following keys:
 }
 `;
 
-        if (env.GOOGLE_GEMINI_API_KEY) {
+        const geminiKey = context?.geminiApiKey || env.GOOGLE_GEMINI_API_KEY;
+        if (geminiKey) {
             try {
-                const response = await AIService.generateGeminiResponse(model || "gemini-2.0-flash", structuredPrompt, messages, temperature, true);
+                const response = await AIService.generateGeminiResponse(model || "gemini-2.0-flash", structuredPrompt, messages, temperature, true, context);
                 const cleaned = response.replace(/```json|```/g, "").trim();
                 return JSON.parse(cleaned);
             } catch (err: any) {}
         }
         
-        if (env.OPENROUTER_API_KEY) {
-            const freeModels = await AIService.getOpenRouterFreeModels();
+        const openrouterKey = context?.openrouterApiKey || env.OPENROUTER_API_KEY;
+        if (openrouterKey) {
+            const freeModels = await AIService.getOpenRouterFreeModels(context);
             for (const freeModel of freeModels) {
                 try {
-                    const response = await AIService.generateOpenAICompatibleResponse("openrouter", freeModel, structuredPrompt, messages, temperature, true);
+                    const response = await AIService.generateOpenAICompatibleResponse("openrouter", freeModel, structuredPrompt, messages, temperature, true, context);
                     const cleaned = response.replace(/```json|```/g, "").trim();
                     return JSON.parse(cleaned);
                 } catch (err: any) { continue; }
@@ -149,7 +159,8 @@ Your response MUST be a valid JSON object with the following keys:
         lead: any,
         messages: ChatMessage[],
         scriptInstruction: string,
-        temperature: number = 0.7
+        temperature: number = 0.7,
+        context?: AIContext
     ) => {
         const agentName = agentConfig.agentRealName || agentConfig.name || "Bruno";
         const leadNiche = lead?.metaData?.niche || "seu negócio";
@@ -231,7 +242,7 @@ Sua resposta DEVE ser um JSON válido com a seguinte estrutura:
 }
 `.trim();
 
-        const response = await AIService.generateResilientResponse(systemPrompt, messages, temperature);
+        const response = await AIService.generateResilientResponse(systemPrompt, messages, temperature, context);
         
         // --- PÓS-PROCESSAMENTO BRUNO 2.8 (GARANTIA DE NICHO) ---
         const finalCleanup = (text: string) => {
@@ -260,8 +271,8 @@ Sua resposta DEVE ser um JSON válido com a seguinte estrutura:
         }
     },
 
-    generateGeminiResponse: async (model: string, systemPrompt: string, messages: ChatMessage[], temperature: number = 0.7, jsonMode: boolean = false) => {
-        const apiKey = env.GOOGLE_GEMINI_API_KEY;
+    generateGeminiResponse: async (model: string, systemPrompt: string, messages: ChatMessage[], temperature: number = 0.7, jsonMode: boolean = false, context?: AIContext) => {
+        const apiKey = context?.geminiApiKey || env.GOOGLE_GEMINI_API_KEY;
         if (!apiKey) throw new Error("GOOGLE_GEMINI_API_KEY not configured.");
         const genAI = new GoogleGenerativeAI(apiKey);
         const genModel = genAI.getGenerativeModel({ 
@@ -287,8 +298,8 @@ Sua resposta DEVE ser um JSON válido com a seguinte estrutura:
         return result.response.text();
     },
 
-    generateOpenAICompatibleResponse: async (provider: "openai" | "groq" | "openrouter", model: string, systemPrompt: string, messages: ChatMessage[], temperature: number = 0.7, jsonMode: boolean = false) => {
-        let apiKey = provider === "openai" ? env.OPENAI_API_KEY : provider === "groq" ? env.GROQ_API_KEY : env.OPENROUTER_API_KEY;
+    generateOpenAICompatibleResponse: async (provider: "openai" | "groq" | "openrouter", model: string, systemPrompt: string, messages: ChatMessage[], temperature: number = 0.7, jsonMode: boolean = false, context?: AIContext) => {
+        let apiKey = provider === "openai" ? (context?.openaiApiKey || env.OPENAI_API_KEY) : provider === "groq" ? env.GROQ_API_KEY : (context?.openrouterApiKey || env.OPENROUTER_API_KEY);
         let baseUrl = provider === "openai" ? "https://api.openai.com/v1" : provider === "groq" ? "https://api.groq.com/openai/v1" : "https://openrouter.ai/api/v1";
         if (!apiKey) throw new Error(`API Key for ${provider} not configured.`);
         const response = await fetch(`${baseUrl}/chat/completions`, {
@@ -305,8 +316,8 @@ Sua resposta DEVE ser um JSON válido com a seguinte estrutura:
         return data.choices[0].message.content;
     },
 
-    getOpenRouterFreeModels: async (): Promise<string[]> => {
-        // Modelos gratuitos prioritários (conhecidos por seguir bem instruções JSON e scripts)
+    getOpenRouterFreeModels: async (context?: AIContext): Promise<string[]> => {
+        // ... (priorityModels unchanged)
         const priorityModels = [
             "google/gemini-2.0-flash-exp:free",
             "google/gemini-2.5-flash-preview:free",
@@ -314,7 +325,7 @@ Sua resposta DEVE ser um JSON válido com a seguinte estrutura:
             "deepseek/deepseek-chat-v3-0324:free",
             "qwen/qwen3-235b-a22b:free"
         ];
-        const apiKey = env.OPENROUTER_API_KEY;
+        const apiKey = context?.openrouterApiKey || env.OPENROUTER_API_KEY;
         if (!apiKey) return priorityModels;
         try {
             const res = await fetch("https://openrouter.ai/api/v1/models", { headers: { "Authorization": `Bearer ${apiKey}` } });
@@ -327,24 +338,26 @@ Sua resposta DEVE ser um JSON válido com a seguinte estrutura:
         } catch (e) { return priorityModels; }
     },
 
-    generateResilientResponse: async (systemPrompt: string, messages: ChatMessage[], temperature: number = 0.7) => {
+    generateResilientResponse: async (systemPrompt: string, messages: ChatMessage[], temperature: number = 0.7, context?: AIContext) => {
         const errors: string[] = [];
         
-        if (env.GOOGLE_GEMINI_API_KEY) {
+        const geminiKey = context?.geminiApiKey || env.GOOGLE_GEMINI_API_KEY;
+        if (geminiKey) {
             try { 
-                return await AIService.generateGeminiResponse("gemini-2.0-flash", systemPrompt, messages, temperature); 
+                return await AIService.generateGeminiResponse("gemini-2.0-flash", systemPrompt, messages, temperature, false, context); 
             } catch (e: any) { 
                 console.error("❌ [AIService] Erro no Gemini:", e.message);
                 errors.push(`Gemini: ${e.message}`);
             }
         }
 
-        if (env.OPENROUTER_API_KEY) {
-            const models = await AIService.getOpenRouterFreeModels();
+        const openrouterKey = context?.openrouterApiKey || env.OPENROUTER_API_KEY;
+        if (openrouterKey) {
+            const models = await AIService.getOpenRouterFreeModels(context);
             console.log(`📡 [AIService] Tentando OpenRouter como fallback (${models.length} modelos)...`);
             for (const m of models) {
                 try { 
-                    return await AIService.generateOpenAICompatibleResponse("openrouter", m, systemPrompt, messages, temperature); 
+                    return await AIService.generateOpenAICompatibleResponse("openrouter", m, systemPrompt, messages, temperature, false, context); 
                 } catch (e: any) { 
                     errors.push(`OpenRouter (${m}): ${e.message}`);
                     continue; 
