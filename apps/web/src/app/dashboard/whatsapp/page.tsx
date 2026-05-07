@@ -1,9 +1,8 @@
 import { auth } from "@clerk/nextjs/server";
 import { redirect } from "next/navigation";
 import { OrganizationRepository } from "@/lib/repositories/organization";
+import { UserService } from "@/lib/services/user";
 import { MessageSquare, LogOut, CheckCircle, Wifi } from "lucide-react";
-import { disconnectWhatsApp, resetWhatsApp } from "./actions";
-import WhatsAppConnectButton from "./ConnectButton";
 import WhatsAppStatusPoller from "./StatusPoller";
 
 export default async function WhatsAppPage() {
@@ -12,8 +11,25 @@ export default async function WhatsAppPage() {
     if (!userId) redirect("/sign-in");
     if (!clerkOrgId) redirect("/org-selection");
 
+    // Sincroniza usuário e organização com o banco de dados
+    await UserService.syncUser();
+
     const org = await OrganizationRepository.getByClerkId(clerkOrgId);
-    if (!org) redirect("/org-selection");
+    
+    if (!org) {
+        return (
+            <div className="p-8 text-center rounded-3xl border border-amber-200 bg-amber-50 text-amber-900 max-w-2xl mx-auto mt-10 shadow-xl">
+                <h1 className="text-2xl font-black mb-4">Sincronização Necessária</h1>
+                <p className="mb-6 font-medium">Não conseguimos localizar os dados da sua organização no nosso banco de dados. Isso pode ser um delay temporário do sistema.</p>
+                <button 
+                    onClick={() => window.location.reload()} 
+                    className="bg-amber-600 text-white px-6 py-3 rounded-2xl font-bold hover:bg-amber-700 transition-all"
+                >
+                    Tentar Novamente
+                </button>
+            </div>
+        );
+    }
 
     return (
         <div className="space-y-6 text-foreground">

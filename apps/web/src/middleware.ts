@@ -9,14 +9,16 @@ export default clerkMiddleware(async (auth, req) => {
         await auth.protect();
 
         const { orgId } = await auth();
+        const url = new URL(req.url);
 
-        // Multi-tenancy enforcement
-        // If user is logged in but has no active organization, and is trying to access dashboard
-        // they might need to be redirected to an org selection or creation page.
-        // For now, we just ensure they are authenticated.
-
-        if (!orgId && req.nextUrl.pathname !== "/org-selection") {
+        // Se estiver em uma rota protegida e não tiver organização selecionada
+        if (!orgId && url.pathname.startsWith("/dashboard") && url.pathname !== "/org-selection") {
             return NextResponse.redirect(new URL("/org-selection", req.url));
+        }
+
+        // Se já tem organização e está na tela de seleção, manda para o dashboard
+        if (orgId && url.pathname === "/org-selection") {
+            return NextResponse.redirect(new URL("/dashboard", req.url));
         }
     }
 });
