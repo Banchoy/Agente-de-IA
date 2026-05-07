@@ -30,18 +30,20 @@ export async function ensureLeadsConstraints() {
                         END;
                     END IF;
 
-                    -- Constraint de Email + Organização
-                    IF NOT EXISTS (
+                    -- Garante a REMOÇÃO da antiga constraint de E-mail (pois impedia importações)
+                    IF EXISTS (
                         SELECT 1 FROM pg_constraint WHERE conname = 'leads_email_org_unique'
-                    ) AND NOT EXISTS (
+                    ) THEN
+                        ALTER TABLE leads DROP CONSTRAINT leads_email_org_unique;
+                    END IF;
+                    
+                    IF EXISTS (
                         SELECT 1 FROM pg_class c JOIN pg_namespace n ON n.oid = c.relnamespace
                         WHERE c.relname = 'leads_email_org_unique' AND n.nspname = 'public'
                     ) THEN
-                        BEGIN
-                            ALTER TABLE leads ADD CONSTRAINT leads_email_org_unique UNIQUE (email, organization_id);
-                        EXCEPTION WHEN others THEN NULL;
-                        END;
+                        DROP INDEX leads_email_org_unique;
                     END IF;
+
                 END $$;
             `);
         } catch (error: any) {

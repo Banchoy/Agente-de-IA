@@ -154,8 +154,7 @@ export const leads = pgTable("leads", {
     return {
         organizationIdIdx: index("leads_organization_id_idx").on(table.organizationId),
         stageIdIdx: index("leads_stage_id_idx").on(table.stageId),
-        phoneOrgUnique: uniqueIndex("leads_phone_org_unique").on(table.phone, table.organizationId),
-        emailOrgUnique: uniqueIndex("leads_email_org_unique").on(table.email, table.organizationId),
+        phoneOrgUnique: uniqueIndex("leads_phone_org_unique").on(table.phone, table.organizationId)
     }
 });
 
