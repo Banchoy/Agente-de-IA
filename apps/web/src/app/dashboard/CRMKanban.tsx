@@ -620,15 +620,27 @@ export default function CRMKanban({ initialLeads = [], initialStages = [] }: { i
             Papa.parse(file, {
                 header: true,
                 skipEmptyLines: true,
+                delimiter: "", // Auto-detect delimiter
                 complete: async (results) => {
-                    const importedLeads = results.data.map((row: any) => ({
-                        name: row.nome || row.name || "Lead Importado",
-                        phone: row.telefone || row.phone || "",
-                        email: row.email || "",
-                        stageId: "prospecting",
-                        source: "Importação CSV",
-                        metaData: { ...row }
-                    }));
+                    const importedLeads = results.data.map((row: any) => {
+                        // Mapeamento flexível de campos
+                        const name = row.full_name || row.nome || row.name || row["Nome Completo"] || "Lead Importado";
+                        let rawPhone = row.phone_number || row.phone || row.telefone || row["WhatsApp"] || row["Telefone"] || "";
+                        
+                        // Limpar prefixos comuns de exportação (ex: p:+55...)
+                        if (typeof rawPhone === 'string') {
+                            rawPhone = rawPhone.replace(/^p:\+?/, "").replace(/^\+/, "");
+                        }
+
+                        return {
+                            name,
+                            phone: rawPhone,
+                            email: row.email || row["E-mail"] || "",
+                            stageId: "prospecting",
+                            source: row.campaign_name || row.ad_name || "Importação CSV",
+                            metaData: { ...row }
+                        };
+                    });
                     
                     const response = await fetch('/api/leads/import', {
                         method: 'POST',
@@ -654,14 +666,23 @@ export default function CRMKanban({ initialLeads = [], initialStages = [] }: { i
                 const ws = wb.Sheets[wsname];
                 const data = XLSX.utils.sheet_to_json(ws);
 
-                const importedLeads = data.map((row: any) => ({
-                    name: (row as any).nome || (row as any).name || "Lead Importado",
-                    phone: (row as any).telefone || (row as any).phone || "",
-                    email: (row as any).email || "",
-                    stageId: "prospecting",
-                    source: "Importação Excel",
-                    metaData: { ...row }
-                }));
+                const importedLeads = data.map((row: any) => {
+                    const name = row.full_name || row.nome || row.name || row["Nome Completo"] || "Lead Importado";
+                    let rawPhone = row.phone_number || row.phone || row.telefone || row["WhatsApp"] || row["Telefone"] || "";
+                    
+                    if (typeof rawPhone === 'string') {
+                        rawPhone = rawPhone.replace(/^p:\+?/, "").replace(/^\+/, "");
+                    }
+
+                    return {
+                        name,
+                        phone: rawPhone,
+                        email: row.email || row["E-mail"] || "",
+                        stageId: "prospecting",
+                        source: row.campaign_name || row.ad_name || "Importação Excel",
+                        metaData: { ...row }
+                    };
+                });
 
                 const response = await fetch('/api/leads/import', {
                     method: 'POST',
