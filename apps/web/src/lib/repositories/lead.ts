@@ -329,7 +329,18 @@ export const LeadRepository = {
 
     createMany: async (data: (typeof leads.$inferInsert)[]) => {
         return await withOrgContext(async (tx) => {
-            const results = await tx.insert(leads).values(data).returning();
+            const results = await tx.insert(leads)
+                .values(data)
+                .onConflictDoUpdate({
+                    target: [leads.phone, leads.organizationId],
+                    set: {
+                        name: sql`EXCLUDED.name`,
+                        email: sql`EXCLUDED.email`,
+                        metaData: sql`leads.metadata || EXCLUDED.metadata`,
+                        updatedAt: new Date()
+                    }
+                })
+                .returning();
             return results;
         });
     },
