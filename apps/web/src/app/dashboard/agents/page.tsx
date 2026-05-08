@@ -10,7 +10,7 @@ export default async function AgentsPage() {
     if (!userId) redirect("/sign-in");
     if (!orgId) redirect("/org-selection");
 
-    const agents = await AgentRepository.listByOrg();
+    const agents = await AgentRepository.listByOrgId(orgId);
 
     return (
         <div className="space-y-6">

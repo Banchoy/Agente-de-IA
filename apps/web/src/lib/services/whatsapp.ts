@@ -373,17 +373,19 @@ export const WhatsappService = {
 
                             // Comandos de Controle para o Dono
                             const cleanTextCmd = text?.toLowerCase().trim();
-                            if (isFromMe && (cleanTextCmd === '/parar ia' || cleanTextCmd === '/ativar ia')) {
-                                const shouldActivate = cleanTextCmd === '/ativar ia';
+                            const isStop = cleanTextCmd === '/parar ia' || cleanTextCmd === '/parar' || cleanTextCmd === '/pausar' || cleanTextCmd === '/stop';
+                            const isActivate = cleanTextCmd === '/ativar ia' || cleanTextCmd === '/ativar' || cleanTextCmd === '/start';
+                            
+                            if (isFromMe && (isStop || isActivate)) {
                                 const org = await OrganizationRepository.getById(organizationId);
                                 if (org) {
                                     const cmdLead = await (LeadRepository as any).getByPhoneSystem(phone, org.id);
                                     if (cmdLead) {
                                         await (LeadRepository as any).updateSystem(cmdLead.id, { 
-                                            aiActive: shouldActivate ? "true" : "false",
-                                            metaData: { ...(cmdLead.metaData || {}), activeCard: shouldActivate ? "IA" : "PARAR_IA" }
+                                            aiActive: isActivate ? "true" : "false",
+                                            metaData: { ...(cmdLead.metaData || {}), activeCard: isActivate ? "IA" : "PARAR_IA" }
                                         });
-                                        await sock.sendMessage(jid, { text: shouldActivate ? "🤖 IA REATIVADA." : "🤖 IA PAUSADA." });
+                                        await sock.sendMessage(jid, { text: isActivate ? "🤖 IA REATIVADA para este contato." : "🤖 IA PAUSADA para este contato." });
                                     }
                                 }
                                 continue;
@@ -460,10 +462,12 @@ export const WhatsappService = {
                             
                             // Comandos do Usuário
                             const cleanText = text?.toLowerCase().trim();
-                            if (cleanText === '/parar ia' || cleanText === '/ativar ia') {
-                                const shouldActivate = cleanText === '/ativar ia';
-                                await LeadRepository.updateSystem(lead.id, { aiActive: shouldActivate ? "true" : "false" });
-                                await sock.sendMessage(jid, { text: shouldActivate ? "🤖 IA REATIVADA." : "🤖 IA PAUSADA." });
+                            const isUserStop = cleanText === '/parar ia' || cleanText === '/parar' || cleanText === '/pausar' || cleanText === '/stop';
+                            const isUserActivate = cleanText === '/ativar ia' || cleanText === '/ativar' || cleanText === '/start';
+
+                            if (isUserStop || isUserActivate) {
+                                await LeadRepository.updateSystem(lead.id, { aiActive: isUserActivate ? "true" : "false" });
+                                await sock.sendMessage(jid, { text: isUserActivate ? "🤖 IA REATIVADA para este contato." : "🤖 IA PAUSADA para este contato." });
                                 continue;
                             }
 
