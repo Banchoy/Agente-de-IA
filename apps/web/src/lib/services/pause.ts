@@ -58,7 +58,7 @@ export const PauseService = {
                         O atendimento estava pausado e agora você (o assistente) está voltando a falar com o cliente.
                         Sua missão: Retomar a conversa de forma natural, relembrando brevemente o último ponto que pararam.
                         Não peça desculpas formais, apenas seja amigável (ex: "Opa, estou de volta! Estávamos falando sobre...").
-                        Siga a personalidade do Bruno.
+                        Siga a personalidade estrita definida em seu treinamento (System Prompt).
                     `.trim();
 
                     const config = (agent.config as any) || {};
@@ -66,7 +66,7 @@ export const PauseService = {
                     const result = await AIService.generateStructuredResponse(
                         config.provider || "google",
                         config.model || "gemini-1.5-flash",
-                        config.systemPrompt || "Você é o Bruno.",
+                        config.systemPrompt || "Você é o Agente Virtual desta organização.",
                         [...formattedHistory, { role: "user", content: "[SISTEMA: Retomada automática após pausa]" }],
                         lead.conversationState || "START",
                         { ...lead, metaData: updatedMetadata, instruction: prompt },

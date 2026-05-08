@@ -19,7 +19,7 @@ const OUTBOUND_TEMPLATE = `## 1️⃣ FASE 1 (ABERTURA DESARMADA)
 (REGRA: Não use o nome do cliente aqui)
 
 ## 2️⃣ FASE 2 (PEDIDO DE ORIENTAÇÃO - BYPASS)
-"Opa, prazer, meu nome é Bruno... vi que você trabalha com [NICHO] e preciso de uma ajuda sua... não sei se é com você mesmo que consigo essa orientação... posso te explicar rapidinho?"
+"Opa, prazer, meu nome é [SEU NOME AQUI]... vi que você trabalha com [NICHO] e preciso de uma ajuda sua... não sei se é com você mesmo que consigo essa orientação... posso te explicar rapidinho?"
 
 ## 3️⃣ FASE 3 (ANÁLISE E GANCHO DE VALOR)
 "Tava vendo a empresa de vocês... vi que fazem coisas legais para captar clientes para [NICHO], mas notei pontos onde estão perdendo faturamento... preparei um material com esses pontos e gostaria de apresentar para o responsável"
@@ -38,8 +38,6 @@ const OUTBOUND_TEMPLATE = `## 1️⃣ FASE 1 (ABERTURA DESARMADA)
 
 ## 8️⃣ FASE 8 (CONCLUSÃO DA REUNIÃO)
 "Eu posso te mandar um link pro meu calendário pra gente agendar um bate-papo sem compromisso, ou fica melhor você me falar um dia que você está de boa?"`;
-
-
 
 export function AgentForm({ availableSessions, freeModels, defaultInstanceName }: AgentFormProps) {
     const [isPending, setIsPending] = useState(false);
@@ -179,7 +177,7 @@ export function AgentForm({ availableSessions, freeModels, defaultInstanceName }
                             className="text-[10px] font-bold text-primary bg-primary/10 hover:bg-primary/20 px-3 py-1.5 rounded-xl cursor-pointer transition-colors flex items-center gap-2 border border-primary/20"
                         >
                             <Wand2 size={12} />
-                            Carregar Template Bruno
+                            Carregar Template Padrão
                         </button>
                     </div>
                     <textarea
