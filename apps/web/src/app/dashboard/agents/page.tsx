@@ -1,16 +1,20 @@
 import { auth } from "@clerk/nextjs/server";
 import { redirect } from "next/navigation";
 import { AgentRepository } from "@/lib/repositories/agent";
+import { OrganizationRepository } from "@/lib/repositories/organization";
 import { Plus, Bot, MoreVertical, ExternalLink } from "lucide-react";
 import Link from "next/link";
 
 export default async function AgentsPage() {
-    const { userId, orgId } = await auth();
+    const { userId, orgId: clerkOrgId } = await auth();
 
     if (!userId) redirect("/sign-in");
-    if (!orgId) redirect("/org-selection");
+    if (!clerkOrgId) redirect("/org-selection");
 
-    const agents = await AgentRepository.listByOrgId(orgId);
+    const org = await OrganizationRepository.getByClerkId(clerkOrgId);
+    if (!org) redirect("/org-selection");
+
+    const agents = await AgentRepository.listByOrgId(org.id);
 
     return (
         <div className="space-y-6">
