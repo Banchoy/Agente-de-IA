@@ -20,6 +20,10 @@ export const organizations = pgTable("organizations", {
     elevenlabsApiKey: text("elevenlabs_api_key"),
     prospectingConfig: jsonb("prospecting_config").default({}),
     routingConfig: jsonb("routing_config").default({}),
+    subscriptionStatus: text("subscription_status").default("trialing"),
+    stripeCustomerId: text("stripe_customer_id"),
+    stripeSubscriptionId: text("stripe_subscription_id"),
+    planId: text("plan_id"),
     createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 
