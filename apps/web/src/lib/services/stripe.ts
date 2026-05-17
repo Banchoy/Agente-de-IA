@@ -1,10 +1,10 @@
 import Stripe from "stripe";
 
 if (!process.env.STRIPE_SECRET_KEY) {
-  console.warn("⚠️ STRIPE_SECRET_KEY não encontrada no .env");
+  console.warn("⚠️ STRIPE_SECRET_KEY não encontrada no .env. Usando chave de fallback para permitir o build.");
 }
 
-export const stripe = new Stripe(process.env.STRIPE_SECRET_KEY || "", {
+export const stripe = new Stripe(process.env.STRIPE_SECRET_KEY || "sk_test_dummy_key_for_build_only", {
   apiVersion: "2024-12-18.acacia", // ou a versão atual preferida
   appInfo: {
     name: "LeadDirector AI",
