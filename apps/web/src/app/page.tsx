@@ -59,7 +59,7 @@ export default async function Home() {
           <div className="hidden md:flex items-center gap-8 text-sm font-bold text-zinc-500">
             <a href="#como-funciona" className="hover:text-zinc-900 transition-colors">Como Funciona</a>
             <a href="#recursos" className="hover:text-zinc-900 transition-colors">Recursos</a>
-            <a href="#segmentos" className="hover:text-zinc-900 transition-colors">Segmentos</a>
+            <a href="#planos" className="hover:text-zinc-900 transition-colors">Planos</a>
             <a href="#faq" className="hover:text-zinc-900 transition-colors">FAQ</a>
           </div>
           <div className="flex items-center gap-3">
@@ -283,6 +283,118 @@ export default async function Home() {
             >
               Começar Agora <ArrowRight size={16} />
             </Link>
+          </div>
+        </section>
+
+        {/* Pricing */}
+        <section id="planos" className="py-24 px-6 bg-zinc-50">
+          <div className="mx-auto max-w-7xl">
+            <div className="text-center mb-16">
+              <div className="mb-3 inline-flex items-center gap-2 rounded-full border border-emerald-200 bg-emerald-50 px-4 py-1.5 text-[11px] font-black uppercase tracking-widest text-emerald-700">
+                <Sparkles size={12} />
+                Planos e Preços
+              </div>
+              <h2 className="text-4xl font-black tracking-tight text-zinc-900">Escolha o plano ideal</h2>
+              <p className="text-zinc-500 mt-3 max-w-lg mx-auto font-medium">Sem taxas ocultas, cancele quando quiser. Todos os planos incluem leads ilimitados.</p>
+            </div>
+            
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-8 max-w-5xl mx-auto">
+              {/* Plano Mensal */}
+              <div className="rounded-3xl border border-zinc-200 bg-white p-8 flex flex-col hover:border-zinc-300 transition-all">
+                <h3 className="text-xl font-black text-zinc-900 mb-2">Mensal</h3>
+                <p className="text-sm text-zinc-500 mb-6">Para validar o sistema</p>
+                <div className="mb-6 flex items-baseline gap-1">
+                  <span className="text-zinc-500 font-bold">R$</span>
+                  <span className="text-5xl font-black text-zinc-900">60</span>
+                  <span className="text-zinc-500 font-medium">/mês</span>
+                </div>
+                <ul className="space-y-4 mb-8 flex-1">
+                  {[
+                    "CRM Visual (Kanban)",
+                    "Integração Meta Ads",
+                    "Score de Leads com IA",
+                    "Disparo Automático de WhatsApp",
+                    "Agentes Ilimitados",
+                    "Analytics em Tempo Real"
+                  ].map((feature) => (
+                    <li key={feature} className="flex items-start gap-3 text-sm font-medium text-zinc-700">
+                      <CheckCircle2 size={18} className="text-emerald-500 shrink-0 mt-0.5" />
+                      <span>{feature}</span>
+                    </li>
+                  ))}
+                </ul>
+                <Link
+                  href="/sign-up"
+                  className="w-full text-center rounded-xl border-2 border-zinc-200 bg-transparent px-5 py-3 text-sm font-bold text-zinc-700 hover:border-zinc-900 hover:text-zinc-900 transition-all"
+                >
+                  Começar Agora
+                </Link>
+              </div>
+
+              {/* Plano Semestral */}
+              <div className="rounded-3xl border-2 border-emerald-500 bg-white p-8 flex flex-col relative shadow-2xl shadow-emerald-900/5 transform md:-translate-y-4">
+                <div className="absolute -top-4 left-1/2 -translate-x-1/2 bg-emerald-500 text-white px-4 py-1 rounded-full text-[10px] font-black uppercase tracking-widest">
+                  Mais Popular
+                </div>
+                <h3 className="text-xl font-black text-zinc-900 mb-2">Semestral</h3>
+                <p className="text-sm text-zinc-500 mb-6">Economize R$ 120 (Cobrado R$ 240)</p>
+                <div className="mb-6 flex items-baseline gap-1">
+                  <span className="text-zinc-500 font-bold">R$</span>
+                  <span className="text-5xl font-black text-zinc-900">40</span>
+                  <span className="text-zinc-500 font-medium">/mês</span>
+                </div>
+                <ul className="space-y-4 mb-8 flex-1">
+                  {[
+                    "Todas as funções do Mensal",
+                    "Suporte Prioritário",
+                    "Onboarding em Grupo",
+                    "Acesso Antecipado a Funcionalidades",
+                    "Tags Customizadas Ilimitadas",
+                  ].map((feature) => (
+                    <li key={feature} className="flex items-start gap-3 text-sm font-medium text-zinc-700">
+                      <CheckCircle2 size={18} className="text-emerald-500 shrink-0 mt-0.5" />
+                      <span>{feature}</span>
+                    </li>
+                  ))}
+                </ul>
+                <Link
+                  href="/sign-up"
+                  className="w-full text-center rounded-xl bg-emerald-600 px-5 py-3 text-sm font-bold text-white hover:bg-emerald-700 transition-all shadow-lg shadow-emerald-200"
+                >
+                  Começar com Desconto
+                </Link>
+              </div>
+
+              {/* Plano Anual */}
+              <div className="rounded-3xl border border-zinc-200 bg-white p-8 flex flex-col hover:border-zinc-300 transition-all">
+                <h3 className="text-xl font-black text-zinc-900 mb-2">Anual</h3>
+                <p className="text-sm text-zinc-500 mb-6">O melhor custo-benefício (Cobrado R$ 420)</p>
+                <div className="mb-6 flex items-baseline gap-1">
+                  <span className="text-zinc-500 font-bold">R$</span>
+                  <span className="text-5xl font-black text-zinc-900">35</span>
+                  <span className="text-zinc-500 font-medium">/mês</span>
+                </div>
+                <ul className="space-y-4 mb-8 flex-1">
+                  {[
+                    "Todas as funções do Semestral",
+                    "Consultoria Individual de Setup",
+                    "Integração via Webhooks Personalizados",
+                    "Gestor de Contas Dedicado",
+                  ].map((feature) => (
+                    <li key={feature} className="flex items-start gap-3 text-sm font-medium text-zinc-700">
+                      <CheckCircle2 size={18} className="text-emerald-500 shrink-0 mt-0.5" />
+                      <span>{feature}</span>
+                    </li>
+                  ))}
+                </ul>
+                <Link
+                  href="/sign-up"
+                  className="w-full text-center rounded-xl bg-zinc-900 px-5 py-3 text-sm font-bold text-white hover:bg-zinc-800 transition-all"
+                >
+                  Plano Anual
+                </Link>
+              </div>
+            </div>
           </div>
         </section>
 

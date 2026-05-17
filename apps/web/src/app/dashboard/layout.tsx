@@ -4,6 +4,10 @@ import Link from "next/link";
 import { UserService } from "@/lib/services/user";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { SidebarNav } from "@/components/sidebar-nav";
+import { auth } from "@clerk/nextjs/server";
+import { OrganizationRepository } from "@/lib/repositories/organization";
+import { redirect } from "next/navigation";
+import SubscriptionWall from "./SubscriptionWall";
 
 export const dynamic = "force-dynamic";
 
@@ -14,6 +18,15 @@ export default async function DashboardLayout({
 }) {
     // Sync user and organization with our DB on every dashboard load
     await UserService.syncUser();
+
+    const { orgId } = await auth();
+    if (!orgId) redirect("/org-selection");
+
+    const org = await OrganizationRepository.getByClerkId(orgId);
+    if (!org) redirect("/org-selection");
+
+    const isSubscribed = org.subscriptionStatus === "active";
+
     return (
         <div className="flex min-h-screen bg-background font-sans text-foreground">
             {/* Sidebar Desktop */}
@@ -48,7 +61,7 @@ export default async function DashboardLayout({
                     </div>
                 </header>
                 <main className="flex-1 overflow-y-auto p-6">
-                    {children}
+                    {isSubscribed ? children : <SubscriptionWall />}
                 </main>
             </div>
         </div>
