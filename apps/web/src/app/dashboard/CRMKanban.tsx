@@ -152,9 +152,14 @@ function SortableItem({ lead, onClick, onDelete, onColorChange }: {
 
             <div className="flex justify-between items-center border-t border-border pt-3">
                 <div className="flex -space-x-2">
-                    <div className="h-6 w-6 rounded-full bg-accent border-2 border-background flex items-center justify-center text-[10px] font-bold text-accent-foreground">
+                    <div className="h-6 w-6 rounded-full bg-accent border-2 border-background flex items-center justify-center text-[10px] font-bold text-accent-foreground" title="Metadados">
                         {Object.keys(lead.metaData || {}).length}
                     </div>
+                    {lead.assignedUser && (
+                        <div className="h-6 w-6 rounded-full bg-blue-600 border-2 border-background flex items-center justify-center text-[10px] font-bold text-white z-10" title={`Atribuído a: ${lead.assignedUser.role || 'Usuário'}`}>
+                            {lead.assignedUser.clerkUserId ? lead.assignedUser.clerkUserId.substring(5, 7).toUpperCase() : "U"}
+                        </div>
+                    )}
                 </div>
                 <div className="flex gap-1 opacity-100 lg:opacity-0 lg:group-hover:opacity-100 transition-opacity">
                     <Button

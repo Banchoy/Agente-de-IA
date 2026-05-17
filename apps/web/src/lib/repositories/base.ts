@@ -1,7 +1,7 @@
 
 import { db } from "@/lib/db";
 import { users, organizations } from "@/lib/db/schema";
-import { eq, sql } from "drizzle-orm";
+import { eq, sql, and } from "drizzle-orm";
 import { auth } from "@clerk/nextjs/server";
 
 // Helper to enforce RLS via session variable "app.current_org_id"
@@ -16,11 +16,11 @@ import { auth } from "@clerk/nextjs/server";
 // We can achieve this by wrapping our DB calls in a transaction that first sets the local config.
 
 export async function withOrgContext<T>(
-    callback: (tx: any, org: any) => Promise<T>
+    callback: (tx: any, org: any, user: any) => Promise<T>
 ): Promise<T> {
-    const { orgId: clerkOrgId } = await auth();
+    const { userId: clerkUserId, orgId: clerkOrgId } = await auth();
 
-    if (!clerkOrgId) {
+    if (!clerkOrgId || !clerkUserId) {
         throw new Error("No Organization Context Found");
     }
 
@@ -40,8 +40,13 @@ export async function withOrgContext<T>(
         // Set the configuration parameter for the current transaction using the DB UUID
         await tx.execute(sql`SELECT set_config('app.current_org_id', ${dbOrg.id}, true)`);
 
-        // Execute the callback with the transaction object and the org object
-        return await callback(tx, dbOrg);
+        // Fetch the current user in DB
+        const dbUser = await tx.query.users.findFirst({
+            where: and(eq(users.clerkUserId, clerkUserId), eq(users.organizationId, dbOrg.id))
+        });
+
+        // Execute the callback with the transaction object, the org object and the user object
+        return await callback(tx, dbOrg, dbUser);
     });
 }
 

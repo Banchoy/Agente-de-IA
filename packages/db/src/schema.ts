@@ -19,6 +19,7 @@ export const organizations = pgTable("organizations", {
     apifyApiKey: text("apify_api_key"),
     elevenlabsApiKey: text("elevenlabs_api_key"),
     prospectingConfig: jsonb("prospecting_config").default({}),
+    routingConfig: jsonb("routing_config").default({}),
     createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 
@@ -135,6 +136,8 @@ export const leads = pgTable("leads", {
         .references(() => organizations.id, { onDelete: "cascade" }),
     stageId: uuid("stage_id")
         .references(() => stages.id, { onDelete: "set null" }),
+    assignedUserId: uuid("assigned_user_id")
+        .references(() => users.id, { onDelete: "set null" }),
     name: text("name").notNull(),
     email: text("email"),
     phone: text("phone"),
@@ -154,12 +157,17 @@ export const leads = pgTable("leads", {
     return {
         organizationIdIdx: index("leads_organization_id_idx").on(table.organizationId),
         stageIdIdx: index("leads_stage_id_idx").on(table.stageId),
+        assignedUserIdIdx: index("leads_assigned_user_id_idx").on(table.assignedUserId),
         phoneOrgUnique: uniqueIndex("leads_phone_org_unique").on(table.phone, table.organizationId)
     }
 });
 
-export const leadsRelations = relations(leads, ({ many }) => ({
+export const leadsRelations = relations(leads, ({ many, one }) => ({
     messages: many(messages),
+    assignedUser: one(users, {
+        fields: [leads.assignedUserId],
+        references: [users.id],
+    }),
 }));
 
 // -----------------------------------------------------------------------------

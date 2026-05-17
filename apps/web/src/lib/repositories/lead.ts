@@ -6,9 +6,19 @@ import { withOrgContext } from "./base";
 
 export const LeadRepository = {
     listByOrg: async () => {
-        return await withOrgContext(async (tx) => {
+        return await withOrgContext(async (tx, org, user) => {
+            // Se for vendedor/membro, só vê os próprios leads
+            if (user?.role === "member" || user?.role === "vendedor") {
+                return await tx.query.leads.findMany({
+                    where: eq(leads.assignedUserId, user.id),
+                    orderBy: (l: any, { desc }: any) => [desc(l.updatedAt)],
+                    with: { assignedUser: true }
+                });
+            }
+            // Admin vê tudo da organização (RLS cuida de filtrar por org)
             return await tx.query.leads.findMany({
-                orderBy: (l: any, { desc }: any) => [desc(l.updatedAt)]
+                orderBy: (l: any, { desc }: any) => [desc(l.updatedAt)],
+                with: { assignedUser: true }
             });
         });
     },
@@ -212,6 +222,15 @@ export const LeadRepository = {
         const { ensureLeadsConstraints } = await import("@/lib/db/ensure-constraints");
         await ensureLeadsConstraints();
         
+        if (!data.assignedUserId && data.organizationId) {
+            const { RoutingService } = await import("@/lib/services/routing");
+            const leadType = (data.metaData as any)?.leadType || data.source || undefined;
+            const assignedUserId = await RoutingService.assignNextUser(data.organizationId, leadType);
+            if (assignedUserId) {
+                data.assignedUserId = assignedUserId;
+            }
+        }
+        
         const [newLead] = await db.insert(leads).values(data).returning();
         return newLead;
     },
@@ -222,6 +241,15 @@ export const LeadRepository = {
         
         // Garante que o banco de dados tenha as constraints necessárias (Self-Healing)
         await ensureLeadsConstraints();
+
+        if (!data.assignedUserId && data.organizationId) {
+            const { RoutingService } = await import("@/lib/services/routing");
+            const leadType = (data.metaData as any)?.leadType || data.source || undefined;
+            const assignedUserId = await RoutingService.assignNextUser(data.organizationId, leadType);
+            if (assignedUserId) {
+                data.assignedUserId = assignedUserId;
+            }
+        }
 
         if (data.phone) {
             // Priority: Phone
@@ -340,6 +368,18 @@ export const LeadRepository = {
         const deduplicatedData = Array.from(uniqueDataMap.values());
 
         if (deduplicatedData.length === 0) return [];
+
+        // Apply Roleta (Routing) for bulk insert
+        const { RoutingService } = await import("@/lib/services/routing");
+        for (const lead of deduplicatedData) {
+            if (!lead.assignedUserId && lead.organizationId) {
+                const leadType = (lead.metaData as any)?.leadType || lead.source || undefined;
+                const assignedUserId = await RoutingService.assignNextUser(lead.organizationId, leadType);
+                if (assignedUserId) {
+                    lead.assignedUserId = assignedUserId;
+                }
+            }
+        }
 
         return await withOrgContext(async (tx) => {
             const results = await tx.insert(leads)
