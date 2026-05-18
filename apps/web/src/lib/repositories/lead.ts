@@ -1,16 +1,19 @@
 
 import { db } from "@/lib/db";
 import { leads } from "@/lib/db/schema";
-import { eq, and, ilike, sql } from "drizzle-orm";
+import { eq, and, or, isNull, ilike, sql } from "drizzle-orm";
 import { withOrgContext } from "./base";
 
 export const LeadRepository = {
     listByOrg: async () => {
         return await withOrgContext(async (tx, org, user) => {
-            // Se for vendedor/membro, só vê os próprios leads
+            // Se for vendedor/membro, só vê os próprios leads E os leads sem atribuição (fila inicial de prospecção)
             if (user?.role === "member" || user?.role === "vendedor") {
                 return await tx.query.leads.findMany({
-                    where: eq(leads.assignedUserId, user.id),
+                    where: or(
+                        eq(leads.assignedUserId, user.id),
+                        isNull(leads.assignedUserId)
+                    ),
                     orderBy: (l: any, { desc }: any) => [desc(l.updatedAt)],
                     with: { assignedUser: true }
                 });
