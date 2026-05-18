@@ -7,7 +7,7 @@ export const CleanupService = {
     /**
      * Processa a limpeza de leads inativos (padrão 2 dias para o fluxo da Tayná)
      */
-    async processInactiveLeads(days: number = 30) {
+    async processInactiveLeads(days: number = 2) {
         console.log(`🧹 [Cleanup] Iniciando limpeza de leads inativos (${days} dias)...`);
         
         try {
