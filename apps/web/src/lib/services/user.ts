@@ -1,12 +1,12 @@
 import { db } from "@/lib/db";
 import { users, organizations } from "@/lib/db/schema";
-import { eq, and } from "drizzle-orm";
+import { eq, and, sql } from "drizzle-orm";
 import { auth, currentUser } from "@clerk/nextjs/server";
 
 export const UserService = {
     syncUser: async () => {
         try {
-            const { userId, orgId, orgRole } = await auth();
+            const { userId, orgId } = await auth();
             const user = await currentUser();
 
             if (!userId || !orgId || !user) {
@@ -36,9 +36,6 @@ export const UserService = {
                 }
             }
 
-            // Mapear role a partir do orgRole do Clerk
-            const expectedRole = (orgRole === "org:admin" || orgRole === "admin") ? "admin" : "member";
-
             // 2. Check if user exists in our DB within this org
             let dbUser = await db.query.users.findFirst({
                 where: and(
@@ -48,12 +45,20 @@ export const UserService = {
             });
 
             if (!dbUser) {
+                // Contar usuários existentes na organização
+                const existingUsers = await db.select({ value: sql<number>`count(*)` })
+                    .from(users)
+                    .where(eq(users.organizationId, dbOrg.id));
+                const totalUsers = Number(existingUsers[0]?.value || 0);
+                const expectedRole = totalUsers === 0 ? "admin" : "vendedor";
+
                 try {
                     [dbUser] = await db.insert(users).values({
                         clerkUserId: userId,
                         organizationId: dbOrg.id,
                         role: expectedRole,
                     }).returning();
+                    console.log(`🆕 [UserService] Novo usuário ${userId} inserido na org ${dbOrg.id} com a role: ${expectedRole}`);
                 } catch (insertUserErr) {
                     console.error("SyncUser - Error inserting user:", insertUserErr);
                     dbUser = await db.query.users.findFirst({
@@ -63,18 +68,6 @@ export const UserService = {
                         ),
                     });
                     if (!dbUser) throw insertUserErr;
-                }
-            } else if (dbUser.role !== expectedRole) {
-                // Atualizar dinamicamente a role se ela mudar no Clerk
-                try {
-                    const [updated] = await db.update(users)
-                        .set({ role: expectedRole })
-                        .where(eq(users.id, dbUser.id))
-                        .returning();
-                    dbUser = updated;
-                    console.log(`🔄 [UserService] Role do usuário ${userId} atualizada no banco para ${expectedRole}`);
-                } catch (updateUserErr) {
-                    console.error("SyncUser - Error updating user role:", updateUserErr);
                 }
             }
 

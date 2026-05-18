@@ -9,7 +9,7 @@ import makeWASocket, {
 import { Boom } from "@hapi/boom";
 import pino from "pino";
 import { db } from "@/lib/db";
-import { whatsappSessions, organizations, messages as messagesTable, leads, stages } from "@/lib/db/schema";
+import { whatsappSessions, organizations, messages as messagesTable, leads, stages, users } from "@/lib/db/schema";
 import { eq, and, or, isNull, lt, desc, sql, ilike } from "drizzle-orm";
 import QRCode from "qrcode";
 import { OrganizationRepository } from "@/lib/repositories/organization";
@@ -402,8 +402,31 @@ export const WhatsappService = {
                                 continue;
                             }
 
+                            // Tentar associar e atribuir o lead ao vendedor dono da sessão
+                            let assignedUserId: string | null = null;
+                            if (sessionId && sessionId.startsWith("wa_")) {
+                                const userPrefix = sessionId.substring(3);
+                                const [dbUser] = await db.select()
+                                    .from(users)
+                                    .where(and(
+                                        eq(users.organizationId, org.id),
+                                        sql`id::text LIKE ${userPrefix + '%'}`
+                                    ))
+                                    .limit(1);
+                                if (dbUser) {
+                                    assignedUserId = dbUser.id;
+                                    console.log(`👤 [Baileys] Sessão associada ao vendedor: ${dbUser.role} (ID: ${dbUser.id})`);
+                                }
+                            }
+
                             // 1. Find or Create Lead (UNIFIED MATCH LOGIC)
                             lead = await (LeadRepository as any).getByJidSystem(jid, org.id);
+                            
+                            if (lead && !lead.assignedUserId && assignedUserId) {
+                                console.log(`🔗 [Baileys] Atribuindo lead existente ${lead.id} ao vendedor ${assignedUserId} a partir da mensagem inbound.`);
+                                await LeadRepository.updateSystem(lead.id, { assignedUserId });
+                                lead.assignedUserId = assignedUserId;
+                            }
                             
                             if (!lead) {
                                 // Fallback para StanzaId (@lid que cita mensagem anterior)
@@ -436,7 +459,7 @@ export const WhatsappService = {
 
                                 if (!lead) {
                                     const initialStageId = await CRMRepository.getStageByName(org.id, "Novo Lead");
-                                    console.log(`🆕 [Baileys] Novo contato detectado: ${phone}. Criando lead.`);
+                                    console.log(`🆕 [Baileys] Novo contato detectado: ${phone}. Criando lead atribuído ao vendedor: ${assignedUserId}`);
                                     lead = await LeadRepository.createSystem({
                                         organizationId: org.id,
                                         name: phone,
@@ -445,7 +468,8 @@ export const WhatsappService = {
                                         aiActive: "true",
                                         status: "NEW", 
                                         stageId: initialStageId,
-                                        outreachStatus: "completed"
+                                        outreachStatus: "completed",
+                                        assignedUserId: assignedUserId
                                     });
                                 }
                             }
@@ -664,11 +688,23 @@ export const WhatsappService = {
                                 
                                 console.log(`🤖 [Baileys] Chamando AIService (Adaptativo: ${!!scriptInstruction}) para: ${agent.name}`);
 
-                                const aiContext = {
+                                let aiContext = {
                                     openaiApiKey: (org as any).openaiApiKey,
                                     geminiApiKey: (org as any).geminiApiKey,
                                     openrouterApiKey: (org as any).openrouterApiKey,
                                 };
+
+                                if (lead && lead.assignedUserId) {
+                                    const seller = await db.query.users.findFirst({
+                                        where: eq(users.id, lead.assignedUserId)
+                                    });
+                                    if (seller) {
+                                        console.log(`🔑 [Baileys] Resolvendo chaves de API para o vendedor ${seller.id}...`);
+                                        if (seller.openaiApiKey) aiContext.openaiApiKey = seller.openaiApiKey;
+                                        if (seller.geminiApiKey) aiContext.geminiApiKey = seller.geminiApiKey;
+                                        if (seller.openrouterApiKey) aiContext.openrouterApiKey = seller.openrouterApiKey;
+                                    }
+                                }
 
                                 const adaptiveResult = await AIService.generateAdaptiveResponse(
                                     agentConfig,

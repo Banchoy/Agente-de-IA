@@ -36,6 +36,11 @@ export const users = pgTable("users", {
     organizationId: uuid("organization_id")
         .references(() => organizations.id, { onDelete: "cascade" }),
     role: text("role"),
+    openaiApiKey: text("openai_api_key"),
+    geminiApiKey: text("gemini_api_key"),
+    openrouterApiKey: text("openrouter_api_key"),
+    apifyApiKey: text("apify_api_key"),
+    elevenlabsApiKey: text("elevenlabs_api_key"),
     createdAt: timestamp("created_at").defaultNow().notNull(),
 }, (table) => {
     return {

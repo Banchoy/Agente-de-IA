@@ -4,6 +4,9 @@ import { auth } from "@clerk/nextjs/server";
 import { OrganizationRepository } from "@/lib/repositories/organization";
 import { WhatsappService } from "@/lib/services/whatsapp";
 import { revalidatePath } from "next/cache";
+import { db } from "@/lib/db";
+import { users } from "@/lib/db/schema";
+import { eq, and } from "drizzle-orm";
 
 const normalizeUrl = (url: string) => {
     let normalized = url.trim();
@@ -16,17 +19,31 @@ const normalizeUrl = (url: string) => {
 
 // saveEvolutionSettings removida — sistema agora usa Baileys nativo (sem Evolution API)
 
+async function getDbUser(userId: string, clerkOrgId: string) {
+    const org = await OrganizationRepository.getByClerkId(clerkOrgId);
+    if (!org) return null;
+
+    const dbUser = await db.query.users.findFirst({
+        where: and(
+            eq(users.clerkUserId, userId),
+            eq(users.organizationId, org.id)
+        )
+    });
+    return { dbUser, org };
+}
+
 export async function connectWhatsApp() {
     try {
-        const { orgId: clerkOrgId } = await auth();
-        if (!clerkOrgId) throw new Error("Não autorizado. Faça login novamente.");
+        const { userId, orgId: clerkOrgId } = await auth();
+        if (!userId || !clerkOrgId) throw new Error("Não autorizado. Faça login novamente.");
 
-        const org = await OrganizationRepository.getByClerkId(clerkOrgId);
-        if (!org) throw new Error("Organização não encontrada.");
+        const context = await getDbUser(userId, clerkOrgId);
+        if (!context || !context.dbUser) throw new Error("Usuário ou Organização não encontrados.");
 
-        const sessionId = `wa_${org.id.split('-')[0]}`;
+        const { dbUser, org } = context;
+        const sessionId = `wa_${dbUser.id.split('-')[0]}`;
         
-        console.log(`🔌 [Baileys] Solicitando conexão para: ${sessionId}`);
+        console.log(`🔌 [Baileys] Solicitando conexão para o vendedor: ${sessionId}`);
         
         // Disparar conexão assíncrona
         // O polling do frontend vai pegar o status e o QR via /api/whatsapp/status
@@ -41,16 +58,17 @@ export async function connectWhatsApp() {
 
 export async function disconnectWhatsApp() {
     try {
-        const { orgId: clerkOrgId } = await auth();
-        if (!clerkOrgId) throw new Error("Unauthorized");
+        const { userId, orgId: clerkOrgId } = await auth();
+        if (!userId || !clerkOrgId) throw new Error("Unauthorized");
 
-        const org = await OrganizationRepository.getByClerkId(clerkOrgId);
-        if (!org) throw new Error("Não autorizado.");
+        const context = await getDbUser(userId, clerkOrgId);
+        if (!context || !context.dbUser) throw new Error("Não autorizado.");
 
-        const sessionId = `wa_${org.id.split('-')[0]}`;
+        const { dbUser, org } = context;
+        const sessionId = `wa_${dbUser.id.split('-')[0]}`;
         const session = WhatsappService.sessions.get(sessionId);
 
-        console.log(`🔌 [Baileys] Desconectando sessão: ${sessionId}`);
+        console.log(`🔌 [Baileys] Desconectando sessão do vendedor: ${sessionId}`);
 
         // 1. Limpar sessão no banco
         await WhatsappService.deleteSessionFromDb(sessionId);
@@ -77,15 +95,16 @@ export async function disconnectWhatsApp() {
 
 export async function resetWhatsApp() {
     try {
-        const { orgId: clerkOrgId } = await auth();
-        if (!clerkOrgId) throw new Error("Unauthorized");
+        const { userId, orgId: clerkOrgId } = await auth();
+        if (!userId || !clerkOrgId) throw new Error("Unauthorized");
 
-        const org = await OrganizationRepository.getByClerkId(clerkOrgId);
-        if (!org) throw new Error("Organization not found");
+        const context = await getDbUser(userId, clerkOrgId);
+        if (!context || !context.dbUser) throw new Error("Organization not found");
 
-        const sessionId = `wa_${org.id.split('-')[0]}`;
+        const { dbUser, org } = context;
+        const sessionId = `wa_${dbUser.id.split('-')[0]}`;
         
-        console.log(`🔌 [Baileys] Resetando totalmente a sessão: ${sessionId}`);
+        console.log(`🔌 [Baileys] Resetando totalmente a sessão do vendedor: ${sessionId}`);
         
         // 1. Wipe DB (Baileys service handles the db logic)
         await WhatsappService.deleteSessionFromDb(sessionId);
