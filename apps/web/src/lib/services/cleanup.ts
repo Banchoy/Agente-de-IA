@@ -7,7 +7,7 @@ export const CleanupService = {
     /**
      * Processa a limpeza de leads inativos (padrão 2 dias para o fluxo da Tayná)
      */
-    async processInactiveLeads(days: number = 5) {
+    async processInactiveLeads(days: number = 30) {
         console.log(`🧹 [Cleanup] Iniciando limpeza de leads inativos (${days} dias)...`);
         
         try {
@@ -21,13 +21,37 @@ export const CleanupService = {
 
             console.log(`📦 [Cleanup] Analisando ${inactiveLeads.length} leads para possível arquivamento.`);
 
+            // Estágios protegidos: leads nestes estágios NUNCA são arquivados automaticamente
+            const PROTECTED_STAGE_NAMES = ["novo", "qualificação", "qualificacao", "prospect", "negociação", "negociacao", "reunião", "reuniao"];
+
             for (const lead of inactiveLeads) {
                 try {
-                    // 2. PRÉ-REQUISITO: Deve estar no estágio de "Atendimento"
-                    const attendanceStageId = await CRMRepository.getStageByName(lead.organizationId, "Atendimento");
+                    // 2. PRÉ-REQUISITO: Verificar se o lead está em estágio protegido
+                    const allStages = await CRMRepository.getStageByName(lead.organizationId, "Atendimento");
+                    
+                    // Buscar o nome do estágio atual do lead para verificar proteção
+                    const { db: dbCheck } = await import("@/lib/db");
+                    const { stages: stagesTable } = await import("@/lib/db/schema");
+                    const { eq: eqOp } = await import("drizzle-orm");
+                    
+                    if (lead.stageId) {
+                        const currentStage = await dbCheck.query.stages.findFirst({
+                            where: eqOp(stagesTable.id, lead.stageId)
+                        });
+                        
+                        if (currentStage) {
+                            const stageLower = currentStage.name.toLowerCase();
+                            const isProtected = PROTECTED_STAGE_NAMES.some(p => stageLower.includes(p));
+                            if (isProtected) {
+                                continue; // Não arquivar leads em estágios protegidos
+                            }
+                        }
+                    }
+
+                    // Deve estar no estágio de "Atendimento" para ser arquivado
+                    const attendanceStageId = allStages;
                     
                     if (lead.stageId !== attendanceStageId) {
-                        // console.log(`⏭️ [Cleanup] Ignorando lead ${lead.phone} (estágio diferente de atendimento).`);
                         continue;
                     }
 

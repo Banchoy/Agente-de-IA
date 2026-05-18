@@ -41,7 +41,7 @@ export async function register() {
                 setInterval(async () => {
                     try {
                         const { CleanupService } = await import('@/lib/services/cleanup');
-                        await CleanupService.processInactiveLeads(2); // Regra de 2 dias solicitada
+                        await CleanupService.processInactiveLeads(30); // Proteção: 30 dias para não perder leads recentes
                     } catch (err) {
                         console.error("❌ [Instrumentation] Erro no cron de limpeza:", err);
                     }
