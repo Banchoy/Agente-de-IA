@@ -599,7 +599,7 @@ export const WhatsappService = {
 
                                 const agents = await AgentRepository.listByOrgIdSystem(org.id);
                                 const agent = agents.find(a => (a as any).whatsappInstanceName === sessionId) || agents[0];
-                                const agentConfig = agent?.config || {};
+                                const agentConfig = (agent?.config || {}) as any;
 
                                 if (!agent || !agentConfig.whatsappResponse || lead.aiActive === "false") {
                                     if (redis) await redis.del(`lock:lead:${lead.id}`);
@@ -824,7 +824,33 @@ export const WhatsappService = {
                                             console.error("❌ [Baileys] Erro ao mover lead para Perdido:", crmErr);
                                         }
                                     }
-
+ 
+                                    // Detectar agendamento/reunião marcada
+                                    if (finalMessage.includes("[REUNIAO_MARCADA]") || finalMessage.includes("[REUNIAO]") || finalMessage.includes("[REUNIÃO_MARCADA]")) {
+                                        try {
+                                            console.log(`📅 [Baileys] REUNIÃO MARCADA IDENTIFICADA: ${lead.name}.`);
+                                            finalMessage = finalMessage
+                                                .replace("[REUNIAO_MARCADA]", "")
+                                                .replace("[REUNIAO]", "")
+                                                .replace("[REUNIÃO_MARCADA]", "")
+                                                .trim();
+                                            
+                                            const meetingStageId = await CRMRepository.getStageByName(lead.organizationId, "Reunião Marcada") || 
+                                                                   await CRMRepository.getStageByName(lead.organizationId, "Reunião") ||
+                                                                   await CRMRepository.getStageByName(lead.organizationId, "Reuniao Marcada") ||
+                                                                   await CRMRepository.getStageByName(lead.organizationId, "Reuniao") ||
+                                                                   await CRMRepository.getStageByName(lead.organizationId, "Agendado") ||
+                                                                   await CRMRepository.getStageByName(lead.organizationId, "Negociação");
+                                            
+                                            if (meetingStageId) {
+                                                console.log(`✅ [Baileys] Estágio de Reunião encontrado: ${meetingStageId}. Movendo lead...`);
+                                                await (LeadRepository as any).updateSystem(lead.id, { stageId: meetingStageId });
+                                            }
+                                        } catch (crmErr) {
+                                            console.error("❌ [Baileys] Erro ao mover lead para Reunião Marcada:", crmErr);
+                                        }
+                                    }
+ 
                                     // Detectar negociação/agendamento
                                     if (finalMessage.includes("[NEGOCIACAO]") || finalMessage.includes("[AGENDADO]")) {
                                         try {

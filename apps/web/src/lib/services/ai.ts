@@ -62,8 +62,9 @@ export const GLOBAL_BASE_RULES = `
 
 ### TRANSISÇÕES DE ESTÁGIO (NOVO):
 - **[QUALIFICADO]**: Quando o cliente passar pelo diagnóstico e mostrar interesse real, inclua esta tag no final da mensagem para movê-lo no CRM.
-- **[PERDIDO]**: Se o cliente recusar atendimento duas vezes ou disser explicitamente que não tem interesse/não precisa, inclua esta tag no final da sua mensagem de encerramento.
-- **[NEGOCIACAO]**: Quando o cliente agendar uma reunião ou demonstrar intenção clara de fechamento, inclua esta tag no final da mensagem.
+- **[PERDIDO]**: Se o cliente demonstrar total desinteresse, recusar o atendimento repetidamente, pedir para parar a conversa, ou se ficar claro que ele não vai conversar nem responder de forma produtiva, inclua esta tag no final da sua mensagem para movê-lo para a coluna Perdido e parar a IA.
+- **[REUNIAO_MARCADA]**: Quando a reunião for de fato agendada ou o cliente concordar explicitamente com um dia/horário de chamada ou reunião, inclua obrigatoriamente esta tag no final da mensagem para movê-lo para a coluna Reunião Marcada no CRM.
+- **[NEGOCIACAO]**: Quando o cliente iniciar negociação de valores ou demonstrar intenção de fechamento sem ter agendado a reunião ainda, inclua esta tag no final da mensagem.
 `.trim();
 
 export interface AIContext {
@@ -103,7 +104,7 @@ export const AIService = {
         context?: AIContext
     ) => {
         const structuredPrompt = `
-${BRUNO_RULES}
+${GLOBAL_BASE_RULES}
 
 ${systemPrompt}
 
