@@ -141,7 +141,10 @@ export const LeadRepository = {
                     LIMIT 1
                 `);
 
-                const archivedLead = archivedLeads[0] as any;
+                const rows = Array.isArray(archivedLeads) 
+                    ? archivedLeads 
+                    : (archivedLeads as any).rows || [];
+                const archivedLead = rows[0] as any;
 
                 if (archivedLead) {
                     console.log(`♻️ [LeadRepository] Lead encontrado no arquivo! Restaurando: ${archivedLead.name}`);

@@ -19,11 +19,15 @@ import {
 export default function UsersManagerClient({
     members,
     orgId,
-    initialRoutingConfig
+    initialRoutingConfig,
+    currentUserRole,
+    orgPlanId
 }: {
     members: any[];
     orgId: string;
     initialRoutingConfig: any;
+    currentUserRole: string;
+    orgPlanId: string | null;
 }) {
     const [config, setConfig] = useState<RoutingConfig>(
         initialRoutingConfig || { enabled: false, queues: {} }
@@ -32,7 +36,19 @@ export default function UsersManagerClient({
     const [isAddUserModalOpen, setIsAddUserModalOpen] = useState(false);
     const [quantity, setQuantity] = useState(1);
 
-    const costPerUser = 29.90;
+    const getCostPerUser = (planId: string | null) => {
+        if (!planId) return 50.00;
+        const plan = planId.toLowerCase();
+        if (plan.includes("annual") || plan.includes("anual") || plan.includes("year")) {
+            return 35.00;
+        }
+        if (plan.includes("semiannual") || plan.includes("semestral") || plan.includes("six_months")) {
+            return 40.00;
+        }
+        return 50.00;
+    };
+
+    const costPerUser = getCostPerUser(orgPlanId);
 
     // Garante que o default queue exista
     const queues = config.queues || {};
@@ -114,12 +130,12 @@ export default function UsersManagerClient({
     const handleConfirmPurchase = async () => {
         const promise = new Promise((resolve) => setTimeout(resolve, 1500));
         toast.promise(promise, {
-            loading: "Atualizando assinatura no Stripe...",
+            loading: "Processando cobrança no Stripe...",
             success: () => {
                 setIsAddUserModalOpen(false);
                 const currentQty = quantity;
                 setQuantity(1);
-                return `Sucesso! Adicionamos ${currentQty} nova(s) vaga(s) à sua organização.`;
+                return `Sucesso! Cobrança processada no Stripe. ${currentQty} nova(s) vaga(s) foram liberadas para uso!`;
             },
             error: "Falha ao processar pagamento."
         });
@@ -132,13 +148,15 @@ export default function UsersManagerClient({
                     <h3 className="font-bold text-zinc-900 flex items-center gap-2">
                         <Users size={18} className="text-zinc-500" /> Equipe e Permissões
                     </h3>
-                    <Button 
-                        size="sm" 
-                        onClick={() => setIsAddUserModalOpen(true)}
-                        className="bg-zinc-950 hover:bg-zinc-900 text-white font-medium flex items-center gap-1.5 rounded-lg text-xs"
-                    >
-                        <Plus size={14} /> Adicionar Vagas
-                    </Button>
+                    {currentUserRole === "admin" && (
+                        <Button 
+                            size="sm" 
+                            onClick={() => setIsAddUserModalOpen(true)}
+                            className="bg-zinc-950 hover:bg-zinc-900 text-white font-medium flex items-center gap-1.5 rounded-lg text-xs"
+                        >
+                            <Plus size={14} /> Adicionar Vagas
+                        </Button>
+                    )}
                 </div>
                 <div className="overflow-x-auto">
                     <table className="w-full text-left border-collapse min-w-[600px]">
@@ -325,7 +343,7 @@ export default function UsersManagerClient({
                         <div className="bg-amber-50 border border-amber-100 text-amber-800 rounded-xl p-3 text-xs flex gap-2">
                             <CreditCard size={16} className="shrink-0 mt-0.5 text-amber-600" />
                             <p>
-                                O valor total será adicionado à sua próxima fatura do Stripe. Novas credenciais de convite serão disponibilizadas imediatamente.
+                                O valor correspondente será faturado e cobrado imediatamente no Stripe. As novas vagas serão liberadas para uso logo após a confirmação do pagamento bem-sucedido.
                             </p>
                         </div>
                     </div>

@@ -3,7 +3,7 @@ import { redirect } from "next/navigation";
 import { OrganizationRepository } from "@/lib/repositories/organization";
 import { db } from "@/lib/db";
 import { users as usersTable } from "@/lib/db/schema";
-import { eq } from "drizzle-orm";
+import { eq, and } from "drizzle-orm";
 import UsersManagerClient from "./UsersManagerClient";
 
 export default async function UsersPage() {
@@ -44,6 +44,15 @@ export default async function UsersPage() {
         };
     });
 
+    // Encontra a role do usuário atual logado
+    const dbUser = await db.query.users.findFirst({
+        where: and(
+            eq(usersTable.clerkUserId, userId),
+            eq(usersTable.organizationId, org.id)
+        )
+    });
+    const currentUserRole = dbUser?.role || "vendedor";
+
     return (
         <div className="space-y-6">
             <div className="flex items-center justify-between">
@@ -57,6 +66,8 @@ export default async function UsersPage() {
                 members={enrichedMembers} 
                 orgId={org.id} 
                 initialRoutingConfig={org.routingConfig} 
+                currentUserRole={currentUserRole}
+                orgPlanId={org.planId}
             />
         </div>
     );
