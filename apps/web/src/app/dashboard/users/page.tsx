@@ -1,4 +1,4 @@
-import { auth } from "@clerk/nextjs/server";
+import { auth, clerkClient } from "@clerk/nextjs/server";
 import { redirect } from "next/navigation";
 import { OrganizationRepository } from "@/lib/repositories/organization";
 import { db } from "@/lib/db";
@@ -20,6 +20,30 @@ export default async function UsersPage() {
         orderBy: (users, { desc }) => [desc(users.createdAt)]
     });
 
+    const client = await clerkClient();
+    let clerkMembers: any[] = [];
+    try {
+        const response = await client.organizations.getOrganizationMembershipList({
+            organizationId: clerkOrgId,
+        });
+        clerkMembers = response.data;
+    } catch (e) {
+        console.error("Erro ao buscar membros no Clerk:", e);
+    }
+
+    const enrichedMembers = members.map(member => {
+        const clerkMember = clerkMembers.find(m => m.publicUserData?.userId === member.clerkUserId);
+        return {
+            ...member,
+            name: clerkMember 
+                ? `${clerkMember.publicUserData.firstName || ""} ${clerkMember.publicUserData.lastName || ""}`.trim() || clerkMember.publicUserData.identifier 
+                : "Usuário Sem Nome",
+            email: clerkMember ? clerkMember.publicUserData.identifier : "Sem E-mail",
+            imageUrl: clerkMember ? clerkMember.publicUserData.imageUrl : null,
+            clerkRole: clerkMember ? clerkMember.role : null,
+        };
+    });
+
     return (
         <div className="space-y-6">
             <div className="flex items-center justify-between">
@@ -30,10 +54,11 @@ export default async function UsersPage() {
             </div>
 
             <UsersManagerClient 
-                members={members} 
+                members={enrichedMembers} 
                 orgId={org.id} 
                 initialRoutingConfig={org.routingConfig} 
             />
         </div>
     );
 }
+
