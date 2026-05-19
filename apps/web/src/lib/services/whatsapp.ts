@@ -86,14 +86,12 @@ async function useDrizzleAuthState(sessionId: string, organizationId: string) {
             });
     };
 
-    const removeData = async (key: string) => {            // Padronizar sessionId: wa_ + 8 chars do orgId (ou o próprio sessionId se já formatado)
-            const cleanSessionId = sessionId.startsWith("wa_") ? sessionId : `wa_${sessionId.slice(0, 8)}`;
-            
-            await db.delete(whatsappSessions)
-                .where(and(
-                    eq(whatsappSessions.sessionId, cleanSessionId),
-                    eq(whatsappSessions.key, key)
-                ));
+    const removeData = async (key: string) => {
+        await db.delete(whatsappSessions)
+            .where(and(
+                eq(whatsappSessions.sessionId, sessionId),
+                eq(whatsappSessions.key, key)
+            ));
     };
 
     const credsData = await readData("creds");

@@ -19,13 +19,14 @@ export default async function DashboardLayout({
     // Sync user and organization with our DB on every dashboard load
     await UserService.syncUser();
 
-    const { orgId } = await auth();
+    const { orgId, userId } = await auth();
     if (!orgId) redirect("/org-selection");
 
     const org = await OrganizationRepository.getByClerkId(orgId);
     if (!org) redirect("/org-selection");
 
     const isSubscribed = org.subscriptionStatus === "active";
+    const isMaster = userId === "user_39Wu4TqDSEQWIhZbsTmyw5WmWfM";
 
     return (
         <div className="flex min-h-screen bg-background font-sans text-foreground">
@@ -35,7 +36,7 @@ export default async function DashboardLayout({
                     <Bot size={24} className="text-foreground" />
                     Agente AI
                 </div>
-                <SidebarNav />
+                <SidebarNav isMaster={isMaster} />
                 <div className="p-4 border-t border-border">
                     <OrganizationSwitcher
                         hidePersonal

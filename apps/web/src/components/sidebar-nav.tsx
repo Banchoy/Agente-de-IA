@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { LayoutDashboard, Users, Settings, History, Bot, MessageSquare, Activity, Mail } from "lucide-react";
+import { LayoutDashboard, Users, Settings, History, Bot, MessageSquare, Activity, Mail, Crown } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const navItems = [
@@ -54,12 +54,21 @@ const navItems = [
     },
 ];
 
-export function SidebarNav() {
+export function SidebarNav({ isMaster = false }: { isMaster?: boolean }) {
     const pathname = usePathname();
+
+    const currentItems = [...navItems];
+    if (isMaster) {
+        currentItems.push({
+            name: "Painel Master",
+            href: "/dashboard/master",
+            icon: Crown,
+        });
+    }
 
     return (
         <nav className="flex-1 space-y-1 p-4">
-            {navItems.map((item) => {
+            {currentItems.map((item) => {
                 const isActive = item.exact 
                     ? pathname === item.href 
                     : pathname.startsWith(item.href);
