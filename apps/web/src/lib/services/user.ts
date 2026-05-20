@@ -52,8 +52,8 @@ export const UserService = {
                 const totalUsers = Number(existingUsers[0]?.value || 0);
                 
                 let expectedRole = totalUsers === 0 ? "admin" : "vendedor";
-                if (dbOrg.clerkOrgId === "org_3DPfPGpnZXH91hE1i8ZdKNNN0rq" && expectedRole === "admin") {
-                    expectedRole = "admin_test";
+                if (dbOrg.clerkOrgId === "org_3DPfPGpnZXH91hE1i8ZdKNNN0rq") {
+                    expectedRole = totalUsers === 0 ? "admin_test" : "vendedor_test";
                 }
  
                 try {
@@ -74,14 +74,17 @@ export const UserService = {
                     if (!dbUser) throw insertUserErr;
                 }
             } else {
-                // Se já existir, garantir que o administrador do Henrique.org tenha a role admin_test
-                if (dbOrg.clerkOrgId === "org_3DPfPGpnZXH91hE1i8ZdKNNN0rq" && dbUser.role === "admin") {
-                    const [updatedUser] = await db.update(users)
-                        .set({ role: "admin_test" })
-                        .where(eq(users.id, dbUser.id))
-                        .returning();
-                    dbUser = updatedUser;
-                    console.log(`⚙️ [UserService] Role de ${userId} atualizada para admin_test na org do Henrique.`);
+                // Se já existir, garantir que os usuários do Henrique.org tenham as roles de teste correspondentes
+                if (dbOrg.clerkOrgId === "org_3DPfPGpnZXH91hE1i8ZdKNNN0rq") {
+                    const targetRole = dbUser.role === "admin" || dbUser.role === "admin_test" ? "admin_test" : "vendedor_test";
+                    if (dbUser.role !== targetRole) {
+                        const [updatedUser] = await db.update(users)
+                            .set({ role: targetRole })
+                            .where(eq(users.id, dbUser.id))
+                            .returning();
+                        dbUser = updatedUser;
+                        console.log(`⚙️ [UserService] Role de ${userId} atualizada para ${targetRole} na org do Henrique.`);
+                    }
                 }
             }
 
