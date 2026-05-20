@@ -8,10 +8,24 @@ import MasterPanelClient from "./MasterPanelClient";
 export const dynamic = "force-dynamic";
 
 export default async function MasterPage() {
-    const { userId } = await auth();
+    const { userId, orgId } = await auth();
     
-    // Restrição exclusiva ao usuário master (Bruno Gustavo)
-    const isMaster = userId === "user_39Wu4TqDSEQWIhZbsTmyw5WmWfM";
+    // Restrição ao usuário master no banco (ou fallback pelo ID do Clerk)
+    let isMaster = userId === "user_39Wu4TqDSEQWIhZbsTmyw5WmWfM";
+    if (!isMaster && userId && orgId) {
+        const dbOrg = await db.query.organizations.findFirst({
+            where: eq(organizations.clerkOrgId, orgId)
+        });
+        if (dbOrg) {
+            const dbUser = await db.query.users.findFirst({
+                where: and(eq(users.clerkUserId, userId), eq(users.organizationId, dbOrg.id))
+            });
+            if (dbUser?.role === "master") {
+                isMaster = true;
+            }
+        }
+    }
+    
     if (!isMaster) {
         redirect("/dashboard");
     }

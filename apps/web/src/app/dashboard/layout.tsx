@@ -17,7 +17,7 @@ export default async function DashboardLayout({
     children: React.ReactNode;
 }) {
     // Sync user and organization with our DB on every dashboard load
-    await UserService.syncUser();
+    const currentUserDb = await UserService.syncUser();
 
     const { orgId, userId } = await auth();
     if (!orgId) redirect("/org-selection");
@@ -26,7 +26,7 @@ export default async function DashboardLayout({
     if (!org) redirect("/org-selection");
 
     const isSubscribed = org.subscriptionStatus === "active";
-    const isMaster = userId === "user_39Wu4TqDSEQWIhZbsTmyw5WmWfM";
+    const isMaster = userId === "user_39Wu4TqDSEQWIhZbsTmyw5WmWfM" || currentUserDb?.role === "master";
 
     return (
         <div className="flex min-h-screen bg-background font-sans text-foreground">

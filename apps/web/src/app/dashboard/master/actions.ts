@@ -18,7 +18,7 @@ import {
     auditLogs, 
     tags 
 } from "@/lib/db/schema";
-import { eq, desc, inArray, sql } from "drizzle-orm";
+import { eq, desc, inArray, sql, and } from "drizzle-orm";
 import { WhatsappService } from "@/lib/services/whatsapp";
 import { revalidatePath } from "next/cache";
 
@@ -26,8 +26,24 @@ import { revalidatePath } from "next/cache";
 const MASTER_USER_ID = "user_39Wu4TqDSEQWIhZbsTmyw5WmWfM";
 
 async function validateMasterAccess() {
-    const { userId } = await auth();
-    if (userId !== MASTER_USER_ID) {
+    const { userId, orgId } = await auth();
+    
+    let isMaster = userId === MASTER_USER_ID;
+    if (!isMaster && userId && orgId) {
+        const dbOrg = await db.query.organizations.findFirst({
+            where: eq(organizations.clerkOrgId, orgId)
+        });
+        if (dbOrg) {
+            const dbUser = await db.query.users.findFirst({
+                where: and(eq(users.clerkUserId, userId), eq(users.organizationId, dbOrg.id))
+            });
+            if (dbUser?.role === "master") {
+                isMaster = true;
+            }
+        }
+    }
+    
+    if (!isMaster) {
         throw new Error("Acesso negado. Apenas o usuário master pode executar esta ação.");
     }
 }
@@ -116,28 +132,32 @@ export async function deleteOrgAction(orgId: string) {
 
         console.log(`🧹 [Master Action] Iniciando deleção explícita de registros filhos para evitar conflitos de FK.`);
 
-        // A. Deletar message_tags e messages
-        const orgMessages = await db.select({ id: messages.id })
-            .from(messages)
-            .where(eq(messages.organizationId, orgId));
-            
-        if (orgMessages.length > 0) {
-            const msgIds = orgMessages.map(m => m.id);
-            await db.delete(messageTags).where(inArray(messageTags.messageId, msgIds));
+        // A. Deletar message_tags e messages usando subqueries para máxima velocidade
+        try {
+            await db.delete(messageTags).where(
+                inArray(
+                    messageTags.messageId,
+                    db.select({ id: messages.id }).from(messages).where(eq(messages.organizationId, orgId))
+                )
+            );
             await db.delete(messages).where(eq(messages.organizationId, orgId));
-            console.log(`- Limpou ${orgMessages.length} mensagens e suas tags.`);
+            console.log(`- Limpou mensagens e suas tags.`);
+        } catch (e: any) {
+            console.warn(`[Master Action] Falha/ignorado ao limpar mensagens:`, e.message);
         }
 
-        // B. Deletar lead_tags e leads
-        const orgLeads = await db.select({ id: leads.id })
-            .from(leads)
-            .where(eq(leads.organizationId, orgId));
-            
-        if (orgLeads.length > 0) {
-            const leadIds = orgLeads.map(l => l.id);
-            await db.delete(leadTags).where(inArray(leadTags.leadId, leadIds));
+        // B. Deletar lead_tags e leads usando subqueries para máxima velocidade
+        try {
+            await db.delete(leadTags).where(
+                inArray(
+                    leadTags.leadId,
+                    db.select({ id: leads.id }).from(leads).where(eq(leads.organizationId, orgId))
+                )
+            );
             await db.delete(leads).where(eq(leads.organizationId, orgId));
-            console.log(`- Limpou ${orgLeads.length} leads e suas tags.`);
+            console.log(`- Limpou leads e suas tags.`);
+        } catch (e: any) {
+            console.warn(`[Master Action] Falha/ignorado ao limpar leads:`, e.message);
         }
 
         // C. Deletar do leads_archive (caso a tabela física exista)
@@ -157,16 +177,18 @@ export async function deleteOrgAction(orgId: string) {
         // F. Deletar workflows
         await db.delete(workflows).where(eq(workflows.organizationId, orgId));
 
-        // G. Deletar stages e pipelines
-        const orgPipelines = await db.select({ id: pipelines.id })
-            .from(pipelines)
-            .where(eq(pipelines.organizationId, orgId));
-            
-        if (orgPipelines.length > 0) {
-            const pipeIds = orgPipelines.map(p => p.id);
-            await db.delete(stages).where(inArray(stages.pipelineId, pipeIds));
+        // G. Deletar stages e pipelines usando subqueries para máxima velocidade
+        try {
+            await db.delete(stages).where(
+                inArray(
+                    stages.pipelineId,
+                    db.select({ id: pipelines.id }).from(pipelines).where(eq(pipelines.organizationId, orgId))
+                )
+            );
             await db.delete(pipelines).where(eq(pipelines.organizationId, orgId));
-            console.log(`- Limpou ${orgPipelines.length} pipelines e estágios.`);
+            console.log(`- Limpou pipelines e estágios.`);
+        } catch (e: any) {
+            console.warn(`[Master Action] Falha/ignorado ao limpar pipelines:`, e.message);
         }
 
         // H. Deletar meta_integrations

@@ -63,7 +63,7 @@ export const CRMRepository = {
         return insertedStages[0]?.id || null;
     },
 
-    getStageByName: async (organizationId: string, stageName: string) => {
+    getStageByName: async (organizationId: string, stageName: string, strict: boolean = false) => {
         // Garante que a estrutura básica exista
         await CRMRepository.ensureDefaultPipeline(organizationId);
 
@@ -78,8 +78,8 @@ export const CRMRepository = {
         const cleanSearch = stageName.trim().toLowerCase();
         let targetStage = allStages.find(s => s.name.toLowerCase().includes(cleanSearch));
 
-        // 2. Se não encontrou o nome desejado e a requisição era específica, tentar fallbacks comuns
-        if (!targetStage) {
+        // 2. Se não encontrou o nome desejado e a requisição era específica e não-estrita, tentar fallbacks comuns
+        if (!targetStage && !strict) {
             targetStage = allStages.find(s => s.name.toLowerCase().includes("novo")) || 
                           allStages.find(s => s.name.toLowerCase() === "qualificação") || 
                           allStages.find(s => s.name.toLowerCase().includes("prospect")) || 

@@ -815,8 +815,8 @@ export const WhatsappService = {
                                         try {
                                             console.log(`📉 [Baileys] LEAD PERDIDO IDENTIFICADO: ${lead.name}.`);
                                             finalMessage = finalMessage.replace("[PERDIDO]", "").trim();
-                                            const lostStageId = await CRMRepository.getStageByName(lead.organizationId, "Perdido") || 
-                                                                await CRMRepository.getStageByName(lead.organizationId, "Lost");
+                                            const lostStageId = await CRMRepository.getStageByName(lead.organizationId, "Perdido", true) || 
+                                                                await CRMRepository.getStageByName(lead.organizationId, "Lost", true);
                                             if (lostStageId) {
                                                 await (LeadRepository as any).updateSystem(lead.id, { stageId: lostStageId, aiActive: "false" });
                                             }
@@ -835,12 +835,12 @@ export const WhatsappService = {
                                                 .replace("[REUNIÃO_MARCADA]", "")
                                                 .trim();
                                             
-                                            const meetingStageId = await CRMRepository.getStageByName(lead.organizationId, "Reunião Marcada") || 
-                                                                   await CRMRepository.getStageByName(lead.organizationId, "Reunião") ||
-                                                                   await CRMRepository.getStageByName(lead.organizationId, "Reuniao Marcada") ||
-                                                                   await CRMRepository.getStageByName(lead.organizationId, "Reuniao") ||
-                                                                   await CRMRepository.getStageByName(lead.organizationId, "Agendado") ||
-                                                                   await CRMRepository.getStageByName(lead.organizationId, "Negociação");
+                                            const meetingStageId = await CRMRepository.getStageByName(lead.organizationId, "Reunião Marcada", true) || 
+                                                                   await CRMRepository.getStageByName(lead.organizationId, "Reunião", true) ||
+                                                                   await CRMRepository.getStageByName(lead.organizationId, "Reuniao Marcada", true) ||
+                                                                   await CRMRepository.getStageByName(lead.organizationId, "Reuniao", true) ||
+                                                                   await CRMRepository.getStageByName(lead.organizationId, "Agendado", true) ||
+                                                                   await CRMRepository.getStageByName(lead.organizationId, "Negociação", true);
                                             
                                             if (meetingStageId) {
                                                 console.log(`✅ [Baileys] Estágio de Reunião encontrado: ${meetingStageId}. Movendo lead...`);
@@ -856,9 +856,9 @@ export const WhatsappService = {
                                         try {
                                             console.log(`💰 [Baileys] LEAD EM NEGOCIAÇÃO IDENTIFICADO: ${lead.name}.`);
                                             finalMessage = finalMessage.replace("[NEGOCIACAO]", "").replace("[AGENDADO]", "").trim();
-                                            const negociationStageId = await CRMRepository.getStageByName(lead.organizationId, "Negociação") || 
-                                                                       await CRMRepository.getStageByName(lead.organizationId, "Agendado") ||
-                                                                       await CRMRepository.getStageByName(lead.organizationId, "Negotiation");
+                                            const negociationStageId = await CRMRepository.getStageByName(lead.organizationId, "Negociação", true) || 
+                                                                       await CRMRepository.getStageByName(lead.organizationId, "Agendado", true) ||
+                                                                       await CRMRepository.getStageByName(lead.organizationId, "Negotiation", true);
                                             if (negociationStageId) {
                                                 await (LeadRepository as any).updateSystem(lead.id, { stageId: negociationStageId });
                                             }
