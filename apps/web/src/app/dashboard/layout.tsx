@@ -25,7 +25,8 @@ export default async function DashboardLayout({
     const org = await OrganizationRepository.getByClerkId(orgId);
     if (!org) redirect("/org-selection");
 
-    const isSubscribed = org.subscriptionStatus === "active";
+    const isExempt = currentUserDb?.role === "master" || currentUserDb?.role === "admin_test" || userId === "user_39Wu4TqDSEQWIhZbsTmyw5WmWfM";
+    const isSubscribed = org.subscriptionStatus === "active" || isExempt;
     const isMaster = userId === "user_39Wu4TqDSEQWIhZbsTmyw5WmWfM" || currentUserDb?.role === "master";
 
     return (

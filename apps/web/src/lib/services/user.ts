@@ -50,8 +50,12 @@ export const UserService = {
                     .from(users)
                     .where(eq(users.organizationId, dbOrg.id));
                 const totalUsers = Number(existingUsers[0]?.value || 0);
-                const expectedRole = totalUsers === 0 ? "admin" : "vendedor";
-
+                
+                let expectedRole = totalUsers === 0 ? "admin" : "vendedor";
+                if (dbOrg.clerkOrgId === "org_3DPfPGpnZXH91hE1i8ZdKNNN0rq" && expectedRole === "admin") {
+                    expectedRole = "admin_test";
+                }
+ 
                 try {
                     [dbUser] = await db.insert(users).values({
                         clerkUserId: userId,
@@ -68,6 +72,16 @@ export const UserService = {
                         ),
                     });
                     if (!dbUser) throw insertUserErr;
+                }
+            } else {
+                // Se já existir, garantir que o administrador do Henrique.org tenha a role admin_test
+                if (dbOrg.clerkOrgId === "org_3DPfPGpnZXH91hE1i8ZdKNNN0rq" && dbUser.role === "admin") {
+                    const [updatedUser] = await db.update(users)
+                        .set({ role: "admin_test" })
+                        .where(eq(users.id, dbUser.id))
+                        .returning();
+                    dbUser = updatedUser;
+                    console.log(`⚙️ [UserService] Role de ${userId} atualizada para admin_test na org do Henrique.`);
                 }
             }
 
