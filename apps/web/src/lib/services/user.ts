@@ -52,8 +52,18 @@ export const UserService = {
                 const totalUsers = Number(existingUsers[0]?.value || 0);
                 
                 let expectedRole = totalUsers === 0 ? "admin" : "vendedor";
-                if (dbOrg.clerkOrgId === "org_3DPfPGpnZXH91hE1i8ZdKNNN0rq") {
-                    expectedRole = totalUsers === 0 ? "admin_test" : "vendedor_test";
+                
+                // Se for um novo vendedor (totalUsers > 0), vamos verificar se o administrador é do tipo teste ("admin_test")
+                if (totalUsers > 0) {
+                    const hasAdminTest = await db.query.users.findFirst({
+                        where: and(
+                            eq(users.organizationId, dbOrg.id),
+                            eq(users.role, "admin_test")
+                        )
+                    });
+                    if (hasAdminTest) {
+                        expectedRole = "vendedor_test";
+                    }
                 }
  
                 try {
@@ -74,16 +84,22 @@ export const UserService = {
                     if (!dbUser) throw insertUserErr;
                 }
             } else {
-                // Se já existir, garantir que os usuários do Henrique.org tenham as roles de teste correspondentes
-                if (dbOrg.clerkOrgId === "org_3DPfPGpnZXH91hE1i8ZdKNNN0rq") {
-                    const targetRole = dbUser.role === "admin" || dbUser.role === "admin_test" ? "admin_test" : "vendedor_test";
+                // Se o usuário já existe, e for um vendedor, garante que a role esteja sincronizada com o status do administrador
+                if (dbUser.role === "vendedor" || dbUser.role === "vendedor_test") {
+                    const hasAdminTest = await db.query.users.findFirst({
+                        where: and(
+                            eq(users.organizationId, dbOrg.id),
+                            eq(users.role, "admin_test")
+                        )
+                    });
+                    const targetRole = hasAdminTest ? "vendedor_test" : "vendedor";
                     if (dbUser.role !== targetRole) {
                         const [updatedUser] = await db.update(users)
                             .set({ role: targetRole })
                             .where(eq(users.id, dbUser.id))
                             .returning();
                         dbUser = updatedUser;
-                        console.log(`⚙️ [UserService] Role de ${userId} atualizada para ${targetRole} na org do Henrique.`);
+                        console.log(`⚙️ [UserService] Role de vendedor ${userId} atualizada dinamicamente para ${targetRole}.`);
                     }
                 }
             }

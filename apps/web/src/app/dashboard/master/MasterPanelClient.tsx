@@ -25,7 +25,7 @@ import {
     DialogTitle,
     DialogDescription
 } from "@/components/ui/dialog";
-import { getOrgDetailsAction, deleteOrgAction } from "./actions";
+import { getOrgDetailsAction, deleteOrgAction, updateUserRoleAction } from "./actions";
 
 interface OrgMetric {
     id: string;
@@ -73,6 +73,25 @@ export default function MasterPanelClient({ initialOrgs }: { initialOrgs: OrgMet
     const [confirmName, setConfirmName] = useState("");
     const [isDeleting, setIsDeleting] = useState(false);
     const [deleteError, setDeleteError] = useState<string | null>(null);
+
+    // Estado de alteração de role
+    const [updatingUserId, setUpdatingUserId] = useState<string | null>(null);
+
+    const handleRoleChange = async (userId: string, newRole: string) => {
+        setUpdatingUserId(userId);
+        try {
+            const res = await updateUserRoleAction(userId, newRole);
+            if (res.success) {
+                setUsersList(prev => prev.map(u => u.id === userId ? { ...u, role: newRole } : u));
+            } else {
+                alert(res.error || "Erro ao atualizar a role.");
+            }
+        } catch (error: any) {
+            alert(error.message || "Erro desconhecido ao atualizar a role.");
+        } finally {
+            setUpdatingUserId(null);
+        }
+    };
 
     // Filtrar organizações baseado na busca
     const filteredOrgs = orgs.filter(org => 
@@ -523,10 +542,24 @@ export default function MasterPanelClient({ initialOrgs }: { initialOrgs: OrgMet
                                                         <UserCheck size={14} />
                                                     </div>
                                                     <div>
-                                                        <span className="text-xs font-bold text-zinc-800 dark:text-zinc-200 block">
-                                                            {user.role === "admin" ? "Administrador" : "Vendedor"}
-                                                        </span>
-                                                        <span className="text-[10px] text-zinc-400 block mt-0.5">
+                                                        <div className="flex items-center gap-2">
+                                                            <select
+                                                                value={user.role}
+                                                                disabled={updatingUserId === user.id}
+                                                                onChange={(e) => handleRoleChange(user.id, e.target.value)}
+                                                                className="text-xs font-bold bg-transparent border-0 border-b border-zinc-200 dark:border-zinc-800 text-zinc-800 dark:text-zinc-200 focus:outline-none focus:ring-0 focus:border-zinc-950 dark:focus:border-zinc-50 pb-0.5 pr-6 cursor-pointer disabled:opacity-50"
+                                                            >
+                                                                <option value="admin" className="bg-white dark:bg-zinc-950 text-zinc-800 dark:text-zinc-200">Administrador (Pago)</option>
+                                                                <option value="admin_test" className="bg-white dark:bg-zinc-950 text-zinc-800 dark:text-zinc-200">Administrador (Teste - Grátis)</option>
+                                                                <option value="vendedor" className="bg-white dark:bg-zinc-950 text-zinc-800 dark:text-zinc-200">Vendedor (Pago)</option>
+                                                                <option value="vendedor_test" className="bg-white dark:bg-zinc-950 text-zinc-800 dark:text-zinc-200">Vendedor (Teste - Grátis)</option>
+                                                                <option value="master" className="bg-white dark:bg-zinc-950 text-zinc-800 dark:text-zinc-200">Master</option>
+                                                            </select>
+                                                            {updatingUserId === user.id && (
+                                                                <Loader2 className="animate-spin text-zinc-400 h-3.5 w-3.5" />
+                                                            )}
+                                                        </div>
+                                                        <span className="text-[10px] text-zinc-400 block mt-1 select-all">
                                                             Clerk: {user.clerkUserId}
                                                         </span>
                                                     </div>

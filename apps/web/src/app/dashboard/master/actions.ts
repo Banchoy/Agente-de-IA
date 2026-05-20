@@ -216,3 +216,34 @@ export async function deleteOrgAction(orgId: string) {
         return { success: false, error: error.message };
     }
 }
+
+/**
+ * Atualiza a role de um usuário/membro de forma segura.
+ */
+export async function updateUserRoleAction(userId: string, newRole: string) {
+    try {
+        await validateMasterAccess();
+
+        console.log(`⚠️ [Master Action] Atualizando role do usuário ${userId} para: ${newRole}`);
+
+        // Validar se a role está dentro das permitidas
+        const allowedRoles = ["master", "admin", "admin_test", "vendedor", "vendedor_test"];
+        if (!allowedRoles.includes(newRole)) {
+            throw new Error(`Role inválida: ${newRole}`);
+        }
+
+        // Atualizar no banco de dados
+        await db.update(users)
+            .set({ role: newRole })
+            .where(eq(users.id, userId));
+
+        console.log(`✅ [Master Action] Role do usuário ${userId} atualizada com sucesso para ${newRole}.`);
+
+        revalidatePath("/dashboard/master");
+        return { success: true };
+    } catch (error: any) {
+        console.error("❌ Erro ao atualizar role do usuário:", error.message);
+        return { success: false, error: error.message };
+    }
+}
+
