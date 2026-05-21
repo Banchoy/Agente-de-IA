@@ -280,7 +280,7 @@ export const OutreachService = {
             // 8. Validação de número ativo
             if (pendingLead.phone) {
                 try {
-                    const isValid = await WhatsappService.isValidNumber(orgId, pendingLead.phone);
+                    const isValid = await WhatsappService.isValidNumber(sessionId, pendingLead.phone);
                     if (!isValid) {
                         console.warn(`🚫 [Outreach - Org ${orgId}] Lead ${pendingLead.name} possui telefone inválido: ${pendingLead.phone}. EXCLUINDO...`);
                         await LeadRepository.deleteSystem(pendingLead.id);

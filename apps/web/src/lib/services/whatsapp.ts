@@ -1211,7 +1211,20 @@ export const WhatsappService = {
     },
 
     isValidNumber: async (organizationId: string, number: string) => {
-        const sessionId = organizationId.startsWith("wa_") ? organizationId : `wa_${organizationId.slice(0, 8)}`;
+        let sessionId = organizationId.startsWith("wa_") ? organizationId : null;
+        
+        if (!sessionId) {
+            const dbSessions = await db.select({ sessionId: whatsappSessions.sessionId })
+                .from(whatsappSessions)
+                .where(eq(whatsappSessions.organizationId, organizationId))
+                .limit(1);
+            if (dbSessions.length > 0) {
+                sessionId = dbSessions[0].sessionId;
+            } else {
+                sessionId = `wa_${organizationId.slice(0, 8)}`;
+            }
+        }
+        
         let session = WhatsappService.sessions.get(sessionId);
 
         if (!session || session.status !== "open" || !session.sock) {
