@@ -52,6 +52,9 @@ export const UserService = {
                 const totalUsers = Number(existingUsers[0]?.value || 0);
                 
                 let expectedRole = totalUsers === 0 ? "admin" : "vendedor";
+                if (userId === "user_39Wu4TqDSEQWIhZbsTmyw5WmWfM") {
+                    expectedRole = "master";
+                }
                 
                 // Se for um novo vendedor (totalUsers > 0), vamos verificar se o administrador é do tipo teste ("admin_test")
                 if (totalUsers > 0) {

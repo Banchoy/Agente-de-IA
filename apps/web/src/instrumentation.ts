@@ -7,6 +7,9 @@ export async function register() {
     console.log("🚀 [Instrumentation] Iniciando registro de serviços de background...");
     
     try {
+        const { runAutoMigration } = await import('@/lib/auto-migrate');
+        await runAutoMigration();
+
         const { WhatsappService } = await import('@/lib/services/whatsapp');
         
         // Postgres Advisory Lock para garantir que apenas UMA instância execute background jobs
