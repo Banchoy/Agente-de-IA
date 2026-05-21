@@ -93,6 +93,5 @@ export async function updateAgent(id: string, formData: FormData) {
         }
     });
 
-    revalidatePath(`/dashboard/agents/${id}`);
-    revalidatePath("/dashboard/agents");
+    revalidatePath("/dashboard/agents", "layout");
 }
