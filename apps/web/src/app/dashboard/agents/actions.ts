@@ -94,4 +94,5 @@ export async function updateAgent(id: string, formData: FormData) {
     });
 
     revalidatePath("/dashboard/agents", "layout");
+    redirect(`/dashboard/agents/${id}`);
 }
