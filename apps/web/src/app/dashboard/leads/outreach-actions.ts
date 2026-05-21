@@ -9,6 +9,8 @@ import { AgentRepository } from "@/lib/repositories/agent";
 import { OrganizationRepository } from "@/lib/repositories/organization";
 import { auth } from "@clerk/nextjs/server";
 
+import { whatsappSessions } from "@/lib/db/schema";
+
 export async function startOutreach(leadIds?: string[]) {
     const { orgId: clerkOrgId } = await auth();
     if (!clerkOrgId) throw new Error("Unauthorized");
@@ -17,9 +19,28 @@ export async function startOutreach(leadIds?: string[]) {
         const org = await OrganizationRepository.getByClerkId(clerkOrgId);
         if (!org) throw new Error("Organization not found");
 
-        // Verificar sessão Baileys ativa
+        // 1. Buscar Agente ativo para WhatsApp
+        const agents = await AgentRepository.listByOrgId(org.id);
+        const agent = agents.find((a: any) => a.config?.whatsappResponse === true) || agents[0];
+
+        // 2. Determinar a sessão de WhatsApp ativa do agente ou da org
+        let baileysSessionId = agent?.whatsappInstanceName;
+        if (!baileysSessionId) {
+            const dbSessions = await db.select({ sessionId: whatsappSessions.sessionId })
+                .from(whatsappSessions)
+                .where(eq(whatsappSessions.organizationId, org.id))
+                .limit(1);
+            if (dbSessions.length > 0) {
+                baileysSessionId = dbSessions[0].sessionId;
+            }
+        }
+
+        if (!baileysSessionId) {
+            return { success: false, error: "Nenhuma sessão de WhatsApp configurada. Conecte seu WhatsApp primeiro." };
+        }
+
+        // Verificar sessão Baileys ativa em memória
         const { WhatsappService } = await import("@/lib/services/whatsapp");
-        const baileysSessionId = `wa_${org.id.slice(0, 8)}`;
         const baileysSession = WhatsappService.sessions.get(baileysSessionId);
         if (!baileysSession || baileysSession.status !== "open") {
             return { success: false, error: "WhatsApp não conectado. Conecte primeiro na página de WhatsApp." };
@@ -41,15 +62,7 @@ export async function startOutreach(leadIds?: string[]) {
             return { success: false, error: "Nenhum lead com telefone encontrado para prospecção." };
         }
 
-        // 2. Buscar Agente ativo para WhatsApp
-        const agents = await AgentRepository.listByOrgId(org.id);
-        const agent = agents.find((a: any) => a.config?.whatsappResponse === true) || agents[0];
-
-        if (!agent) {
-            return { success: false, error: "Nenhum agente configurado para prospecção." };
-        }
-
-        const config = (agent.config as any) || {};
+        const config = (agent?.config as any) || {};
         const systemPrompt = config.systemPrompt || "Você é um assistente virtual iniciando contato.";
 
         // 3. Marcar leads para prospecção (Serão processados pelo OutreachService em background)
@@ -83,16 +96,32 @@ export async function startMassOutreach(stageId: string) {
         const org = await OrganizationRepository.getByClerkId(clerkOrgId);
         if (!org) throw new Error("Organization not found");
 
+        const agents = await AgentRepository.listByOrgId(org.id);
+        const agent = agents.find((a: any) => a.config?.whatsappResponse === true) || agents[0];
+
+        // Determinar a sessão de WhatsApp ativa do agente ou da org
+        let baileysSessionId = agent?.whatsappInstanceName;
+        if (!baileysSessionId) {
+            const dbSessions = await db.select({ sessionId: whatsappSessions.sessionId })
+                .from(whatsappSessions)
+                .where(eq(whatsappSessions.organizationId, org.id))
+                .limit(1);
+            if (dbSessions.length > 0) {
+                baileysSessionId = dbSessions[0].sessionId;
+            }
+        }
+
+        if (!baileysSessionId) {
+            return { success: false, error: "Nenhuma sessão de WhatsApp configurada. Conecte seu WhatsApp primeiro." };
+        }
+
         // Verificar sessão Baileys ativa
         const { WhatsappService } = await import("@/lib/services/whatsapp");
-        const baileysSessionId = `wa_${org.id.slice(0, 8)}`;
         const baileysSession = WhatsappService.sessions.get(baileysSessionId);
         if (!baileysSession || baileysSession.status !== "open") {
             return { success: false, error: "WhatsApp não conectado. Conecte primeiro." };
         }
 
-        const agents = await AgentRepository.listByOrgId(org.id);
-        const agent = agents.find((a: any) => a.config?.whatsappResponse === true) || agents[0];
         if (!agent) {
             return { success: false, error: "Nenhum agente configurado para prospecção." };
         }

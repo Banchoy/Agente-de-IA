@@ -4,6 +4,10 @@ import { OrganizationRepository } from "@/lib/repositories/organization";
 import { LeadRepository } from "@/lib/repositories/lead";
 import { AgentRepository } from "@/lib/repositories/agent";
 
+import { db } from "@/lib/db";
+import { whatsappSessions } from "@/lib/db/schema";
+import { eq } from "drizzle-orm";
+
 export async function POST(req: Request) {
     try {
         const { orgId: clerkOrgId } = await auth();
@@ -19,9 +23,34 @@ export async function POST(req: Request) {
         const body = await req.json();
         const { stageId, leadIds } = body;
 
-        // 1. Verificar sessão Baileys ativa
+        // 1. Buscar Agente
+        const agents = await AgentRepository.listByOrgId(org.id);
+        const agent = agents.find((a: any) => a.config?.whatsappResponse === true) || agents[0];
+        if (!agent) {
+            return NextResponse.json({ success: false, error: "Nenhum agente configurado." }, { status: 400 });
+        }
+
+        // 2. Determinar a sessão de WhatsApp ativa do agente ou da org
+        let baileysSessionId = agent.whatsappInstanceName;
+        if (!baileysSessionId) {
+            const dbSessions = await db.select({ sessionId: whatsappSessions.sessionId })
+                .from(whatsappSessions)
+                .where(eq(whatsappSessions.organizationId, org.id))
+                .limit(1);
+            if (dbSessions.length > 0) {
+                baileysSessionId = dbSessions[0].sessionId;
+            }
+        }
+
+        if (!baileysSessionId) {
+            return NextResponse.json({ 
+                success: false, 
+                error: "Nenhuma sessão de WhatsApp configurada. Conecte seu WhatsApp primeiro." 
+            }, { status: 400 });
+        }
+
+        // Verificar sessão Baileys ativa em memória
         const { WhatsappService } = await import("@/lib/services/whatsapp");
-        const baileysSessionId = `wa_${org.id.slice(0, 8)}`;
         const baileysSession = WhatsappService.sessions.get(baileysSessionId);
         
         if (!baileysSession || baileysSession.status !== "open") {
@@ -31,7 +60,7 @@ export async function POST(req: Request) {
             }, { status: 400 });
         }
 
-        // 2. Buscar leads elegíveis
+        // 3. Buscar leads elegíveis
         let leadsToContact;
         if (leadIds && Array.isArray(leadIds) && leadIds.length > 0) {
             const allLeads = await LeadRepository.listByOrg();
@@ -52,12 +81,6 @@ export async function POST(req: Request) {
             return NextResponse.json({ success: false, error: "Nenhum lead elegível com telefone encontrado." });
         }
 
-        // 3. Buscar Agente
-        const agents = await AgentRepository.listByOrgId(org.id);
-        const agent = agents.find((a: any) => a.config?.whatsappResponse === true) || agents[0];
-        if (!agent) {
-            return NextResponse.json({ success: false, error: "Nenhum agente configurado." }, { status: 400 });
-        }
 
         console.log(`🚀 [API Outreach] Iniciando disparos. Org: ${org.id} | Leads: ${leadsToContact.length}`);
 

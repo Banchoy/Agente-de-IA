@@ -1,5 +1,5 @@
 import { db } from "../db";
-import { leads, organizations, messages } from "../db/schema";
+import { leads, organizations, messages, whatsappSessions } from "../db/schema";
 import { eq, and, desc, sql } from "drizzle-orm";
 import { MessageRepository } from "../repositories/message";
 import { AgentRepository } from "../repositories/agent";
@@ -17,18 +17,16 @@ function getRandomGapMs() {
 
 export const OutreachService = {
     /**
-     * Tenta recuperar conversas que ficaram pendentes (o usuário mandou mensagem e o bot não respondeu).
+     * Tenta recuperar conversas que ficaram pendentes para uma organização específica.
      */
-    processRecoveryQueue: async () => {
-        // Busca leads ativos (IA ligada) que não estão na fila de prospecção inicial
-        // e que a última mensagem recebida foi do usuário.
+    processRecoveryQueueForOrg: async (organizationId: string) => {
         try {
-            // Query para encontrar leads onde a última mensagem é 'user'
-            // Usamos uma subquery para garantir que pegamos a mensagem mais recente de cada lead
+            // Query para encontrar leads onde a última mensagem é 'user' da organização correspondente
             const pendingResponses = await db.execute(sql`
                 SELECT l.id, l.organization_id 
                 FROM leads l
-                WHERE l.ai_active = 'true'
+                WHERE l.organization_id = ${organizationId}
+                AND l.ai_active = 'true'
                 AND l.outreach_status != 'pending'
                 AND EXISTS (
                     SELECT 1 FROM messages m
@@ -41,40 +39,28 @@ export const OutreachService = {
                 LIMIT 5
             `);
 
-            const leadsToRecover = (pendingResponses?.rows || []) as unknown as { id: string, organization_id: string }[];
+            const rows = Array.isArray(pendingResponses)
+                ? pendingResponses
+                : (pendingResponses as any)?.rows || [];
+            const leadsToRecover = rows as unknown as { id: string, organization_id: string }[];
             if (!leadsToRecover || leadsToRecover.length === 0) return false;
 
-            console.log(`🔄 [Outreach] Encontrados ${leadsToRecover.length} leads aguardando resposta. Recuperando...`);
+            console.log(`🔄 [Outreach - Org ${organizationId}] Encontrados ${leadsToRecover.length} leads aguardando resposta. Recuperando...`);
 
             for (const item of leadsToRecover) {
                 try {
-                    // Simula um evento de mensagem para disparar a lógica do whatsapp.ts
-                    // Na verdade, vamos apenas chamar a função de processamento de resposta se ela existir
-                    // ou deixar que o sistema de lock gerencie.
-                    // Para ser seguro, vamos apenas logar e deixar o processQueue retornar true 
-                    // se houver trabalho de recuperação a ser feito, mas aqui vamos forçar o processamento
-                    // chamando o repositório para "cutucar" o lead.
-                    
                     const lead = await LeadRepository.getByIdSystem(item.id);
                     if (!lead) continue;
 
-                    console.log(`🎯 [Outreach] Recuperando conversa com lead: ${lead.name} (${lead.phone})`);
-                    
-                    // Aqui chamamos a lógica de processamento de resposta do WhatsApp
-                    // Como a lógica está dentro do evento 'messages.upsert' no whatsapp.ts,
-                    // vamos disparar o processamento manualmente se possível ou 
-                    // adaptar para que o Outreach consiga processar respostas.
-                    
-                    // Nota: No whatsapp.ts, o processamento acontece quando chega mensagem.
-                    // Vamos garantir que o OutreachService consiga gerar essa resposta.
+                    console.log(`🎯 [Outreach - Org ${organizationId}] Recuperando conversa com lead: ${lead.name} (${lead.phone})`);
                     await OutreachService.respondToLead(lead);
                 } catch (err) {
-                    console.error(`❌ [Outreach] Erro ao recuperar lead ${item.id}:`, err);
+                    console.error(`❌ [Outreach - Org ${organizationId}] Erro ao recuperar lead ${item.id}:`, err);
                 }
             }
             return true;
         } catch (error) {
-            console.error("❌ [Outreach] Erro na fila de recuperação:", error);
+            console.error(`❌ [Outreach - Org ${organizationId}] Erro na fila de recuperação:`, error);
             return false;
         }
     },
@@ -90,6 +76,23 @@ export const OutreachService = {
         const agent = agents.find((a: any) => a.config?.whatsappResponse === true) || agents[0];
         if (!agent) return;
 
+        // Determinar a sessão de WhatsApp ativa do agente
+        let sessionId = agent.whatsappInstanceName;
+        if (!sessionId) {
+            const dbSessions = await db.select({ sessionId: whatsappSessions.sessionId })
+                .from(whatsappSessions)
+                .where(eq(whatsappSessions.organizationId, lead.organizationId))
+                .limit(1);
+            if (dbSessions.length > 0) {
+                sessionId = dbSessions[0].sessionId;
+            }
+        }
+
+        if (!sessionId) {
+            console.warn(`⚠️ [Outreach - Respond] Nenhuma sessão encontrada para a Org ${lead.organizationId}.`);
+            return;
+        }
+
         const history = await (MessageRepository as any).listByLeadSystem(lead.id, 20);
         const formattedHistory = history.reverse().map((m: any) => ({
             role: m.role === "assistant" ? "model" : "user",
@@ -98,7 +101,7 @@ export const OutreachService = {
 
         const scriptInstruction = ScriptService.getInstruction(lead.conversationState, lead, agent.config);
         
-        console.log(`🤖 [Outreach] Gerando resposta de recuperação para ${lead.name}...`);
+        console.log(`🤖 [Outreach - Org ${lead.organizationId}] Gerando resposta de recuperação para ${lead.name}...`);
         
         const aiResponse = await AIService.generateAdaptiveResponse(
             agent.config,
@@ -108,8 +111,8 @@ export const OutreachService = {
         );
 
         if (aiResponse && aiResponse.body) {
-            // Enviar resposta
-            const sendResult = await WhatsappService.sendText(lead.organizationId, lead.phone, aiResponse.body);
+            // Enviar resposta usando a sessão correta
+            const sendResult = await WhatsappService.sendText(sessionId, lead.phone, aiResponse.body);
             
             // Registrar no banco
             await MessageRepository.createSystem({
@@ -132,49 +135,123 @@ export const OutreachService = {
      * Verifica e processa a fila de prospecção.
      */
     processQueue: async () => {
-        // ⏰ BLOQUEIO DE HORÁRIO
+        // ⏰ BLOQUEIO DE HORÁRIO COMERCIAL GLOBAL (Não dispara prospecção ativa entre 21h e 08h)
         const hourNow = parseInt(new Intl.DateTimeFormat('pt-BR', {
             timeZone: 'America/Sao_Paulo',
             hour: 'numeric',
             hour12: false
         }).format(new Date()));
 
-        // Regras do Usuário: 5h-12h (Bom dia), 12h-17h (Boa tarde), 17h+ (Boa noite)
-        const timeGreeting = (hourNow >= 5 && hourNow < 12) ? "bom dia" : (hourNow >= 12 && hourNow < 17) ? "boa tarde" : "boa noite";
-
-        // Não dispara prospecção ativa entre 21h e 08h
         if (hourNow >= 21 || hourNow < 8) {
-            console.log(`💤 [Outreach] Fora do horário comercial (${hourNow}h). Fila pausada para evitar inconveniência.`);
+            console.log(`💤 [Outreach] Fora do horário comercial (${hourNow}h). Fila de prospecção pausada.`);
             return;
         }
 
-        let pendingLead: any = null;
-        
         try {
-            // Anti-ban: verificar quando foi o último disparo de QUALQUER lead via Redis
+            // 1. Buscar todas as organizações registradas no banco
+            const orgs = await db.select().from(organizations);
+            console.log(`📨 [Outreach] Processando fila de prospecção para ${orgs.length} organizações.`);
+
+            // Executar de forma independente para cada organização
+            for (const org of orgs) {
+                try {
+                    await OutreachService.processQueueForOrg(org.id);
+                } catch (orgErr) {
+                    console.error(`❌ [Outreach] Erro ao processar organização ${org.id}:`, orgErr);
+                }
+            }
+        } catch (error) {
+            console.error("❌ [Outreach] Erro crítico ao buscar organizações:", error);
+        }
+    },
+
+    /**
+     * Processa a fila de prospecção para uma organização específica.
+     */
+    processQueueForOrg: async (orgId: string) => {
+        let pendingLead: any = null;
+
+        try {
+            // 1. Buscar se há leads 'pending' para esta organização
+            const [result] = await db
+                .select()
+                .from(leads)
+                .where(and(
+                    eq(leads.outreachStatus, "pending"),
+                    eq(leads.organizationId, orgId)
+                ))
+                .limit(1);
+
+            pendingLead = result;
+
+            // Se não houver lead pendente, não há trabalho a ser feito para esta org
+            if (!pendingLead) {
+                return;
+            }
+
+            console.log(`📨 [Outreach - Org ${orgId}] Há leads pendentes na fila. Iniciando verificações...`);
+
+            // 2. Buscar Agente ativo para prospecção da organização
+            const agents = await AgentRepository.listByOrgIdSystem(orgId);
+            const agent = agents.find((a: any) => a.config?.whatsappResponse === true) || agents[0];
+
+            if (!agent) {
+                console.warn(`⚠️ [Outreach - Org ${orgId}] Nenhum agente encontrado. Marcando lead como falha.`);
+                await LeadRepository.updateSystem(pendingLead.id, { outreachStatus: "failed_no_agent" });
+                return;
+            }
+
+            // 3. Determinar a sessão de WhatsApp ativa do agente
+            let sessionId = agent.whatsappInstanceName;
+            if (!sessionId) {
+                const dbSessions = await db.select({ sessionId: whatsappSessions.sessionId })
+                    .from(whatsappSessions)
+                    .where(eq(whatsappSessions.organizationId, orgId))
+                    .limit(1);
+                if (dbSessions.length > 0) {
+                    sessionId = dbSessions[0].sessionId;
+                }
+            }
+
+            if (!sessionId) {
+                console.warn(`⚠️ [Outreach - Org ${orgId}] Nenhuma sessão conectada encontrada. Pulando...`);
+                return;
+            }
+
+            // 4. Validar se a sessão Baileys está ativa em memória
+            const baileysSession = WhatsappService.sessions.get(sessionId);
+            if (!baileysSession || baileysSession.status !== "open") {
+                console.warn(`⚠️ [Outreach - Org ${orgId}] Sessão Baileys ${sessionId} não está aberta (status: ${baileysSession?.status || 'inexistente'}). Pulando...`);
+                return;
+            }
+
+            // 5. Anti-ban isolado por organização
             const { redis } = await import("@/lib/redis");
             let lastSentAt: Date | null = null;
+            const redisKey = `outreach:last_sent_at:${orgId}`;
             
             if (redis) {
-                const cachedLastSent = await redis.get("outreach:last_sent_at");
+                const cachedLastSent = await redis.get(redisKey);
                 if (cachedLastSent) {
                     lastSentAt = new Date(parseInt(cachedLastSent));
                 }
             }
 
-            // Fallback para o banco se o Redis não tiver a info ou estiver desativado
+            // Fallback para o banco (apenas mensagens desta organização)
             if (!lastSentAt) {
                 const [lastSent] = await db
                     .select({ lastAt: messages.createdAt })
                     .from(messages)
-                    .where(eq(messages.role, "assistant"))
+                    .where(and(
+                        eq(messages.role, "assistant"),
+                        eq(messages.organizationId, orgId)
+                    ))
                     .orderBy(desc(messages.createdAt))
                     .limit(1);
                 
                 if (lastSent?.lastAt) {
                     lastSentAt = new Date(lastSent.lastAt);
-                    // Popula o cache para a próxima vez
-                    if (redis) await redis.set("outreach:last_sent_at", lastSentAt.getTime().toString(), "EX", 86400);
+                    if (redis) await redis.set(redisKey, lastSentAt.getTime().toString(), "EX", 86400);
                 }
             }
 
@@ -182,90 +259,48 @@ export const OutreachService = {
                 const gap = getRandomGapMs();
                 const elapsed = Date.now() - lastSentAt.getTime();
                 if (elapsed < gap) {
-                    console.log(`⏳ [Outreach] Anti-ban: Last dispatch was ${(elapsed/60000).toFixed(1)}min ago. Gap: ${(gap/60000).toFixed(1)}min. Aguardando...`);
+                    console.log(`⏳ [Outreach - Org ${orgId}] Anti-ban: Último disparo foi há ${(elapsed/60000).toFixed(1)}min. Gap: ${(gap/60000).toFixed(1)}min. Aguardando...`);
                     return;
                 }
             }
 
-            // 0. Tentar recuperar conversas pendentes primeiro
-            const hasRecovered = await OutreachService.processRecoveryQueue();
+            // 6. Tentar recuperar conversas pendentes específicas da organização primeiro
+            const hasRecovered = await OutreachService.processRecoveryQueueForOrg(orgId);
             if (hasRecovered) {
-                // Se recuperou alguém, o gap de anti-ban deve ser respeitado antes da próxima ação
-                if (redis) await redis.set("outreach:last_sent_at", Date.now().toString(), "EX", 86400);
+                // Se recuperou alguém, atualiza o anti-ban e encerra a volta atual da org
+                if (redis) await redis.set(redisKey, Date.now().toString(), "EX", 86400);
                 return;
             }
 
-            // 1. Buscar um lead que está 'pending'
-            const [result] = await db
-                .select()
-                .from(leads)
-                .where(eq(leads.outreachStatus, "pending"))
-                .limit(1);
-
-
-            pendingLead = result;
-
-            if (!pendingLead) {
-                return;
-            }
-
-            // 1.1 Marcar imediatamente como 'processing' para evitar duplicidade em execuções paralelas ou próximas
+            // 7. Marcar imediatamente o lead como 'processing' para evitar duplicidade
             await LeadRepository.updateSystem(pendingLead.id, { outreachStatus: "processing" });
 
-            console.log(`📨 [Outreach] Processando lead: ${pendingLead.name} (${pendingLead.phone})`);
+            console.log(`📨 [Outreach - Org ${orgId}] Processando lead: ${pendingLead.name} (${pendingLead.phone})`);
 
-            // 2. Buscar organização do lead
-            const [org] = await db
-                .select()
-                .from(organizations)
-                .where(eq(organizations.id, pendingLead.organizationId))
-                .limit(1);
-
-            // 🔌 VALIDAÇÃO DE SESSÃO BAILEYS (substitui evolutionInstanceStatus que não é mais atualizado)
-            const sessionId = `wa_${org.id.slice(0, 8)}`;
-            const baileysSession = WhatsappService.sessions.get(sessionId);
-            if (!baileysSession || baileysSession.status !== "open") {
-                console.warn(`⚠️ [Outreach] Sessão Baileys ${sessionId} não está aberta (status: ${baileysSession?.status || 'inexistente'}). Pulando...`);
-                await LeadRepository.updateSystem(pendingLead.id, { outreachStatus: "pending" }); // volta pra fila
-                return;
-            }
-
-            // 🆕 VALIDAÇÃO DE NÚMERO (Anti-bloqueio e Assertividade)
+            // 8. Validação de número ativo
             if (pendingLead.phone) {
                 try {
-                    const isValid = await WhatsappService.isValidNumber(org.id, pendingLead.phone);
+                    const isValid = await WhatsappService.isValidNumber(orgId, pendingLead.phone);
                     if (!isValid) {
-                        console.warn(`🚫 [Outreach] Lead ${pendingLead.name} possui telefone inválido: ${pendingLead.phone}. EXCLUINDO permanentemente...`);
+                        console.warn(`🚫 [Outreach - Org ${orgId}] Lead ${pendingLead.name} possui telefone inválido: ${pendingLead.phone}. EXCLUINDO...`);
                         await LeadRepository.deleteSystem(pendingLead.id);
                         return;
                     }
                 } catch (validErr) {
-                    console.warn(`⚠️ [Outreach] Erro ao validar número ${pendingLead.phone}. Continuando sem validação:`, validErr);
+                    console.warn(`⚠️ [Outreach - Org ${orgId}] Erro ao validar número ${pendingLead.phone}. Continuando:`, validErr);
                 }
             } else if (!pendingLead.email) {
-                console.warn(`🚫 [Outreach] Lead ${pendingLead.name} sem formas de contato válidas. EXCLUINDO...`);
+                console.warn(`🚫 [Outreach - Org ${orgId}] Lead ${pendingLead.name} sem formas de contato válidas. EXCLUINDO...`);
                 await LeadRepository.deleteSystem(pendingLead.id);
                 return;
             }
 
-
-            // 3. Buscar Agente ativo para prospecção
-            const agents = await AgentRepository.listByOrgIdSystem(org.id);
-            const agent = agents.find((a: any) => a.config?.whatsappResponse === true) || agents[0];
-
-            if (!agent) {
-                console.warn(`⚠️ [Outreach] Nenhum agente encontrado para ${org.id}. Pulando...`);
-                await LeadRepository.updateSystem(pendingLead.id, { outreachStatus: "failed_no_agent" });
-                return;
-            }
-
-            // [NOVA TRAVA DE SEGURANÇA] — MEMÓRIA DE DISPARO
-            // Verifica se o lead já possui mensagens no histórico para evitar disparos duplicados
+            // 9. [NOVA TRAVA DE SEGURANÇA] — MEMÓRIA DE DISPARO (apenas histórico recente)
             const recentHistory = await (MessageRepository as any).listByLeadSystem(pendingLead.id, 5);
             const hasRecentTouch = recentHistory.some((m: any) => m.role === "assistant");
             
             if (hasRecentTouch) {
-                console.log(`🛡️ [Outreach] Lead ${pendingLead.name} já possui interação recente no histórico. Marcando como 'completed' e pulando disparo.`);
+                console.log(`🛡️ [Outreach - Org ${orgId}] Lead ${pendingLead.name} já possui interação recente. Concluindo...`);
                 await LeadRepository.updateSystem(pendingLead.id, { 
                     outreachStatus: "completed",
                     status: "CONTACTED"
@@ -273,39 +308,32 @@ export const OutreachService = {
                 return;
             }
 
-            // 4. Montar mensagem inicial personalizada com ScriptService (Tayná)
+            // 10. Montar mensagem inicial personalizada
             const { ScriptService } = await import("./script");
             const messageBody = await ScriptService.getInitialMessage(agent.config || {}, pendingLead);
 
-            // 5. Enviar via WhatsappService e capturar o JID real (normalizado pelo WhatsApp)
+            // 11. Enviar mensagem usando a sessão do agente
             const sendResult = await WhatsappService.sendText(
-                org.id, // organizationId
+                sessionId,
                 pendingLead.phone!,
                 messageBody
             );
 
-            // 5.1 Sincronização Crítica: Se o WhatsApp normalizou o JID (ex: removeu o 9º dígito), 
-            // atualizamos o lead no banco para que as respostas futuras casem com este ID.
+            // 12. Sincronização de JID
             let finalPhone = pendingLead.phone;
             const originalPhone = pendingLead.phone;
 
             if (sendResult.jid) {
                 const jidNumber = sendResult.jid.split("@")[0];
-                console.log(`📡 [Outreach] WhatsApp retornou JID: ${sendResult.jid} para o lead ${pendingLead.id}`);
+                console.log(`📡 [Outreach - Org ${orgId}] WhatsApp retornou JID: ${sendResult.jid}`);
 
                 if (jidNumber !== pendingLead.phone) {
-                    console.log(`🔄 [Outreach] Sincronização Necessária: ${pendingLead.phone} -> ${jidNumber}`);
+                    console.log(`🔄 [Outreach - Org ${orgId}] Sincronizando: ${pendingLead.phone} -> ${jidNumber}`);
                     finalPhone = jidNumber;
 
-                    // 🛡️ DEDUPLICAÇÃO RESILIENTE: Verificar se já existe OUTRO lead com o número normalizado
-                    const existingLead = await LeadRepository.getByPhoneSystem(jidNumber, org.id);
+                    const existingLead = await LeadRepository.getByPhoneSystem(jidNumber, orgId);
                     if (existingLead && existingLead.id !== pendingLead.id) {
-                        console.warn(`⚠️ [Outreach] CONFLITO DE JID: Outro lead já possui esse identificador (ID: ${existingLead.id}, Nome: ${existingLead.name}).`);
-                        
-                        // Lógica: Se o existente tem mensagens, devemos manter o existente?
-                        // Por simplicidade atual, deletamos o "vazio" se for o caso.
-                        // Mas aqui apenas logamos por enquanto para entender o padrão.
-                        console.log(`🗑️ [Outreach] Removendo lead conflitante para prevalecer o atual prospecção...`);
+                        console.warn(`⚠️ [Outreach - Org ${orgId}] Conflito de JID com lead ${existingLead.id}. Removendo duplicado...`);
                         await LeadRepository.deleteSystem(existingLead.id);
                     }
                 }
@@ -315,18 +343,18 @@ export const OutreachService = {
                 ...(pendingLead.metaData as any || {}),
                 originalPhone: originalPhone,
                 normalizedPhone: finalPhone,
-                outreachInstance: org.evolutionInstanceName,
+                outreachInstance: sessionId,
                 activeCard: "IA",
                 outreachJid: sendResult.jid
             };
 
-            // Atualiza o anti-ban no Redis
-            if (redis) await redis.set("outreach:last_sent_at", Date.now().toString(), "EX", 86400);
+            // Atualizar anti-ban no Redis
+            if (redis) await redis.set(redisKey, Date.now().toString(), "EX", 86400);
 
-            // 6. Buscar estágio de atendimento no CRM
-            const targetStageId = await CRMRepository.getStageByName(org.id, "Em Atendimento (IA)");
+            // Buscar estágio de atendimento
+            const targetStageId = await CRMRepository.getStageByName(orgId, "Em Atendimento (IA)");
 
-            // 7. Atualizar status, estágio, telefone (se mudou) e histórico
+            // Atualizar status do lead
             await LeadRepository.updateSystem(pendingLead.id, {
                 phone: finalPhone,
                 metaData: updatedMetadata,
@@ -334,26 +362,23 @@ export const OutreachService = {
                 lastOutreachAt: new Date(),
                 status: "CONTACTED",
                 conversationState: "1", 
-                source: "Outreach", // MARCAÇÃO CRÍTICA PARA SEPARAÇÃO DE SCRIPTS
+                source: "Outreach",
                 stageId: targetStageId || pendingLead.stageId
             });
 
-            // 8. Registrar explicitamente a primeira mensagem no histórico
-            // Já que o webhook ignora mensagens enviadas pelo próprio bot (fromMe: true)
+            // Registrar mensagem no histórico
             await MessageRepository.createSystem({
-                organizationId: org.id,
+                organizationId: orgId,
                 leadId: pendingLead.id,
                 role: "assistant",
                 content: messageBody,
                 whatsappMessageId: (sendResult as any)?.key?.id || `outreach_${Date.now()}`
             });
 
-
-            console.log(`✅ [Outreach] Mensagem enviada para ${pendingLead.name} com sucesso!`);
+            console.log(`✅ [Outreach - Org ${orgId}] Mensagem enviada para ${pendingLead.name}!`);
 
         } catch (error) {
-            console.error("❌ [Outreach] Erro crítico ao processar fila:", error);
-            // Se houver um lead sendo processado, marcar como falha para não travar a fila
+            console.error(`❌ [Outreach - Org ${orgId}] Erro ao processar fila:`, error);
             if (pendingLead?.id) {
                 try {
                     await LeadRepository.updateSystem(pendingLead.id, { outreachStatus: "failed_error" });
