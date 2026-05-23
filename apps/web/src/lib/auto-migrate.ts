@@ -17,7 +17,8 @@ export async function runAutoMigration() {
         const exists = result[0]?.exists;
         
         if (exists) {
-            console.log("✅ [AutoMigrate] O banco de dados já possui as tabelas.");
+            console.log("✅ [AutoMigrate] O banco de dados já possui as tabelas. Verificando colunas incrementais...");
+            await applyIncrementalColumns();
             return;
         }
 
@@ -25,14 +26,14 @@ export async function runAutoMigration() {
         
         const queries = [
             `CREATE TABLE IF NOT EXISTS "audit_logs" ("id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL, "organization_id" uuid NOT NULL, "action" text NOT NULL, "metadata" jsonb, "created_at" timestamp DEFAULT now() NOT NULL);`,
-            `CREATE TABLE IF NOT EXISTS "organizations" ("id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL, "clerk_org_id" text NOT NULL, "name" text NOT NULL, "evolution_api_url" text, "evolution_api_key" text, "evolution_instance_status" text DEFAULT 'disconnected', "evolution_instance_name" text, "evolution_qr_code" text, "openai_api_key" text, "gemini_api_key" text, "openrouter_api_key" text, "apify_api_key" text, "elevenlabs_api_key" text, "prospecting_config" jsonb DEFAULT '{}'::jsonb, "routing_config" jsonb DEFAULT '{}'::jsonb, "subscription_status" text DEFAULT 'trialing', "stripe_customer_id" text, "stripe_subscription_id" text, "plan_id" text, "created_at" timestamp DEFAULT now() NOT NULL, CONSTRAINT "organizations_clerk_org_id_unique" UNIQUE("clerk_org_id"));`,
-            `CREATE TABLE IF NOT EXISTS "users" ("id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL, "clerk_user_id" text NOT NULL, "organization_id" uuid, "role" text, "openai_api_key" text, "gemini_api_key" text, "openrouter_api_key" text, "apify_api_key" text, "elevenlabs_api_key" text, "created_at" timestamp DEFAULT now() NOT NULL, CONSTRAINT "users_clerk_user_id_org_id_unique" UNIQUE("clerk_user_id","organization_id"));`,
+            `CREATE TABLE IF NOT EXISTS "organizations" ("id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL, "clerk_org_id" text NOT NULL, "name" text NOT NULL, "evolution_api_url" text, "evolution_api_key" text, "evolution_instance_status" text DEFAULT 'disconnected', "evolution_instance_name" text, "evolution_qr_code" text, "openai_api_key" text, "gemini_api_key" text, "openrouter_api_key" text, "apify_api_key" text, "elevenlabs_api_key" text, "resend_api_key" text, "prospecting_config" jsonb DEFAULT '{}'::jsonb, "routing_config" jsonb DEFAULT '{}'::jsonb, "subscription_status" text DEFAULT 'trialing', "stripe_customer_id" text, "stripe_subscription_id" text, "plan_id" text, "created_at" timestamp DEFAULT now() NOT NULL, CONSTRAINT "organizations_clerk_org_id_unique" UNIQUE("clerk_org_id"));`,
+            `CREATE TABLE IF NOT EXISTS "users" ("id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL, "clerk_user_id" text NOT NULL, "organization_id" uuid, "role" text, "openai_api_key" text, "gemini_api_key" text, "openrouter_api_key" text, "apify_api_key" text, "elevenlabs_api_key" text, "resend_api_key" text, "created_at" timestamp DEFAULT now() NOT NULL, CONSTRAINT "users_clerk_user_id_org_id_unique" UNIQUE("clerk_user_id","organization_id"));`,
             `CREATE TABLE IF NOT EXISTS "agents" ("id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL, "organization_id" uuid NOT NULL, "name" text NOT NULL, "description" text, "status" text DEFAULT 'active' NOT NULL, "config" jsonb DEFAULT '{}'::jsonb, "created_at" timestamp DEFAULT now() NOT NULL, "updated_at" timestamp DEFAULT now() NOT NULL, "whatsapp_instance_name" text);`,
             `CREATE TABLE IF NOT EXISTS "lead_tags" ("id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL, "lead_id" uuid NOT NULL, "tag_id" uuid NOT NULL, "created_at" timestamp DEFAULT now() NOT NULL);`,
             `CREATE TABLE IF NOT EXISTS "leads" ("id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL, "organization_id" uuid NOT NULL, "stage_id" uuid, "assigned_user_id" uuid, "name" text NOT NULL, "email" text, "phone" text, "status" text DEFAULT 'active' NOT NULL, "source" text, "metadata" jsonb DEFAULT '{}'::jsonb, "ai_active" text DEFAULT 'true' NOT NULL, "last_read_at" timestamp, "is_typing" text DEFAULT 'false' NOT NULL, "outreach_status" text DEFAULT 'idle' NOT NULL, "last_outreach_at" timestamp, "conversation_state" text DEFAULT 'START' NOT NULL, "last_intent" text, "created_at" timestamp DEFAULT now() NOT NULL, "updated_at" timestamp DEFAULT now() NOT NULL);`,
             `CREATE TABLE IF NOT EXISTS "message_tags" ("id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL, "message_id" uuid NOT NULL, "tag_id" uuid NOT NULL, "created_at" timestamp DEFAULT now() NOT NULL);`,
             `CREATE TABLE IF NOT EXISTS "messages" ("id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL, "organization_id" uuid NOT NULL, "lead_id" uuid, "role" text NOT NULL, "content" text NOT NULL, "whatsapp_message_id" text, "created_at" timestamp DEFAULT now() NOT NULL);`,
-            `CREATE TABLE IF NOT EXISTS "meta_integrations" ("id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL, "organization_id" uuid NOT NULL, "access_token" text, "pixel_id" text, "webhook_verify_token" text, "field_mapping" jsonb DEFAULT '{}'::jsonb, "created_at" timestamp DEFAULT now() NOT NULL);`,
+            `CREATE TABLE IF NOT EXISTS "meta_integrations" ("id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL, "organization_id" uuid NOT NULL, "access_token" text, "pixel_id" text, "webhook_verify_token" text, "field_mapping" jsonb DEFAULT '{}'::jsonb, "integrated_forms" jsonb DEFAULT '[]'::jsonb, "created_at" timestamp DEFAULT now() NOT NULL);`,
             `CREATE TABLE IF NOT EXISTS "pipelines" ("id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL, "organization_id" uuid NOT NULL, "name" text NOT NULL, "description" text, "created_at" timestamp DEFAULT now() NOT NULL, "updated_at" timestamp DEFAULT now() NOT NULL);`,
             `CREATE TABLE IF NOT EXISTS "stages" ("id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL, "pipeline_id" uuid NOT NULL, "name" text NOT NULL, "order" text DEFAULT '0' NOT NULL, "created_at" timestamp DEFAULT now() NOT NULL);`,
             `CREATE TABLE IF NOT EXISTS "tags" ("id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL, "organization_id" uuid NOT NULL, "name" text NOT NULL, "color" text DEFAULT '#3b82f6' NOT NULL, "icon_name" text DEFAULT 'Tag' NOT NULL, "created_at" timestamp DEFAULT now() NOT NULL);`,
@@ -77,9 +78,26 @@ export async function runAutoMigration() {
             await (db as any).execute(sql.raw(query));
         }
 
-        console.log("✅ [AutoMigrate] Todas as tabelas foram criadas com sucesso!");
+        console.log("✅ [AutoMigrate] Todas as tabelas foram criadas com sucesso! Aplicando colunas adicionais...");
+        await applyIncrementalColumns();
         
     } catch (err) {
         console.error("❌ [AutoMigrate] Erro ao executar migração automática:", err);
+    }
+}
+
+async function applyIncrementalColumns() {
+    const alterQueries = [
+        `ALTER TABLE "organizations" ADD COLUMN IF NOT EXISTS "resend_api_key" text;`,
+        `ALTER TABLE "users" ADD COLUMN IF NOT EXISTS "resend_api_key" text;`,
+        `ALTER TABLE "meta_integrations" ADD COLUMN IF NOT EXISTS "integrated_forms" jsonb DEFAULT '[]'::jsonb;`
+    ];
+
+    for (const query of alterQueries) {
+        try {
+            await (db as any).execute(sql.raw(query));
+        } catch (alterErr) {
+            console.error(`⚠️ [AutoMigrate] Falha ao executar alter query: ${query}`, alterErr);
+        }
     }
 }

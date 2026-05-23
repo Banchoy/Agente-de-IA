@@ -79,6 +79,39 @@ export class MetaService {
     }
 
     /**
+     * Busca detalhes de um lead específico via leadgen_id (webhook em tempo real)
+     * GET /{leadgen-id}
+     */
+    static async getLeadDetails(accessToken: string, leadgenId: string) {
+        const url = `${GRAPH_BASE}/${leadgenId}?` +
+            new URLSearchParams({
+                access_token: accessToken,
+                fields: "id,created_time,field_data,form_id,ad_id,ad_name",
+            });
+
+        const res = await fetch(url, { next: { revalidate: 0 } });
+        const data = await res.json();
+
+        if (data.error) {
+            console.error("Erro ao buscar detalhes do lead:", data.error);
+            throw new Error(data.error.message || "Erro ao buscar detalhes do lead");
+        }
+
+        const fields = this.parseLeadFields(data.field_data || []);
+        return {
+            id: data.id,
+            formId: data.form_id,
+            adId: data.ad_id,
+            adName: data.ad_name,
+            createdTime: data.created_time,
+            name: `${fields.first_name || ""} ${fields.last_name || ""}`.trim() || fields.full_name || fields.nome || "Lead sem nome",
+            email: fields.email || fields.e_mail || null,
+            phone: fields.phone_number || fields.phone || fields.whatsapp || fields.telefone || fields.celular || null,
+            rawFields: fields,
+        };
+    }
+
+    /**
      * Faz o backfill real: busca TODOS os leads de um formulário e salva no BD
      */
     static async backfillLeads(organizationId: string, formId: string, pageName: string, accessToken: string) {

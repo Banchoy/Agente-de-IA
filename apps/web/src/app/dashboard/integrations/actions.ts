@@ -100,6 +100,7 @@ export async function getFormsForPage(pageId: string) {
 
 /**
  * Ativa/desativa um formulário e opcionalmente faz o backfill de leads históricos.
+ * Persiste o estado do formulário no JSONB `integratedForms` de `meta_integrations`.
  */
 export async function toggleFormIntegration(formId: string, pageName: string, active: boolean) {
     const { orgId } = await auth();
@@ -110,22 +111,49 @@ export async function toggleFormIntegration(formId: string, pageName: string, ac
     });
     if (!org) throw new Error("Organização não encontrada.");
 
+    // Buscar integração para persistir estado do formulário
+    const integration = await db.query.metaIntegrations.findFirst({
+        where: eq(metaIntegrations.organizationId, org.id),
+    });
+
+    // Persistir estado do formulário no JSONB
+    if (integration) {
+        const currentForms = (integration.integratedForms as any[]) || [];
+
+        if (active) {
+            const existingIdx = currentForms.findIndex((f: any) => f.formId === formId);
+            if (existingIdx === -1) {
+                currentForms.push({ formId, pageName, active: true, integratedAt: new Date().toISOString() });
+            } else {
+                currentForms[existingIdx].active = true;
+            }
+        } else {
+            const existingIdx = currentForms.findIndex((f: any) => f.formId === formId);
+            if (existingIdx !== -1) {
+                currentForms[existingIdx].active = false;
+            }
+        }
+
+        await db.update(metaIntegrations)
+            .set({ integratedForms: currentForms })
+            .where(eq(metaIntegrations.id, integration.id));
+    }
+
+    // Se desativando, não precisa fazer backfill
     if (!active) {
         return { success: true, message: "Integração desativada para este formulário." };
     }
 
+    // Modo DEMO
     if (!IS_REAL_META) {
         const count = await MetaService.backfillLeadsFallback(org.id, formId, pageName);
         return { success: true, message: `${count} leads de demonstração importados!`, count };
     }
 
-    // Buscar token real
-    const integration = await db.query.metaIntegrations.findFirst({
-        where: eq(metaIntegrations.organizationId, org.id),
-    });
+    // Modo REAL — backfill com token salvo
     if (!integration) throw new Error("Integração Meta não encontrada. Reconecte sua conta.");
-
     if (!integration.accessToken) throw new Error("Token de acesso não encontrado. Reconecte sua conta.");
     const count = await MetaService.backfillLeads(org.id, formId, pageName, integration.accessToken);
     return { success: true, message: `${count} leads históricos importados do Facebook!`, count };
 }
+

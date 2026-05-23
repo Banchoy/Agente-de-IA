@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Key, Save, Bot, Globe, Database, Sparkles, Wand2, ArrowLeft, Loader2 } from "lucide-react";
+import { Key, Save, Bot, Globe, Database, Sparkles, Wand2, ArrowLeft, Loader2, Mail } from "lucide-react";
 import { updateApiKeys, getApiKeys } from "./actions";
 import { toast } from "sonner";
 import Link from "next/link";
@@ -19,6 +19,7 @@ export default function ApiKeysPage() {
         openrouterApiKey: "",
         apifyApiKey: "",
         elevenlabsApiKey: "",
+        resendApiKey: "",
     });
 
     useEffect(() => {
@@ -32,6 +33,7 @@ export default function ApiKeysPage() {
                         openrouterApiKey: data.openrouterApiKey || "",
                         apifyApiKey: data.apifyApiKey || "",
                         elevenlabsApiKey: data.elevenlabsApiKey || "",
+                        resendApiKey: data.resendApiKey || "",
                     });
                 }
             } catch (error) {
@@ -179,6 +181,38 @@ export default function ApiKeysPage() {
                             />
                             <p className="text-[11px] text-muted-foreground font-medium italic mt-2 px-1 opacity-70">
                                 Necessário para rodar o crawler de Google Maps e gerar leads automaticamente em tempo real.
+                            </p>
+                        </div>
+                    </CardContent>
+                </Card>
+
+                {/* E-mail Marketing */}
+                <Card className="border-none shadow-2xl rounded-[32px] overflow-hidden bg-card">
+                    <CardHeader className="bg-zinc-900 text-white p-8">
+                        <div className="flex items-center gap-5">
+                            <div className="h-14 w-14 rounded-2xl bg-white/10 flex items-center justify-center backdrop-blur-xl">
+                                <Mail className="text-blue-400" size={28} />
+                            </div>
+                            <div>
+                                <CardTitle className="text-2xl font-black uppercase tracking-tight leading-tight">E-mail Marketing</CardTitle>
+                                <CardDescription className="text-zinc-400 text-[10px] font-black uppercase tracking-[0.2em] mt-1">Disparo em Massa via Resend</CardDescription>
+                            </div>
+                        </div>
+                    </CardHeader>
+                    <CardContent className="p-8 space-y-8">
+                        <div className="space-y-3">
+                            <Label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground flex items-center gap-2 px-1">
+                                <Mail size={14} className="text-primary" /> Resend API Key
+                            </Label>
+                            <Input 
+                                type="password" 
+                                placeholder="re_..." 
+                                value={keys.resendApiKey}
+                                onChange={(e) => setKeys({...keys, resendApiKey: e.target.value})}
+                                className="rounded-2xl border-border bg-muted/20 h-14 px-5 focus:bg-card focus:ring-2 focus:ring-primary/20 transition-all font-mono"
+                            />
+                            <p className="text-[11px] text-muted-foreground font-medium italic mt-2 px-1 opacity-70">
+                                Necessária para realizar envios de e-mails em massa personalizados de forma direta para seus leads.
                             </p>
                         </div>
                     </CardContent>

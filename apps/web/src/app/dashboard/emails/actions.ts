@@ -1,12 +1,48 @@
 "use server";
 
 import { db } from "@/lib/db";
-import { leads } from "@saas/db";
+import { leads, organizations, users } from "@saas/db";
 import { eq, and, sql, isNotNull } from "drizzle-orm";
 import { auth } from "@clerk/nextjs/server";
 import { OrganizationRepository } from "@/lib/repositories/organization";
 import { ResendService } from "@/lib/services/resend";
 import { revalidatePath } from "next/cache";
+
+/**
+ * Recupera a chave de API do Resend configurada pelo usuário ou pela organização.
+ * Prioridade: vendedor individual > organização global > variável de ambiente.
+ */
+async function getResendApiKey(): Promise<string | null> {
+    const { userId, orgId: clerkOrgId } = await auth();
+    if (!userId || !clerkOrgId) return process.env.RESEND_API_KEY || null;
+
+    try {
+        const org = await db.query.organizations.findFirst({
+            where: eq(organizations.clerkOrgId, clerkOrgId),
+            columns: { id: true, resendApiKey: true },
+        });
+        if (!org) return process.env.RESEND_API_KEY || null;
+
+        const dbUser = await db.query.users.findFirst({
+            where: and(
+                eq(users.clerkUserId, userId),
+                eq(users.organizationId, org.id)
+            ),
+            columns: { role: true, resendApiKey: true },
+        });
+
+        // Vendedor/member: usa chave individual se existir, senão usa da org
+        if (dbUser && (dbUser.role === "vendedor" || dbUser.role === "member")) {
+            return dbUser.resendApiKey || org.resendApiKey || process.env.RESEND_API_KEY || null;
+        }
+
+        // Admin/owner: usa chave da org
+        return org.resendApiKey || process.env.RESEND_API_KEY || null;
+    } catch (error) {
+        console.error("❌ [Email] Erro ao buscar chave do Resend:", error);
+        return process.env.RESEND_API_KEY || null;
+    }
+}
 
 /**
  * Busca todos os leads que possuem e-mail válido da organização.
@@ -50,13 +86,14 @@ export async function sendTestEmail(to: string, subject: string, body: string, f
     if (!clerkOrgId) return { success: false, error: "Não autorizado." };
 
     try {
-        if (!process.env.RESEND_API_KEY) {
-            return { success: false, error: "RESEND_API_KEY não configurada no servidor." };
+        const apiKey = await getResendApiKey();
+        if (!apiKey) {
+            return { success: false, error: "Nenhuma chave do Resend configurada. Vá em Configurações → Chaves de API e adicione sua Resend API Key." };
         }
 
         const html = body.replace(/\n/g, "<br/>");
         const from = fromName ? `${fromName} <onboarding@resend.dev>` : undefined;
-        const result = await ResendService.sendEmail(to, subject, html, from);
+        const result = await ResendService.sendEmail(to, subject, html, from, apiKey);
 
         return result;
     } catch (error: any) {
@@ -79,8 +116,9 @@ export async function sendBulkEmails(
     if (!clerkOrgId) return { success: false, error: "Não autorizado." };
 
     try {
-        if (!process.env.RESEND_API_KEY) {
-            return { success: false, error: "RESEND_API_KEY não configurada no servidor." };
+        const apiKey = await getResendApiKey();
+        if (!apiKey) {
+            return { success: false, error: "Nenhuma chave do Resend configurada. Vá em Configurações → Chaves de API e adicione sua Resend API Key." };
         }
 
         const org = await OrganizationRepository.getByClerkId(clerkOrgId);
@@ -132,7 +170,8 @@ export async function sendBulkEmails(
                     lead.email!, 
                     personalizedSubject, 
                     html, 
-                    from
+                    from,
+                    apiKey
                 );
 
                 if (result.success) {

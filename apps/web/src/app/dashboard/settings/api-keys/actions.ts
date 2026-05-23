@@ -12,6 +12,7 @@ export async function updateApiKeys(data: {
     openrouterApiKey?: string | null;
     apifyApiKey?: string | null;
     elevenlabsApiKey?: string | null;
+    resendApiKey?: string | null;
 }) {
     const { userId, orgId } = await auth();
     if (!userId || !orgId) {
@@ -46,6 +47,7 @@ export async function updateApiKeys(data: {
                 openrouterApiKey: data.openrouterApiKey,
                 apifyApiKey: data.apifyApiKey,
                 elevenlabsApiKey: data.elevenlabsApiKey,
+                resendApiKey: data.resendApiKey,
             })
             .where(eq(users.id, dbUser.id));
     } else {
@@ -57,6 +59,7 @@ export async function updateApiKeys(data: {
                 openrouterApiKey: data.openrouterApiKey,
                 apifyApiKey: data.apifyApiKey,
                 elevenlabsApiKey: data.elevenlabsApiKey,
+                resendApiKey: data.resendApiKey,
             })
             .where(eq(organizations.id, org.id));
     }
@@ -79,6 +82,7 @@ export async function getApiKeys() {
             openrouterApiKey: true,
             apifyApiKey: true,
             elevenlabsApiKey: true,
+            resendApiKey: true,
         }
     });
 
@@ -101,6 +105,7 @@ export async function getApiKeys() {
             openrouterApiKey: dbUser.openrouterApiKey,
             apifyApiKey: dbUser.apifyApiKey,
             elevenlabsApiKey: dbUser.elevenlabsApiKey,
+            resendApiKey: dbUser.resendApiKey,
         };
     }
 

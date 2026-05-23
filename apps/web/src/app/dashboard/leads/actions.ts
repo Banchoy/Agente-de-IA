@@ -464,3 +464,29 @@ export async function getDashboardAnalytics() {
     }
 }
 
+/**
+ * Atualiza o status de contato de um lead.
+ * Usado para marcar leads da Meta como contatados.
+ */
+export async function updateLeadStatus(leadId: string, status: string) {
+    const { orgId: clerkOrgId } = await auth();
+    if (!clerkOrgId) return { success: false, error: "Não autorizado." };
+
+    try {
+        const org = await OrganizationRepository.getByClerkId(clerkOrgId);
+        if (!org) return { success: false, error: "Organização não encontrada." };
+
+        await db.update(leads)
+            .set({ status })
+            .where(and(
+                eq(leads.id, leadId),
+                eq(leads.organizationId, org.id)
+            ));
+
+        revalidatePath("/dashboard");
+        return { success: true };
+    } catch (error: any) {
+        console.error("❌ [Lead Status] Erro:", error);
+        return { success: false, error: error.message };
+    }
+}

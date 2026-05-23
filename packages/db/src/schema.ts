@@ -18,6 +18,7 @@ export const organizations = pgTable("organizations", {
     openrouterApiKey: text("openrouter_api_key"),
     apifyApiKey: text("apify_api_key"),
     elevenlabsApiKey: text("elevenlabs_api_key"),
+    resendApiKey: text("resend_api_key"),
     prospectingConfig: jsonb("prospecting_config").default({}),
     routingConfig: jsonb("routing_config").default({}),
     subscriptionStatus: text("subscription_status").default("trialing"),
@@ -41,6 +42,7 @@ export const users = pgTable("users", {
     openrouterApiKey: text("openrouter_api_key"),
     apifyApiKey: text("apify_api_key"),
     elevenlabsApiKey: text("elevenlabs_api_key"),
+    resendApiKey: text("resend_api_key"),
     createdAt: timestamp("created_at").defaultNow().notNull(),
 }, (table) => {
     return {
@@ -191,6 +193,7 @@ export const metaIntegrations = pgTable("meta_integrations", {
     pixelId: text("pixel_id"),
     webhookVerifyToken: text("webhook_verify_token"),
     fieldMapping: jsonb("field_mapping").default({}),
+    integratedForms: jsonb("integrated_forms").default([]),
     createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 

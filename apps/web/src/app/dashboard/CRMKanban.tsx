@@ -23,7 +23,8 @@ import { CSS } from "@dnd-kit/utilities";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Plus, MoreHorizontal, User, Phone, MessageSquare, Calendar, CheckCircle, XCircle, Search, RefreshCw, Bot, Trash2, ArrowLeftRight, Mail, AlertCircle } from "lucide-react";
+import { Plus, MoreHorizontal, User, Phone, MessageSquare, Calendar, CheckCircle, XCircle, Search, RefreshCw, Bot, Trash2, ArrowLeftRight, Mail, AlertCircle, Clock } from "lucide-react";
+import { updateLeadStatus } from "./leads/actions";
 import LeadDetailsModal from "./LeadDetailsModal";
 import AddLeadModal from "./AddLeadModal";
 import ProspectingModal from "./ProspectingModal";
@@ -81,6 +82,24 @@ function SortableItem({ lead, onClick, onDelete, onColorChange }: {
     const meta = (lead.metaData as any) || {};
     const cardColorClass = meta.cardColor || "";
     const isAiActive = lead.aiActive === "true";
+
+    // Verificar se é lead da Meta
+    const isMetaLead = (lead.source || "").startsWith("Meta:");
+    const isNotContacted = lead.status === "active" && isMetaLead;
+
+    // Calcular tempo relativo
+    const getTimeAgo = (dateStr: string) => {
+        const now = new Date();
+        const date = new Date(dateStr);
+        const diffMs = now.getTime() - date.getTime();
+        const diffMin = Math.floor(diffMs / 60000);
+        if (diffMin < 1) return "agora mesmo";
+        if (diffMin < 60) return `há ${diffMin} min`;
+        const diffHrs = Math.floor(diffMin / 60);
+        if (diffHrs < 24) return `há ${diffHrs}h`;
+        const diffDays = Math.floor(diffHrs / 24);
+        return `há ${diffDays}d`;
+    };
 
     const style = {
         transform: CSS.Transform.toString(transform),
@@ -146,6 +165,34 @@ function SortableItem({ lead, onClick, onDelete, onColorChange }: {
                     <div className="flex items-center gap-1.5 text-[9px] font-black uppercase text-red-600 bg-red-50 px-2 py-1 rounded-md border border-red-100 w-fit mb-2">
                         <XCircle className="w-2.5 h-2.5" />
                         Número Inválido
+                    </div>
+                )}
+
+                {isMetaLead && (
+                    <div className="flex items-center gap-1.5 text-[10px] font-semibold text-blue-600 bg-blue-50 px-2 py-1 rounded-md border border-blue-100 w-fit">
+                        <Clock className="w-3 h-3" />
+                        📥 Recebido {getTimeAgo(lead.createdAt)}
+                    </div>
+                )}
+
+                {isNotContacted && (
+                    <div className="flex items-center justify-between gap-2">
+                        <div className="flex items-center gap-1.5 text-[10px] font-black uppercase text-red-500 bg-red-50 px-2 py-1 rounded-md border border-red-100 animate-pulse">
+                            🔴 Sem Contato
+                        </div>
+                        <button
+                            className="text-[10px] font-bold text-emerald-600 bg-emerald-50 hover:bg-emerald-100 px-2 py-1 rounded-md border border-emerald-200 transition-colors"
+                            onClick={async (e) => {
+                                e.stopPropagation();
+                                const result = await updateLeadStatus(lead.id, "CONTACTED");
+                                if (result.success) {
+                                    window.location.reload();
+                                }
+                            }}
+                            onPointerDown={(e) => e.stopPropagation()}
+                        >
+                            ✅ Marcar Contatado
+                        </button>
                     </div>
                 )}
             </div>
