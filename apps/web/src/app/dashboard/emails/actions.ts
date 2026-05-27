@@ -2,11 +2,12 @@
 
 import { db } from "@/lib/db";
 import { leads, organizations, users } from "@saas/db";
-import { eq, and, sql, isNotNull } from "drizzle-orm";
+import { eq, and, sql, isNotNull, or, isNull } from "drizzle-orm";
 import { auth } from "@clerk/nextjs/server";
 import { OrganizationRepository } from "@/lib/repositories/organization";
 import { ResendService } from "@/lib/services/resend";
 import { revalidatePath } from "next/cache";
+import { withOrgContext } from "@/lib/repositories/base";
 
 /**
  * Recupera a chave de API do Resend configurada pelo usuário ou pela organização.
@@ -48,30 +49,32 @@ async function getResendApiKey(): Promise<string | null> {
  * Busca todos os leads que possuem e-mail válido da organização.
  */
 export async function getLeadsWithEmail() {
-    const { orgId: clerkOrgId } = await auth();
-    if (!clerkOrgId) return [];
-
     try {
-        const org = await OrganizationRepository.getByClerkId(clerkOrgId);
-        if (!org) return [];
-
-        const result = await db.select({
-            id: leads.id,
-            name: leads.name,
-            email: leads.email,
-            phone: leads.phone,
-            source: leads.source,
-            metaData: leads.metaData,
-            outreachStatus: leads.outreachStatus,
-        })
-        .from(leads)
-        .where(and(
-            eq(leads.organizationId, org.id),
-            isNotNull(leads.email),
-            sql`leads.email != ''`
-        ));
-
-        return result;
+        return await withOrgContext(async (tx, org, user) => {
+            let result;
+            if (user?.role === "member" || user?.role === "vendedor") {
+                result = await tx.query.leads.findMany({
+                    where: and(
+                        or(
+                            eq(leads.assignedUserId, user.id),
+                            isNull(leads.assignedUserId)
+                        ),
+                        isNotNull(leads.email),
+                        sql`leads.email != ''`
+                    ),
+                    orderBy: (l: any, { desc }: any) => [desc(l.updatedAt)]
+                });
+            } else {
+                result = await tx.query.leads.findMany({
+                    where: and(
+                        isNotNull(leads.email),
+                        sql`leads.email != ''`
+                    ),
+                    orderBy: (l: any, { desc }: any) => [desc(l.updatedAt)]
+                });
+            }
+            return result;
+        });
     } catch (error) {
         console.error("❌ [Email Actions] Erro ao buscar leads com e-mail:", error);
         return [];
