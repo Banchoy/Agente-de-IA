@@ -83,9 +83,9 @@ function SortableItem({ lead, onClick, onDelete, onColorChange }: {
     const cardColorClass = meta.cardColor || "";
     const isAiActive = lead.aiActive === "true";
 
-    // Verificar se é lead da Meta
-    const isMetaLead = (lead.source || "").startsWith("Meta:");
-    const isNotContacted = lead.status === "active" && isMetaLead;
+    // Verificar se é lead da Meta ou Google Sheets
+    const isMetaOrSheetsLead = (lead.source || "").startsWith("Meta:") || (lead.source || "").startsWith("Google Sheets");
+    const isNotContacted = lead.status === "active" && isMetaOrSheetsLead;
 
     // Calcular tempo relativo
     const getTimeAgo = (dateStr: string) => {
@@ -168,7 +168,7 @@ function SortableItem({ lead, onClick, onDelete, onColorChange }: {
                     </div>
                 )}
 
-                {isMetaLead && (
+                {isMetaOrSheetsLead && (
                     <div className="flex items-center gap-1.5 text-[10px] font-semibold text-blue-600 bg-blue-50 px-2 py-1 rounded-md border border-blue-100 w-fit">
                         <Clock className="w-3 h-3" />
                         📥 Recebido {getTimeAgo(lead.createdAt)}

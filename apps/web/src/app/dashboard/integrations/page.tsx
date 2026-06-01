@@ -15,9 +15,20 @@ import {
     Plug,
     ChevronLeft,
     Info,
+    FileSpreadsheet,
+    Save,
+    Play,
+    Database
 } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { connectMetaAccount, toggleFormIntegration, getFormsForPage } from "./actions";
+import { 
+    connectMetaAccount, 
+    toggleFormIntegration, 
+    getFormsForPage, 
+    getGoogleSheetsConfig, 
+    saveGoogleSheetsConfig, 
+    syncGoogleSheetsNow 
+} from "./actions";
 import { toast } from "sonner";
 
 const META_APP_ID = process.env.NEXT_PUBLIC_META_APP_ID;
@@ -42,6 +53,14 @@ function IntegrationsInner() {
     const [isDemoMode, setIsDemoMode] = useState(true);
     const [runtimeConfig, setRuntimeConfig] = useState<{ appId: string | undefined, appUrl: string | undefined }>({ appId: undefined, appUrl: undefined });
 
+    // Google Sheets Integration States
+    const [sheetsUrl, setSheetsUrl] = useState("");
+    const [sheetsEnabled, setSheetsEnabled] = useState(true);
+    const [sheetsLastSync, setSheetsLastSync] = useState<string | null>(null);
+    const [sheetsError, setSheetsError] = useState<string | null>(null);
+    const [isSavingSheets, setIsSavingSheets] = useState(false);
+    const [isSyncingSheets, setIsSyncingSheets] = useState(false);
+
     // Logs de persistência de env e busca de config real
     useEffect(() => {
         async function loadConfig() {
@@ -57,6 +76,68 @@ function IntegrationsInner() {
         }
         loadConfig();
     }, []);
+
+    // Carregar configurações do Google Sheets no início
+    useEffect(() => {
+        async function loadSheetsConfig() {
+            try {
+                const res = await getGoogleSheetsConfig();
+                if (res.success) {
+                    setSheetsUrl(res.googleSheetsUrl);
+                    setSheetsEnabled(res.googleSheetsEnabled);
+                    setSheetsLastSync(res.googleSheetsLastSync);
+                    setSheetsError(res.googleSheetsError);
+                }
+            } catch (err) {
+                console.error("Erro ao carregar config do Google Sheets:", err);
+            }
+        }
+        loadSheetsConfig();
+    }, []);
+
+    const handleSaveSheetsConfig = async () => {
+        setIsSavingSheets(true);
+        try {
+            const res = await saveGoogleSheetsConfig(sheetsUrl, sheetsEnabled);
+            if (res.success) {
+                toast.success(res.message);
+                setSheetsError(null);
+            }
+        } catch (err: any) {
+            toast.error(err.message || "Erro ao salvar configurações.");
+        } finally {
+            setIsSavingSheets(false);
+        }
+    };
+
+    const handleSyncSheetsNow = async () => {
+        if (!sheetsUrl) {
+            toast.error("Por favor, informe a URL da planilha antes de sincronizar.");
+            return;
+        }
+        setIsSyncingSheets(true);
+        try {
+            const res = await syncGoogleSheetsNow();
+            if (res.success) {
+                toast.success(`Sincronização concluída! ${res.importedCount} novos leads importados.`);
+                setSheetsError(null);
+                // Atualizar dados de config
+                const configRes = await getGoogleSheetsConfig();
+                if (configRes.success) {
+                    setSheetsLastSync(configRes.googleSheetsLastSync);
+                    setSheetsError(configRes.googleSheetsError);
+                }
+            } else {
+                toast.error(res.error || "Erro ao sincronizar planilha.");
+                setSheetsError(res.error || "Erro ao sincronizar.");
+            }
+        } catch (err: any) {
+            toast.error(err.message || "Erro técnico ao sincronizar.");
+            setSheetsError(err.message || "Erro técnico.");
+        } finally {
+            setIsSyncingSheets(false);
+        }
+    };
 
     // Processar retorno do OAuth callback
     useEffect(() => {
@@ -461,6 +542,111 @@ function IntegrationsInner() {
                                 </div>
                             </>
                         )}
+                    </CardContent>
+                </Card>
+
+                {/* Card Google Sheets */}
+                <Card className="border-border shadow-xl rounded-3xl overflow-hidden border-none bg-card">
+                    <CardHeader className="bg-emerald-950 text-white p-8">
+                        <div className="flex items-center justify-between">
+                            <div className="flex items-center gap-4">
+                                <div className="h-14 w-14 rounded-2xl bg-white flex items-center justify-center text-emerald-600">
+                                    <FileSpreadsheet size={32} />
+                                </div>
+                                <div>
+                                    <CardTitle className="text-2xl font-black uppercase tracking-tight">Planilha Google (Google Sheets)</CardTitle>
+                                    <CardDescription className="text-emerald-400/80 font-bold uppercase text-[10px] tracking-widest mt-1">Integração Contínua via Link Público</CardDescription>
+                                </div>
+                            </div>
+                            <Badge className={`rounded-full px-4 h-8 ${sheetsEnabled && sheetsUrl ? "bg-emerald-500 text-white" : "bg-zinc-700 text-zinc-300"} border-none uppercase font-black text-[10px]`}>
+                                {sheetsEnabled && sheetsUrl ? "Ativo" : "Inativo"}
+                            </Badge>
+                        </div>
+                    </CardHeader>
+
+                    <CardContent className="p-8 space-y-6">
+                        <div className="space-y-4">
+                            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+                                <div className="space-y-1">
+                                    <h3 className="text-lg font-black text-foreground uppercase tracking-tight">Configurar Planilha de Leads</h3>
+                                    <p className="text-xs text-muted-foreground font-medium">Insira o link público da sua planilha para importar os leads de forma automatizada.</p>
+                                </div>
+                                <div className="flex items-center gap-2 shrink-0">
+                                    <span className="text-xs font-bold text-muted-foreground">Sincronização Automática (10m)</span>
+                                    <Switch
+                                        checked={sheetsEnabled}
+                                        onCheckedChange={(checked) => setSheetsEnabled(checked)}
+                                        className="data-[state=checked]:bg-emerald-500"
+                                    />
+                                </div>
+                            </div>
+
+                            <div className="flex gap-2">
+                                <div className="relative flex-1">
+                                    <FileSpreadsheet className="absolute left-4 top-1/2 -translate-y-1/2 text-muted-foreground" size={18} />
+                                    <input
+                                        type="text"
+                                        placeholder="https://docs.google.com/spreadsheets/d/.../edit"
+                                        className="w-full rounded-2xl bg-muted/40 border border-border pl-12 pr-4 h-12 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/20 transition-all font-medium"
+                                        value={sheetsUrl}
+                                        onChange={(e) => setSheetsUrl(e.target.value)}
+                                    />
+                                </div>
+                                <Button
+                                    onClick={handleSaveSheetsConfig}
+                                    disabled={isSavingSheets || isLoading}
+                                    className="bg-zinc-900 hover:bg-zinc-800 text-white dark:bg-white dark:text-zinc-900 dark:hover:bg-zinc-100 rounded-2xl h-12 px-6 font-bold uppercase text-xs tracking-wider gap-2 shrink-0 transition-all"
+                                >
+                                    {isSavingSheets ? <RefreshCw className="animate-spin" size={14} /> : <Save size={14} />}
+                                    Salvar
+                                </Button>
+                            </div>
+                        </div>
+
+                        <div className="flex flex-col md:flex-row gap-4 justify-between items-start md:items-center p-4 bg-muted/40 rounded-2xl border border-border/50">
+                            <div className="space-y-1">
+                                <div className="flex items-center gap-2">
+                                    <Database size={14} className="text-emerald-500" />
+                                    <span className="text-xs font-black uppercase text-foreground">Sincronização Sob Demanda</span>
+                                </div>
+                                <p className="text-[11px] text-muted-foreground font-medium">Puxe instantaneamente os leads da planilha a qualquer momento.</p>
+                                {sheetsLastSync && (
+                                    <p className="text-[10px] text-emerald-600 font-bold uppercase tracking-wider">
+                                        Última Sincronização: {new Date(sheetsLastSync).toLocaleString("pt-BR")}
+                                    </p>
+                                )}
+                                {sheetsError && (
+                                    <p className="text-[10px] text-red-500 font-bold">
+                                        ⚠️ Erro: {sheetsError}
+                                    </p>
+                                )}
+                            </div>
+                            <Button
+                                onClick={handleSyncSheetsNow}
+                                disabled={isSyncingSheets || !sheetsUrl}
+                                className="bg-emerald-500 hover:bg-emerald-600 text-white rounded-2xl h-10 px-6 font-black uppercase text-[10px] tracking-widest gap-2 shrink-0 transition-all shadow-md shadow-emerald-500/10"
+                            >
+                                {isSyncingSheets ? <RefreshCw className="animate-spin" size={12} /> : <Play size={12} />}
+                                Sincronizar Agora
+                            </Button>
+                        </div>
+
+                        <div className="p-4 bg-blue-500/5 border border-blue-500/10 rounded-2xl flex gap-3 text-blue-600 dark:text-blue-400">
+                            <Info size={18} className="shrink-0 mt-0.5" />
+                            <div className="text-xs space-y-2 leading-relaxed">
+                                <p className="font-bold">Como compartilhar sua planilha corretamente:</p>
+                                <ol className="list-decimal list-inside space-y-1 font-medium">
+                                    <li>Abra sua planilha no Google Sheets.</li>
+                                    <li>Clique em <strong>Compartilhar</strong> no canto superior direito.</li>
+                                    <li>Em "Acesso geral", altere de "Restrito" para <strong>Qualquer pessoa com o link</strong>.</li>
+                                    <li>Mantenha o papel como <strong>Leitor</strong> ou <strong>Editor</strong>.</li>
+                                    <li>Copie o link do navegador ou o link gerado e cole-o no campo acima.</li>
+                                </ol>
+                                <p className="text-[10px] text-muted-foreground font-semibold mt-1 uppercase tracking-wider">
+                                    Dica: Identificamos colunas com cabeçalhos como Nome, Telefone, WhatsApp, Email, E-mail e Origem de forma automática!
+                                </p>
+                            </div>
+                        </div>
                     </CardContent>
                 </Card>
             </div>

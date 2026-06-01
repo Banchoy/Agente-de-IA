@@ -157,3 +157,71 @@ export async function toggleFormIntegration(formId: string, pageName: string, ac
     return { success: true, message: `${count} leads históricos importados do Facebook!`, count };
 }
 
+/**
+ * Recupera as configurações do Google Sheets da organização.
+ */
+export async function getGoogleSheetsConfig() {
+    const { orgId } = await auth();
+    if (!orgId) throw new Error("Não autorizado");
+
+    const org = await db.query.organizations.findFirst({
+        where: eq(organizations.clerkOrgId, orgId),
+    });
+    if (!org) throw new Error("Organização não encontrada.");
+
+    const config = (org.prospectingConfig as any) || {};
+    return {
+        success: true,
+        googleSheetsUrl: config.googleSheetsUrl || "",
+        googleSheetsEnabled: config.googleSheetsEnabled !== false,
+        googleSheetsLastSync: config.googleSheetsLastSync || null,
+        googleSheetsError: config.googleSheetsError || null
+    };
+}
+
+/**
+ * Salva as configurações de Google Sheets na organização.
+ */
+export async function saveGoogleSheetsConfig(url: string, enabled: boolean) {
+    const { orgId } = await auth();
+    if (!orgId) throw new Error("Não autorizado");
+
+    const org = await db.query.organizations.findFirst({
+        where: eq(organizations.clerkOrgId, orgId),
+    });
+    if (!org) throw new Error("Organização não encontrada.");
+
+    const config = (org.prospectingConfig as any) || {};
+    const updatedConfig = {
+        ...config,
+        googleSheetsUrl: url,
+        googleSheetsEnabled: enabled,
+        googleSheetsError: null
+    };
+
+    await db.update(organizations)
+        .set({ prospectingConfig: updatedConfig })
+        .where(eq(organizations.id, org.id));
+
+    return { success: true, message: "Configurações da planilha salvas com sucesso!" };
+}
+
+/**
+ * Dispara uma sincronização imediata da planilha da organização.
+ */
+export async function syncGoogleSheetsNow() {
+    const { orgId } = await auth();
+    if (!orgId) throw new Error("Não autorizado");
+
+    const org = await db.query.organizations.findFirst({
+        where: eq(organizations.clerkOrgId, orgId),
+    });
+    if (!org) throw new Error("Organização não encontrada.");
+
+    const { GoogleSheetsService } = await import("@/lib/services/google-sheets");
+    const result = await GoogleSheetsService.syncOrganizationSheets(org.id);
+
+    return result;
+}
+
+

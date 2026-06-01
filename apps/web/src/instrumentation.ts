@@ -39,6 +39,18 @@ export async function register() {
                     await PauseService.processResumptions();
                 }, 60 * 1000); // 1 minuto
 
+                // Iniciar a sincronização contínua do Google Sheets a cada 10 minutos
+                console.log("📊 [Instrumentation] Iniciando cron do Google Sheets (10 minutos)...");
+                setInterval(async () => {
+                    try {
+                        const { GoogleSheetsService } = await import('@/lib/services/google-sheets');
+                        await GoogleSheetsService.syncAllOrganizations();
+                    } catch (err) {
+                        console.error("❌ [Instrumentation] Erro no cron de sincronização do Google Sheets:", err);
+                    }
+                }, 10 * 60 * 1000); // 10 minutos
+
+
                 // Iniciar Limpeza de Leads (Arquivamento Supabase) a cada 6 horas
                 console.log("🧹 [Instrumentation] Iniciando cron de limpeza (2 dias)...");
                 setInterval(async () => {
