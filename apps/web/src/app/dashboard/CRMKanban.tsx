@@ -23,11 +23,12 @@ import { CSS } from "@dnd-kit/utilities";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Plus, MoreHorizontal, User, Phone, MessageSquare, Calendar, CheckCircle, XCircle, Search, RefreshCw, Bot, Trash2, ArrowLeftRight, Mail, AlertCircle, Clock } from "lucide-react";
+import { Plus, MoreHorizontal, User, Phone, MessageSquare, Calendar, CheckCircle, XCircle, Search, RefreshCw, Bot, Trash2, ArrowLeftRight, Mail, AlertCircle, Clock, FileSpreadsheet } from "lucide-react";
 import { updateLeadStatus } from "./leads/actions";
 import LeadDetailsModal from "./LeadDetailsModal";
 import AddLeadModal from "./AddLeadModal";
 import ProspectingModal from "./ProspectingModal";
+import GoogleSheetsModal from "./GoogleSheetsModal";
 import { getDashboardAnalytics } from "./leads/actions"; // Apenas o fetch de dados inicial (Server-side)
 import Papa from "papaparse";
 import * as XLSX from "xlsx";
@@ -445,6 +446,7 @@ export default function CRMKanban({ initialLeads = [], initialStages = [] }: { i
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [isAddModalOpen, setIsAddModalOpen] = useState(false);
     const [isProspectingModalOpen, setIsProspectingModalOpen] = useState(false);
+    const [isGoogleSheetsModalOpen, setIsGoogleSheetsModalOpen] = useState(false);
     const [isExporting, setIsExporting] = useState(false);
 
     const sensors = useSensors(
@@ -784,6 +786,14 @@ export default function CRMKanban({ initialLeads = [], initialStages = [] }: { i
                         <Button variant="outline" className="rounded-xl border-border">Importar</Button>
                     </div>
                     <Button
+                        onClick={() => setIsGoogleSheetsModalOpen(true)}
+                        variant="outline"
+                        className="border-emerald-600 text-emerald-600 hover:bg-emerald-50 rounded-xl gap-2"
+                    >
+                        <FileSpreadsheet className="w-4 h-4" />
+                        Planilha Google
+                    </Button>
+                    <Button
                         onClick={() => setIsProspectingModalOpen(true)}
                         disabled={isExporting}
                         variant="outline"
@@ -884,6 +894,11 @@ export default function CRMKanban({ initialLeads = [], initialStages = [] }: { i
             <ProspectingModal 
                 isOpen={isProspectingModalOpen}
                 onClose={() => setIsProspectingModalOpen(false)}
+            />
+
+            <GoogleSheetsModal
+                isOpen={isGoogleSheetsModalOpen}
+                onClose={() => setIsGoogleSheetsModalOpen(false)}
             />
         </div>
     );
