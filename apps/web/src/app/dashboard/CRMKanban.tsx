@@ -127,17 +127,19 @@ function SortableItem({ lead, onClick, onDelete, onColorChange }: {
             </div>
 
             <div className="space-y-2 mb-4">
-                <a
-                    href={`https://wa.me/${lead.phone.replace(/\D/g, '')}`}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    onClick={(e) => e.stopPropagation()}
-                    onPointerDown={(e) => e.stopPropagation()}
-                    className="flex items-center text-xs text-muted-foreground gap-2 hover:text-emerald-600 transition-colors w-fit"
-                >
-                    <Phone className="w-3 h-3" />
-                    {lead.phone}
-                </a>
+                {lead.phone && (
+                    <a
+                        href={`https://wa.me/${lead.phone.replace(/\D/g, '')}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        onClick={(e) => e.stopPropagation()}
+                        onPointerDown={(e) => e.stopPropagation()}
+                        className="flex items-center text-xs text-muted-foreground gap-2 hover:text-emerald-600 transition-colors w-fit"
+                    >
+                        <Phone className="w-3 h-3" />
+                        {lead.phone}
+                    </a>
+                )}
 
                 {lead.email && (
                     <div className="flex items-center text-xs text-muted-foreground gap-2 w-fit">
