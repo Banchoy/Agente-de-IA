@@ -15,6 +15,51 @@ import {
     User, Phone, Sparkles, Plus, Briefcase
 } from "lucide-react";
 
+function getCustomFormResponses(lead: any): Record<string, string> {
+    const responses: Record<string, string> = {};
+    if (!lead || !lead.metaData) return responses;
+
+    const meta = lead.metaData;
+
+    // 1. Se existir form_responses
+    if (meta.form_responses && typeof meta.form_responses === 'object') {
+        Object.entries(meta.form_responses).forEach(([q, a]) => {
+            if (a) responses[q] = String(a);
+        });
+    }
+
+    // 2. Se existir raw_fields (Meta Leads Ads)
+    if (meta.raw_fields && typeof meta.raw_fields === 'object') {
+        Object.entries(meta.raw_fields).forEach(([q, a]) => {
+            if (a) responses[q] = String(a);
+        });
+    }
+
+    // 3. Adicionar campos raiz do metaData (Google Sheets, Excel e CSV)
+    // Filtramos chaves de controle conhecidas e campos comuns
+    const excludedKeys = new Set([
+        "facebook_lead_id", "form_id", "ad_id", "ad_name", "sync_type", 
+        "received_at", "imported_via", "synced_at", "integrated_at", 
+        "raw_fields", "form_responses", "ai_summary", "name", "nome", 
+        "phone", "telefone", "whatsapp", "email", "e-mail", "source", 
+        "origem", "campaign_name", "product", "admin", "income", "credit",
+        "rent", "simulation", "niche", "utm_source", "utm_medium", "utm_campaign"
+    ]);
+
+    Object.entries(meta).forEach(([key, val]) => {
+        if (!excludedKeys.has(key) && val !== null && val !== undefined && val !== "") {
+            if (typeof val === 'string' || typeof val === 'number' || typeof val === 'boolean') {
+                const label = key
+                    .replace(/_/g, ' ')
+                    .replace(/\b\w/g, c => c.toUpperCase());
+                responses[label] = String(val);
+            }
+        }
+    });
+
+    return responses;
+}
+
 interface LeadDetailsModalProps {
     lead: any | null;
     isOpen: boolean;
@@ -27,6 +72,7 @@ export default function LeadDetailsModal({ lead, isOpen, onClose, onSave }: Lead
     const [formData, setFormData] = useState<any>({});
     const [editableSuggestions, setEditableSuggestions] = useState<any[]>([]);
     const [captureTimeLabel, setCaptureTimeLabel] = useState<string>("0");
+    const customResponses = getCustomFormResponses(lead);
 
     useEffect(() => {
         if (lead) {
@@ -234,6 +280,19 @@ export default function LeadDetailsModal({ lead, isOpen, onClose, onSave }: Lead
                                             </div>
                                         </div>
                                     </div>
+                                    {Object.entries(customResponses).length > 0 && (
+                                        <div className="col-span-2 space-y-4 pt-6 border-t border-border mt-2">
+                                            <Label className="text-[10px] font-black uppercase text-muted-foreground tracking-widest block mb-1">Respostas Adicionais da Planilha/Formulário</Label>
+                                            <div className="grid grid-cols-2 gap-4">
+                                                {Object.entries(customResponses).map(([key, val]) => (
+                                                    <div key={key} className="space-y-1 p-3 bg-muted/40 rounded-xl border border-border">
+                                                        <Label className="text-[9px] font-black uppercase text-muted-foreground/80 tracking-widest block">{key}</Label>
+                                                        <p className="text-xs font-bold text-foreground">{val}</p>
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        </div>
+                                    )}
                                 </div>
                             )}
 
@@ -300,13 +359,13 @@ export default function LeadDetailsModal({ lead, isOpen, onClose, onSave }: Lead
                                         </div>
                                         <div className="p-4 bg-muted/40 rounded-2xl border border-border text-xs">
                                             Origem: <span className="font-black text-foreground">{lead.source || "Meta Ads"}</span>
-                                            {lead.metaData?.form_responses && typeof lead.metaData.form_responses === 'object' && (
-                                                <div className="mt-3 space-y-2 pt-3 border-t border-zinc-100">
-                                                    <p className="text-[9px] font-black text-zinc-400 uppercase mb-2">Respostas do Formulário:</p>
-                                                    {Object.entries(lead.metaData.form_responses).map(([q, a]: [string, any]) => (
-                                                        <div key={q} className="bg-white p-2 rounded-lg border border-zinc-100 shadow-sm">
-                                                            <p className="text-[9px] font-bold text-zinc-400">{q}</p>
-                                                            <p className="text-[11px] font-black text-zinc-900">{String(a)}</p>
+                                            {Object.entries(customResponses).length > 0 && (
+                                                <div className="mt-3 space-y-2 pt-3 border-t border-border">
+                                                    <p className="text-[9px] font-black text-muted-foreground uppercase mb-2">Respostas do Formulário:</p>
+                                                    {Object.entries(customResponses).map(([q, a]) => (
+                                                        <div key={q} className="bg-background p-2.5 rounded-xl border border-border shadow-sm">
+                                                            <p className="text-[9px] font-bold text-muted-foreground">{q}</p>
+                                                            <p className="text-xs font-black text-foreground">{a}</p>
                                                         </div>
                                                     ))}
                                                 </div>
