@@ -250,6 +250,22 @@ export default async function AgentDetailsPage({ params }: { params: Promise<{ i
                                 <p className="text-[10px] text-muted-foreground px-1 leading-relaxed lowercase italic">vincule este robô a um número de whatsapp específico.</p>
                             </div>
 
+                            <div className="space-y-3 p-6 bg-background rounded-3xl border-2 border-border border-dashed">
+                                <label htmlFor="outreachMode" className="text-xs font-black text-muted-foreground uppercase tracking-widest px-1">Modo de Operação (Disparos)</label>
+                                <select
+                                    name="outreachMode"
+                                    id="outreachMode"
+                                    defaultValue={config.outreachMode || "1"}
+                                    className="w-full rounded-2xl border border-border bg-card px-5 py-4 text-sm font-bold text-foreground focus:border-primary focus:outline-none transition-all appearance-none cursor-pointer"
+                                >
+                                    <option value="1">Modo 1: Disparo Padrão (Enviar roteiro comercial completo)</option>
+                                    <option value="2">Modo 2: Varredura + Saudação (Checar números e enviar saudação curta)</option>
+                                </select>
+                                <p className="text-[10px] text-muted-foreground px-1 leading-relaxed lowercase italic">
+                                    o modo 2 faz a varredura rápida de whatsapp em "novo lead" (movendo os válidos) e envia apenas saudações curtas ("olá, bom dia/tarde/noite") em "qualificação".
+                                </p>
+                            </div>
+
                             <div className="space-y-6 pt-4 border-t border-border/50">
                                 <label className="flex items-center gap-4 cursor-pointer">
                                     <div className="relative inline-flex items-center">

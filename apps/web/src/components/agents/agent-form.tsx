@@ -120,6 +120,24 @@ export function AgentForm({ availableSessions, freeModels, defaultInstanceName }
                                 ))}
                             </select>
                         </div>
+
+                        <div className="space-y-3 pt-4 border-t border-border/50">
+                            <label htmlFor="outreachMode" className="flex items-center gap-2 text-xs font-black text-muted-foreground uppercase tracking-widest">
+                                Modo de Operação (Disparos)
+                            </label>
+                            <select
+                                name="outreachMode"
+                                id="outreachMode"
+                                defaultValue="1"
+                                className="w-full rounded-xl border border-border bg-background px-5 py-3.5 text-sm font-bold text-foreground focus:border-primary focus:outline-none transition-all shadow-inner appearance-none cursor-pointer"
+                            >
+                                <option value="1">Modo 1: Disparo Padrão (Enviar roteiro comercial completo)</option>
+                                <option value="2">Modo 2: Varredura + Saudação (Checar números e enviar saudação curta)</option>
+                            </select>
+                            <p className="text-[10px] text-muted-foreground px-1 leading-relaxed lowercase italic">
+                                o modo 2 faz a varredura rápida de whatsapp em "novo lead" (movendo os válidos) e envia apenas saudações curtas ("olá, bom dia/tarde/noite") em "qualificação".
+                            </p>
+                        </div>
                     </div>
                 </div>
 

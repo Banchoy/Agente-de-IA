@@ -310,7 +310,29 @@ export const OutreachService = {
 
             // 10. Montar mensagem inicial personalizada
             const { ScriptService } = await import("./script");
-            const messageBody = await ScriptService.getInitialMessage(agent.config || {}, pendingLead);
+            
+            const isModo2 = (agent.config as any)?.outreachMode === "2";
+            const qualificacaoStageId = await CRMRepository.getStageByName(orgId, "Qualificação");
+            const isInQualificacao = pendingLead.stageId === qualificacaoStageId;
+
+            let messageBody = "";
+            let targetStageId: string | null = null;
+
+            if (isModo2 && isInQualificacao) {
+                const spTime = new Date().toLocaleString("en-US", { timeZone: "America/Sao_Paulo" });
+                const hourNow = new Date(spTime).getHours();
+                const timeGreeting = hourNow >= 5 && hourNow < 12 
+                    ? "Olá, bom dia!" 
+                    : hourNow >= 12 && hourNow < 18 
+                    ? "Olá, boa tarde!" 
+                    : "Olá, boa noite!";
+                messageBody = timeGreeting;
+                targetStageId = pendingLead.stageId; // Permanece em Qualificação
+                console.log(`💬 [Outreach - Org ${orgId}] Modo 2 Ativo em Qualificação. Gerando saudação curta: "${messageBody}"`);
+            } else {
+                messageBody = await ScriptService.getInitialMessage(agent.config || {}, pendingLead);
+                targetStageId = await CRMRepository.getStageByName(orgId, "Em Atendimento (IA)");
+            }
 
             // 11. Enviar mensagem usando a sessão do agente
             const sendResult = await WhatsappService.sendText(
@@ -350,9 +372,6 @@ export const OutreachService = {
 
             // Atualizar anti-ban no Redis
             if (redis) await redis.set(redisKey, Date.now().toString(), "EX", 86400);
-
-            // Buscar estágio de atendimento
-            const targetStageId = await CRMRepository.getStageByName(orgId, "Em Atendimento (IA)");
 
             // Atualizar status do lead
             await LeadRepository.updateSystem(pendingLead.id, {

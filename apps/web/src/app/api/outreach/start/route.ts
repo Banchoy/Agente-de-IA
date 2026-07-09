@@ -3,6 +3,7 @@ import { auth } from "@clerk/nextjs/server";
 import { OrganizationRepository } from "@/lib/repositories/organization";
 import { LeadRepository } from "@/lib/repositories/lead";
 import { AgentRepository } from "@/lib/repositories/agent";
+import { CRMRepository } from "@/lib/repositories/crm";
 
 import { db } from "@/lib/db";
 import { whatsappSessions } from "@/lib/db/schema";
@@ -81,6 +82,52 @@ export async function POST(req: Request) {
             return NextResponse.json({ success: false, error: "Nenhum lead elegível com telefone encontrado." });
         }
 
+        const agentConfig = (agent?.config as any) || {};
+        const isModo2 = agentConfig.outreachMode === "2";
+        const novoLeadStageId = await CRMRepository.getStageByName(org.id, "Novo Lead");
+
+        if (isModo2 && stageId === novoLeadStageId) {
+            console.log(`🔍 [API Outreach] Rodando Varredura Rápida (Modo 2). Org: ${org.id} | Leads: ${leadsToContact.length}`);
+            const qualificacaoStageId = await CRMRepository.getStageByName(org.id, "Qualificação");
+            if (!qualificacaoStageId) {
+                return NextResponse.json({ success: false, error: "Estágio de Qualificação não encontrado no CRM." }, { status: 400 });
+            }
+
+            let validCount = 0;
+            let invalidCount = 0;
+
+            for (const lead of leadsToContact) {
+                if (!lead.phone) continue;
+                try {
+                    // Validar número via Baileys
+                    const isValid = await WhatsappService.isValidNumber(org.id, lead.phone);
+                    if (isValid) {
+                        await LeadRepository.update(lead.id, {
+                            stageId: qualificacaoStageId,
+                            outreachStatus: "idle",
+                            lastOutreachAt: new Date()
+                        });
+                        validCount++;
+                    } else {
+                        await LeadRepository.update(lead.id, {
+                            outreachStatus: "failed_invalid_contact"
+                        });
+                        invalidCount++;
+                    }
+                    // Pequeno delay anti-flood/anti-freeze
+                    await new Promise(r => setTimeout(r, 400));
+                } catch (err) {
+                    console.error(`Erro ao varrer lead ${lead.id} (${lead.phone}):`, err);
+                }
+            }
+
+            return NextResponse.json({ 
+                success: true, 
+                scan: true, 
+                count: validCount, 
+                message: `Varredura concluída! ${validCount} leads válidos foram movidos para a Qualificação. ${invalidCount} números inválidos identificados.` 
+            });
+        }
 
         console.log(`🚀 [API Outreach] Iniciando disparos. Org: ${org.id} | Leads: ${leadsToContact.length}`);
 

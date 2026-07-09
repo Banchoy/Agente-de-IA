@@ -21,12 +21,13 @@ export async function createAgent(formData: FormData) {
     const successCase = formData.get("successCase") as string;
     const gender = formData.get("gender") as string || "female";
     const temperature = formData.get("temperature") ? parseFloat(formData.get("temperature") as string) : 0.7;
+    const outreachMode = formData.get("outreachMode") as string || "1";
 
     if (!name || !provider || !model || !systemPrompt) {
         throw new Error("Missing required fields");
     }
 
-    // O withOrgContext já resolve o dbOrg.id para nós no Repositório
+    // O withOrgContext ya resolve o dbOrg.id para nós no Repositório
     await AgentRepository.create({
         name,
         description,
@@ -43,7 +44,8 @@ export async function createAgent(formData: FormData) {
             successCase,
             gender,
             temperature,
-            whatsappResponse: true
+            whatsappResponse: true,
+            outreachMode
         }
     });
 
@@ -70,6 +72,7 @@ export async function updateAgent(id: string, formData: FormData) {
     const marketOportunities = formData.get("marketOportunities") as string;
     const successCase = formData.get("successCase") as string;
     const gender = formData.get("gender") as string || "female";
+    const outreachMode = formData.get("outreachMode") as string || "1";
 
     console.log(`[updateAgent] Updating agent ${id} with instance:`, whatsappInstanceName);
 
@@ -89,7 +92,8 @@ export async function updateAgent(id: string, formData: FormData) {
             temperature,
             testMode,
             testNumber,
-            whatsappResponse
+            whatsappResponse,
+            outreachMode
         }
     });
 
